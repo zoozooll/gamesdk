@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ListPreference
+        android:key="@string/swap_interval_key"
+        android:title="@string/swap_interval_title"
+        android:entries="@array/swap_intervals"
+        android:entryValues="@array/swap_intervals"
+        android:defaultValue="1"/>
+
+    <SwitchPreference
+        android:key="use_affinity"
+        android:title="@string/use_affinity_title"
+        android:summary="@string/use_affinity_summary"/>
+
+</PreferenceScreen>
