@@ -36,7 +36,9 @@ class EGL {
 
     void resetSyncFence(EGLDisplay display);
     bool lastFrameIsComplete(EGLDisplay display);
-    bool setPresentationTime(EGLDisplay display, EGLSurface surface, int32_t swapInterval);
+    bool setPresentationTime(EGLDisplay display,
+                             EGLSurface surface,
+                             std::chrono::steady_clock::time_point time);
 
   private:
     const std::chrono::nanoseconds mRefreshPeriod;

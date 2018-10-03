@@ -61,10 +61,16 @@ void Renderer::start() {
         threadState->isStarted = true;
         requestDraw();
     });
+
+    mHotPocketThread.run([this](HotPocketState *hotPocketState) {
+        hotPocketState->isStarted = true;
+    });
+    spin();
 }
 
 void Renderer::stop() {
     mWorkerThread.run([=](ThreadState *threadState) { threadState->isStarted = false; });
+    mHotPocketThread.run([](HotPocketState *hotPocketState) { hotPocketState->isStarted = false; });
 }
 
 void Renderer::requestDraw() {
@@ -140,6 +146,30 @@ bool Renderer::ThreadState::configHasAttribute(EGLint attribute, EGLint value) {
 
 EGLBoolean Renderer::ThreadState::makeCurrent(EGLSurface surface) {
     return eglMakeCurrent(display, surface, surface, context);
+}
+
+void Renderer::HotPocketState::onSettingsChanged(const Settings * settings) {
+    isEnabled = settings->getHotPocket();
+}
+
+void Renderer::spin() {
+    mHotPocketThread.run([this](HotPocketState *hotPocketState) {
+        if (!hotPocketState->isEnabled || !hotPocketState->isStarted) return;
+        for (int i = 1; i < 1000; ++i) {
+            int value = i;
+            while (value != 1) {
+                if (value == 0) {
+                    ALOGI("This will never run, but hopefully the compiler doesn't notice");
+                }
+                if (value % 2 == 0) {
+                    value /= 2;
+                } else {
+                    value = 3 * value + 1;
+                }
+            }
+        }
+        spin();
+    });
 }
 
 void Renderer::draw(ThreadState *threadState) {

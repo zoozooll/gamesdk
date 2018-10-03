@@ -220,6 +220,9 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
             if (key.equals("use_affinity")) {
                 nSetPreference(key, sharedPreferences.getBoolean(key, true) ? "true" : "false");
                 continue;
+            } else if (key.equals("hot_pocket")) {
+                nSetPreference(key, sharedPreferences.getBoolean(key, false) ? "true" : "false");
+                continue;
             }
             nSetPreference(key, sharedPreferences.getString(key, null));
         }

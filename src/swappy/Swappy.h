@@ -50,8 +50,6 @@ class Swappy {
 
     static bool swap(EGLDisplay display, EGLSurface surface);
 
-    static void sleepModulo(int32_t modulo);
-
     static void init(std::chrono::nanoseconds refreshPeriod,
                      std::chrono::nanoseconds appOffset,
                      std::chrono::nanoseconds sfOffset);
@@ -66,12 +64,13 @@ private:
     void onSettingsChanged();
 
     void handleChoreographer();
-    void wakeClient();
+    std::chrono::nanoseconds wakeClient();
+
+    void startFrame();
+
+    void waitUntil(int32_t frameNumber);
 
     void waitOneFrame();
-
-    // Waits for at least one frame and then until the frame number % swap interval == modulo
-    int32_t waitModulo(int32_t modulo);
 
     // Waits for the next frame, considering both Choreographer and the prior frame's completion
     void waitForNextFrame(EGLDisplay display);
@@ -83,6 +82,9 @@ private:
     // using eglPresentationTimeANDROID
     bool setPresentationTime(EGLDisplay display, EGLSurface surface);
 
+    void updateSwapDuration(std::chrono::nanoseconds duration);
+    std::atomic<std::chrono::nanoseconds> mSwapDuration;
+
     static std::mutex sInstanceMutex;
     static std::unique_ptr<Swappy> sInstance;
 
@@ -90,10 +92,15 @@ private:
 
     std::mutex mWaitingMutex;
     std::condition_variable mWaitingCondition;
+    std::chrono::steady_clock::time_point mCurrentFrameTimestamp = std::chrono::steady_clock::now();
     int32_t mCurrentFrame = 0;
 
     std::mutex mEglMutex;
     std::unique_ptr<EGL> mEgl;
 
+    int32_t mTargetFrame = 0;
+    std::chrono::steady_clock::time_point mPresentationTime = std::chrono::steady_clock::now();
+
+    const std::chrono::nanoseconds mRefreshPeriod;
     std::unique_ptr<ChoreographerFilter> mChoreographerFilter;
 };
