@@ -34,6 +34,60 @@ using namespace std::chrono_literals;
 std::mutex Swappy::sInstanceMutex;
 std::unique_ptr<Swappy> Swappy::sInstance;
 
+void Swappy::init(JNIEnv *env, jobject jactivity) {
+    jclass activityClass = env->FindClass("android/app/NativeActivity");
+    jclass windowManagerClass = env->FindClass("android/view/WindowManager");
+    jclass displayClass = env->FindClass("android/view/Display");
+
+    jmethodID getWindowManager = env->GetMethodID(
+            activityClass,
+            "getWindowManager",
+            "()Landroid/view/WindowManager;");
+
+    jmethodID getDefaultDisplay = env->GetMethodID(
+            windowManagerClass,
+            "getDefaultDisplay",
+            "()Landroid/view/Display;");
+
+    jobject wm = env->CallObjectMethod(jactivity, getWindowManager);
+    jobject display = env->CallObjectMethod(wm, getDefaultDisplay);
+
+    jmethodID getRefreshRate = env->GetMethodID(
+            displayClass,
+            "getRefreshRate",
+            "()F");
+
+    const float refreshRateHz = env->CallFloatMethod(display, getRefreshRate);
+
+    jmethodID getAppVsyncOffsetNanos = env->GetMethodID(
+            displayClass,
+            "getAppVsyncOffsetNanos", "()J");
+
+    const long appVsyncOffsetNanos = env->CallLongMethod(display, getAppVsyncOffsetNanos);
+
+    jmethodID getPresentationDeadlineNanos = env->GetMethodID(
+            displayClass,
+            "getPresentationDeadlineNanos",
+            "()J");
+
+    const long vsyncPresentationDeadlineNanos = env->CallLongMethod(
+            display,
+            getPresentationDeadlineNanos);
+
+    const long ONE_MS_IN_NS = 1000000;
+    const long ONE_S_IN_NS = ONE_MS_IN_NS * 1000;
+
+    const long vsyncPeriodNanos = static_cast<long>(ONE_S_IN_NS / refreshRateHz);
+    const long sfVsyncOffsetNanos =
+            vsyncPeriodNanos - (vsyncPresentationDeadlineNanos - ONE_MS_IN_NS);
+
+    using std::chrono::nanoseconds;
+    Swappy::init(
+            nanoseconds(vsyncPeriodNanos),
+            nanoseconds(appVsyncOffsetNanos),
+            nanoseconds(sfVsyncOffsetNanos));
+}
+
 void Swappy::init(nanoseconds refreshPeriod, nanoseconds appOffset, nanoseconds sfOffset) {
     std::lock_guard<std::mutex> lock(sInstanceMutex);
     if (sInstance) {
