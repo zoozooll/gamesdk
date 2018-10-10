@@ -24,6 +24,8 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+#include <jni.h>
+
 class ChoreographerFilter;
 class EGL;
 
@@ -42,9 +44,7 @@ class Swappy {
            std::chrono::nanoseconds sfOffset,
            ConstructorTag tag);
 
-    static void init(std::chrono::nanoseconds refreshPeriod,
-                     std::chrono::nanoseconds appOffset,
-                     std::chrono::nanoseconds sfOffset);
+    static void init(JNIEnv *env, jobject jactivity);
 
     static void onChoreographer(int64_t frameTimeNanos);
 
@@ -53,6 +53,10 @@ class Swappy {
     static void sleepModulo(int32_t modulo);
 
   private:
+    static void init(std::chrono::nanoseconds refreshPeriod,
+                     std::chrono::nanoseconds appOffset,
+                     std::chrono::nanoseconds sfOffset);
+
     static Swappy *getInstance();
 
     EGL *getEgl();
