@@ -165,7 +165,7 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
 
         // Initialize the native renderer
 
-        nInit(refreshPeriodNanos, appVsyncOffsetNanos, sfVsyncOffsetNanos);
+        nInit();
 
         nSetPreference("refresh_period", String.valueOf(refreshPeriodNanos));
     }
@@ -359,7 +359,7 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
         nClearSurface();
     }
 
-    public native void nInit(long vsyncPeriodNanos, long appVsyncOffsetNanos, long sfVsyncOffsetNanos);
+    public native void nInit();
     public native void nSetSurface(Surface surface, int width, int height);
     public native void nClearSurface();
     public native void nStart();
