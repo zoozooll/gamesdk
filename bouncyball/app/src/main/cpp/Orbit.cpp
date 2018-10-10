@@ -43,14 +43,11 @@ std::string to_string(jstring jstr, JNIEnv *env) {
 extern "C" {
 
 JNIEXPORT void JNICALL
-Java_com_prefabulated_bouncyball_OrbitActivity_nInit(JNIEnv * /* env */, jobject /* this */,
-                                              jlong vsyncPeriodNanos, jlong appVsyncOffsetNanos,
-                                              jlong sfVsyncOffsetNanos) {
+Java_com_prefabulated_bouncyball_OrbitActivity_nInit(JNIEnv *env, jobject activity) {
     // Get the Renderer instance to create it
     Renderer::getInstance();
 
-    Swappy::init(nanoseconds(vsyncPeriodNanos), nanoseconds(appVsyncOffsetNanos),
-                 nanoseconds(sfVsyncOffsetNanos));
+    Swappy::init(env, activity);
 }
 
 JNIEXPORT void JNICALL
