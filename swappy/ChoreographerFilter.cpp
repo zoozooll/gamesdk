@@ -24,10 +24,10 @@
 #include <deque>
 #include <string>
 
-#include "swappy-utils/Log.h"
-#include "swappy-utils/Settings.h"
-#include "swappy-utils/Thread.h"
-#include "swappy-utils/Trace.h"
+#include "Log.h"
+#include "Settings.h"
+#include "Thread.h"
+#include "Trace.h"
 
 using namespace std::chrono_literals;
 using time_point = std::chrono::steady_clock::time_point;

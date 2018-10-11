@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "swappy-utils/Log.h"
+#include "swappy/Log.h"
 
 namespace {
     template<size_t NUM_SEGMENTS>

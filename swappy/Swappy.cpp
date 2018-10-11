@@ -20,9 +20,9 @@
 
 #include <thread>
 
-#include "swappy-utils/Log.h"
-#include "swappy-utils/Settings.h"
-#include "swappy-utils/Trace.h"
+#include "Log.h"
+#include "Settings.h"
+#include "Trace.h"
 
 #include "ChoreographerFilter.h"
 #include "EGL.h"
