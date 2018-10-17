@@ -18,7 +18,7 @@
 
 #define LOG_TAG "Swappy::EGL"
 
-#include "swappy-utils/Log.h"
+#include "Log.h"
 
 using namespace std::chrono_literals;
 
