@@ -24,7 +24,7 @@
 
 #include <EGL/egl.h>
 
-#include "swappy-utils/Thread.h"
+#include "swappy/Thread.h"
 
 #include "WorkerThread.h"
 

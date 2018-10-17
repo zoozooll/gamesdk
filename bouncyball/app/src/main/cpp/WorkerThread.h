@@ -21,8 +21,8 @@
 #include <queue>
 #include <thread>
 
-#include "swappy-utils/Settings.h"
-#include "swappy-utils/Thread.h"
+#include "swappy/Settings.h"
+#include "swappy/Thread.h"
 
 template <class ThreadState>
 class WorkerThread {
