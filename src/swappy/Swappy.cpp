@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "Swappy.h"
+#include <swappy/Swappy.h>
 
 #define LOG_TAG "Swappy"
 

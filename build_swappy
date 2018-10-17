@@ -6,11 +6,20 @@ if [ "$#" -ne 1 ] || [ "$1" == "-h" ]; then
     exit
 fi
 
-cd swappy
-rm -rf $1
-mkdir cmake_$1
-cd cmake_$1
-cmake -DCMAKE_BUILD_TYPE=Release -DANDROID_PLATFORM=android-26 -DANDROID_NDK=$ANDROID_NDK -DCMAKE_CXX_FLAGS= -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$1 -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=./build -B./cmake -H./ ..
-make
-cd ..
-cd ..
+pushd src/swappy
+  rm -rf cmake_$1
+  mkdir cmake_$1
+  pushd cmake_$1
+    cmake \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DANDROID_PLATFORM=android-26 \
+      -DANDROID_NDK=$ANDROID_NDK \
+      -DANDROID_STL=c++_static \
+      -DANDROID_ABI=$1 \
+      -DCMAKE_CXX_FLAGS= \
+      -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=./build -B./cmake -H./ ..
+
+    make
+    mv libswappy_static.a ./build
+  popd
+popd
