@@ -1,0 +1,16 @@
+#!/bin/sh
+[ -z "$ANDROID_NDK" ] && echo "Need to set ANDROID_NDK" && exit 1;
+
+if [ "$#" -ne 1 ] || [ "$1" == "-h" ]; then
+    echo "Usage: `basename $0` [armeabi-v7a | arm64-v8a]"
+    exit
+fi
+
+cd swappy
+rm -rf $1
+mkdir cmake_$1
+cd cmake_$1
+cmake -DCMAKE_BUILD_TYPE=Release -DANDROID_PLATFORM=android-26 -DANDROID_NDK=$ANDROID_NDK -DCMAKE_CXX_FLAGS= -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=$1 -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=./build -B./cmake -H./ ..
+make
+cd ..
+cd ..
