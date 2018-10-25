@@ -155,8 +155,7 @@ Swappy::Swappy(nanoseconds refreshPeriod,
                nanoseconds appOffset,
                nanoseconds sfOffset,
                ConstructorTag /*tag*/)
-    : mRefreshPeriod(refreshPeriod),
-      mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
+    : mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
                                                                  sfOffset - appOffset,
                                                                  [this]() { wakeClient(); })) {
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
