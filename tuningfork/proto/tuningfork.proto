@@ -1,0 +1,36 @@
+syntax = "proto2";
+
+package com.google.tuningfork;
+
+// This is the base annotation with minimal info.
+// The user should extend with their own annotations.
+message Annotation {
+  extensions 1 to max;
+}
+
+// Passed by the user to tuning fork at initialization.
+message Settings {
+  message Histogram {
+    required int32 instrument_key = 1;
+    required float bucket_min = 2;
+    required float bucket_max = 3;
+    required int32 n_buckets = 4;
+  }
+  message AggregationStrategy {
+    enum Submission {
+      TIME_BASED = 1;
+      TICK_BASED = 2;
+    }
+    required Submission method = 1;
+    required int32 intervalms_or_count = 2;
+    required int32 max_instrumentation_keys = 3;
+  }
+  required AggregationStrategy aggregation_strategy = 1;
+  repeated Histogram histograms = 2;
+}
+
+// Created by the user in Play as defaults or as part of an experiment.
+// Sent to the game during initialization.
+message FidelityParams {
+  extensions 1 to max;
+}
