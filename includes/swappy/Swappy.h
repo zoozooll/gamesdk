@@ -52,11 +52,11 @@ class Swappy {
 
     static void sleepModulo(int32_t modulo);
 
-  private:
     static void init(std::chrono::nanoseconds refreshPeriod,
                      std::chrono::nanoseconds appOffset,
                      std::chrono::nanoseconds sfOffset);
 
+private:
     static Swappy *getInstance();
 
     EGL *getEgl();
@@ -84,7 +84,6 @@ class Swappy {
     static std::mutex sInstanceMutex;
     static std::unique_ptr<Swappy> sInstance;
 
-    const std::chrono::nanoseconds mRefreshPeriod;
     std::atomic<int32_t> mSwapInterval{1};
 
     std::mutex mWaitingMutex;
