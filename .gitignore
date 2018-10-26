@@ -1,6 +1,5 @@
 .DS_Store
 
-cmake_*
 **/.idea
 
 **/.gradle
@@ -9,4 +8,7 @@ cmake_*
 **/captures
 **/build
 
+.temp
 .externalNativeBuild
+
+**/gradle/wrapper/
