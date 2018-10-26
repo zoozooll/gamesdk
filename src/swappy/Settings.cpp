@@ -51,6 +51,32 @@ void Settings::setPreference(std::string key, std::string value) {
     notifyListeners();
 }
 
+void Settings::setRefreshPeriod(std::chrono::nanoseconds period) {
+    {
+        std::lock_guard lock(mMutex);
+        mRefreshPeriod = period;
+    }
+    // Notify the listeners without the lock held
+    notifyListeners();
+}
+void Settings::setSwapInterval(uint32_t num_frames) {
+    {
+        std::lock_guard lock(mMutex);
+        mSwapInterval = num_frames;
+    }
+    // Notify the listeners without the lock held
+    notifyListeners();
+}
+void Settings::setUseAffinity(bool tf) {
+    {
+        std::lock_guard lock(mMutex);
+        mUseAffinity = tf;
+    }
+    // Notify the listeners without the lock held
+    notifyListeners();
+}
+
+
 std::chrono::nanoseconds Settings::getRefreshPeriod() const {
     std::lock_guard lock(mMutex);
     return mRefreshPeriod;

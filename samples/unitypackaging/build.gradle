@@ -31,8 +31,8 @@ task createZip(type: Zip) {
         include('*/libandroidgamesdk.so')
         into('android')
     }
-    from('app/src/main/cpp') {
-        include('*.h')
+    from('../../includes/swappy') {
+        include('Swappy_c.h')
         into('include')
     }
     archiveName 'builds.zip'
