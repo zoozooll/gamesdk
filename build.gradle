@@ -1,0 +1,89 @@
+
+import org.gradle.internal.logging.text.StyledTextOutput;
+import org.gradle.internal.logging.text.StyledTextOutputFactory;
+import static org.gradle.internal.logging.text.StyledTextOutput.Style;
+
+defaultTasks 'clean', 'archiveZip'
+
+def getAndroidNDKPath() {
+  return System.getenv("ANDROID_HOME")
+}
+
+ext.tempFolder = '.temp'
+ext.buildFolder = 'build'
+ext.androidNDK = getAndroidNDKPath()
+ext.androidNDKVersion = "26"
+
+println "Build folder: $buildFolder"
+println "Android NDK folder: $androidNDK"
+
+def buildGameSDK(arch, ndkVersion) {
+  def cmakeFolder = project.property('tempFolder') + '/' + arch + '/.cmake'
+  def buildFolder = project.property('buildFolder') + '/libs/' + arch
+
+  mkdir cmakeFolder
+  mkdir buildFolder
+
+  exec {
+    workingDir cmakeFolder
+
+    commandLine "cmake",
+     "$projectDir/src/swappy/",
+     "-DCMAKE_BUILD_TYPE=Release ",
+     "-DANDROID_PLATFORM=android-" + ndkVersion,
+     "-DANDROID_NDK=" + project.property('androidNDK') + " ",
+     "-DANDROID_STL=c++_static ",
+     "-DANDROID_ABI=" + arch,
+     "-DCMAKE_CXX_FLAGS= ",
+     "-DCMAKE_TOOLCHAIN_FILE=" + project.property('androidNDK') + "/build/cmake/android.toolchain.cmake",
+     "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=./"
+  }
+
+  exec {
+    workingDir cmakeFolder
+
+    commandLine "make"
+  }
+
+  copy {
+    from file(cmakeFolder + "/libswappy_static.a")
+    into file(buildFolder + "/libswappy_static.a")
+  }
+  copy {
+    from file(cmakeFolder + "/libswappy.so")
+    into file(buildFolder + "/libswappy.so")
+  }
+}
+
+task clean(type: Delete) {
+  delete project.property('tempFolder')
+  delete project.property('buildFolder')
+}
+
+task build() {
+  def ndkVersion = project.property('androidNDKVersion')
+  buildGameSDK("armeabi-v7a", ndkVersion)
+  buildGameSDK("arm64-v8a", ndkVersion)
+
+  copy {
+    from "$projectDir/includes"
+    into project.property('buildFolder') + '/includes'
+  }
+}
+
+task archiveZip(type: Zip, dependsOn: 'build') {
+  baseName = project.property('buildFolder') + '/gamesdk'
+
+  from fileTree(project.property('buildFolder'))
+  exclude "*.zip"
+
+  into 'gamesdk'
+
+  doLast {
+    def out = services.get(StyledTextOutputFactory).create("ouput")
+
+    out.style(Style.Identifier).text('\nGameSDK zip is in ')
+      .style(Style.ProgressStatus)
+      .println(project.property('buildFolder') + '/gamesdk.zip' );
+  }
+}
