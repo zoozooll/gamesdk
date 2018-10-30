@@ -56,6 +56,8 @@ class Swappy {
                      std::chrono::nanoseconds appOffset,
                      std::chrono::nanoseconds sfOffset);
 
+    static void destroyInstance();
+
 private:
     static Swappy *getInstance();
 

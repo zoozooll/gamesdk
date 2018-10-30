@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <swappy/Swappy.h>
+#include "swappy/Swappy.h"
 
 #define LOG_TAG "Swappy"
 
@@ -142,6 +142,11 @@ Swappy *Swappy::getInstance() {
     return sInstance.get();
 }
 
+void Swappy::destroyInstance() {
+    std::lock_guard<std::mutex> lock(sInstanceMutex);
+    sInstance.reset();
+}
+
 EGL *Swappy::getEgl() {
     static thread_local EGL *egl = nullptr;
     if (!egl) {
@@ -160,6 +165,8 @@ Swappy::Swappy(nanoseconds refreshPeriod,
                                                                  [this]() { wakeClient(); })) {
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 
+    ALOGI("Initialized Swappy with refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld",
+          refreshPeriod.count(), appOffset.count(), sfOffset.count());
     std::lock_guard lock(mEglMutex);
     mEgl = EGL::create(refreshPeriod);
     if (!mEgl) {
