@@ -17,6 +17,10 @@ ext.androidNDKVersion = "26"
 println "Build folder: $buildFolder"
 println "Android NDK folder: $androidNDK"
 
+if (ent.androidNDK == NULL) {
+  throw new GradleException('ANDROID_HOME is not set')
+}
+
 def buildGameSDK(arch, ndkVersion) {
   def cmakeFolder = project.property('tempFolder') + '/' + arch + '/.cmake'
   def buildFolder = project.property('buildFolder') + '/libs/' + arch
