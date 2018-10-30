@@ -16,12 +16,13 @@
 
 #pragma once
 
+#include "Thread.h"
+
 #include <cstdint>
 #include <mutex>
 #include <string>
 #include <vector>
-
-#include "Thread.h"
+#include <chrono>
 
 class Settings {
   private:
@@ -38,6 +39,10 @@ class Settings {
     void addListener(Listener listener);
 
     void setPreference(std::string key, std::string value);
+
+    void setRefreshPeriod(std::chrono::nanoseconds period);
+    void setSwapInterval(uint32_t num_frames);
+    void setUseAffinity(bool);
 
     std::chrono::nanoseconds getRefreshPeriod() const;
     int32_t getSwapInterval() const;
