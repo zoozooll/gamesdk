@@ -25,10 +25,7 @@
 #include <android/native_window.h>
 
 #include "swappy/Log.h"
-#include "swappy/Settings.h"
-#include "swappy/Trace.h"
-
-#include "swappy/Swappy.h"
+#include "swappy/Swappy_c.h"
 
 #include "Circle.h"
 
@@ -177,7 +174,7 @@ void Renderer::draw(ThreadState *threadState) {
 
     Circle::draw(aspectRatio, circles);
 
-    Swappy::swap(threadState->display, threadState->surface);
+    Swappy_swap(threadState->display, threadState->surface);
 
     // If we're still started, request another frame
     requestDraw();
