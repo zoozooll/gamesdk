@@ -14,7 +14,9 @@ add_library( swappy_static
              Swappy.cpp
              Settings.cpp
              Thread.cpp
-             # Add new source files here 
+             Swappy.cpp
+
+             # Add new source files here
              )
 
 set_target_properties( swappy_static PROPERTIES
@@ -24,7 +26,7 @@ add_library( swappy
 
              SHARED
 
-             Swappy.cpp )   # Looks like I need to specify at least one file to build,
+             Swappy_c.cpp)  # Looks like I need to specify at least one file to build,
                             # the result .so size suggests it's including the rest of the
                             # source files from the library
                             # also, removing the target_link to the static library

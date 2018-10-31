@@ -24,8 +24,7 @@
 
 #include "swappy/Log.h"
 #include "swappy/Settings.h"
-
-#include "swappy/Swappy.h"
+#include "swappy/Swappy_c.h"
 
 #include "Renderer.h"
 
@@ -47,7 +46,7 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nInit(JNIEnv *env, jobject activi
     // Get the Renderer instance to create it
     Renderer::getInstance();
 
-    Swappy::init(env, activity);
+    Swappy_init(env, activity);
 }
 
 JNIEXPORT void JNICALL
@@ -79,7 +78,7 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nStop(JNIEnv * /* env */, jobject
 JNIEXPORT void JNICALL
 Java_com_prefabulated_bouncyball_OrbitActivity_nOnChoreographer(JNIEnv * /* env */, jobject /* this */,
                                                          jlong frameTimeNanos) {
-    Swappy::onChoreographer(frameTimeNanos);
+    Swappy_onChoreographer(frameTimeNanos);
 }
 
 JNIEXPORT void JNICALL
