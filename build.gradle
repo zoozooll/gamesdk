@@ -6,7 +6,11 @@ import static org.gradle.internal.logging.text.StyledTextOutput.Style;
 defaultTasks 'clean', 'archiveZip'
 
 def getAndroidNDKPath() {
-  return System.getenv("ANDROID_HOME")
+  def path = System.getenv("ANDROID_HOME")
+  if (path == null) {
+    path = System.getenv("ANDROID_NDK")
+  }
+  return path;
 }
 
 ext.tempFolder = '.temp'
@@ -17,8 +21,8 @@ ext.androidNDKVersion = "26"
 println "Build folder: $buildFolder"
 println "Android NDK folder: $androidNDK"
 
-if (ent.androidNDK == NULL) {
-  throw new GradleException('ANDROID_HOME is not set')
+if (ext.androidNDK == null) {
+  throw new GradleException('Must set ANDROID_HOME or ANDROID_NDK')
 }
 
 def buildGameSDK(arch, ndkVersion) {
