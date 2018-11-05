@@ -16,8 +16,9 @@
 
 #include "swappy/Swappy_c.h"
 #include "swappy/Swappy.h"
-#include "swappy/Settings.h"
-#include "swappy/Thread.h"
+
+#include "Settings.h"
+#include "Thread.h"
 
 #include <chrono>
 
