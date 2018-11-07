@@ -15,7 +15,8 @@
  */
 
 #include "swappy/Swappy_c.h"
-#include "swappy/Swappy.h"
+
+#include "Swappy.h"
 
 #include "Settings.h"
 #include "Thread.h"
