@@ -39,7 +39,21 @@ class Timer {
         : mRefreshPeriod(refreshPeriod),
           mAppToSfDelay(appToSfDelay) {}
 
-    void addTimestamp(time_point point) {
+    // Returns false if we have detected that we have received the same timestamp multiple times
+    // so that the caller can wait for fresh timestamps
+    bool addTimestamp(time_point point) {
+        // Keep track of the previous timestamp and how many times we've seen it to determine if
+        // we've stopped receiving Choreographer callbacks, which would indicate that we should
+        // probably stop until we see them again (e.g., if the app has been moved to the background)
+        if (point == mLastTimestamp) {
+            if (mRepeatCount++ > 5) {
+                return false;
+            }
+        } else {
+            mRepeatCount = 0;
+        }
+        mLastTimestamp = point;
+
         point += mAppToSfDelay;
 
         while (mBaseTime + mRefreshPeriod * 1.5 < point) {
@@ -48,11 +62,13 @@ class Timer {
 
         std::chrono::nanoseconds delta = (point - (mBaseTime + mRefreshPeriod));
         if (delta < -mRefreshPeriod / 2 || delta > mRefreshPeriod / 2) {
-            return;
+            return true;
         }
 
         // TODO: 0.2 weighting factor for exponential smoothing is completely arbitrary
         mBaseTime += mRefreshPeriod + delta * 2 / 10;
+
+        return true;
     }
 
     void sleep(std::chrono::nanoseconds offset) {
@@ -73,6 +89,9 @@ class Timer {
     const std::chrono::nanoseconds mRefreshPeriod;
     const std::chrono::nanoseconds mAppToSfDelay;
     time_point mBaseTime = std::chrono::steady_clock::now();
+
+    time_point mLastTimestamp = std::chrono::steady_clock::now();
+    int32_t mRepeatCount = 0;
 };
 }
 
@@ -157,7 +176,19 @@ void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
         auto timestamp = mLastTimestamp;
         auto workDuration = mWorkDuration;
         lock.unlock();
-        timer.addTimestamp(timestamp);
+
+        // If we have received the same timestamp multiple times, it probably means that the app
+        // has stopped sending them to us, which could indicate that it's no longer running. If we
+        // detect that, we stop until we see a fresh timestamp to avoid spinning forever in the
+        // background.
+        if (!timer.addTimestamp(timestamp)) {
+            lock.lock();
+            mCondition.wait(lock, [=]() { return mLastTimestamp != timestamp; });
+            timestamp = mLastTimestamp;
+            lock.unlock();
+            timer.addTimestamp(timestamp);
+        }
+
         timer.sleep(-workDuration);
         {
             std::unique_lock workLock(mWorkMutex);
