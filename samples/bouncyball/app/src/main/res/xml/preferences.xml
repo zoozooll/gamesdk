@@ -16,4 +16,9 @@
         android:title="@string/use_affinity_title"
         android:summary="@string/use_affinity_summary"/>
 
+    <SwitchPreference
+        android:key="hot_pocket"
+        android:title="@string/hot_pocket_title"
+        android:summary="@string/hot_pocket_summary"/>
+
 </PreferenceScreen>

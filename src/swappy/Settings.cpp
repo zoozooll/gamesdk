@@ -41,6 +41,8 @@ void Settings::setPreference(std::string key, std::string value) {
             mSwapInterval = std::stoi(value);
         } else if (key == "use_affinity") {
             mUseAffinity = (value == "true");
+        } else if (key == "hot_pocket") {
+            mHotPocket = (value == "true");
         } else {
             ALOGI("Can't find matching preference for %s", key.c_str());
             return;
@@ -90,6 +92,11 @@ int32_t Settings::getSwapInterval() const {
 bool Settings::getUseAffinity() const {
     std::lock_guard lock(mMutex);
     return mUseAffinity;
+}
+
+bool Settings::getHotPocket() const {
+    std::lock_guard lock(mMutex);
+    return mHotPocket;
 }
 
 void Settings::notifyListeners() {
