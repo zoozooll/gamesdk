@@ -27,4 +27,7 @@
 
     <string name="use_affinity_title">Use Affinity</string>
     <string name="use_affinity_summary">Allow worker threads to specify their CPU affinity</string>
+
+    <string name="hot_pocket_title">Hot Pocket</string>
+    <string name="hot_pocket_summary">Create a spinning thread to encourage higher frequencies</string>
 </resources>

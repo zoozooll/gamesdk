@@ -97,9 +97,9 @@ bool EGL::lastFrameIsComplete(EGLDisplay display) {
     }
 }
 
-bool EGL::setPresentationTime(EGLDisplay display, EGLSurface surface, int32_t swapInterval) {
-    auto now = std::chrono::steady_clock::now();
-    auto wakeup = (now + swapInterval * mRefreshPeriod).time_since_epoch().count();
-    eglPresentationTimeANDROID(display, surface, wakeup);
+bool EGL::setPresentationTime(EGLDisplay display,
+                              EGLSurface surface,
+                              std::chrono::steady_clock::time_point time) {
+    eglPresentationTimeANDROID(display, surface, time.time_since_epoch().count());
     return EGL_TRUE;
 }

@@ -40,7 +40,7 @@ class Timer {
           mAppToSfDelay(appToSfDelay) {}
 
     void addTimestamp(time_point point) {
-        point -= mAppToSfDelay;
+        point += mAppToSfDelay;
 
         while (mBaseTime + mRefreshPeriod * 1.5 < point) {
             mBaseTime += mRefreshPeriod;
@@ -55,9 +55,13 @@ class Timer {
         mBaseTime += mRefreshPeriod + delta * 2 / 10;
     }
 
-    void sleep() {
+    void sleep(std::chrono::nanoseconds offset) {
+        if (offset < -(mRefreshPeriod / 2) || offset > mRefreshPeriod / 2) {
+            offset = 0ms;
+        }
+
         const auto now = std::chrono::steady_clock::now();
-        auto targetTime = mBaseTime + mRefreshPeriod;
+        auto targetTime = mBaseTime + mRefreshPeriod + offset;
         while (targetTime < now) {
             targetTime += mRefreshPeriod;
         }
@@ -74,7 +78,7 @@ class Timer {
 
 ChoreographerFilter::ChoreographerFilter(std::chrono::nanoseconds refreshPeriod,
                                          std::chrono::nanoseconds appToSfDelay,
-                                         std::function<void()> doWork)
+                                         Worker doWork)
     : mRefreshPeriod(refreshPeriod),
       mAppToSfDelay(appToSfDelay),
       mDoWork(doWork) {
@@ -151,16 +155,17 @@ void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
     std::unique_lock lock(mMutex);
     while (mIsRunning) {
         auto timestamp = mLastTimestamp;
+        auto workDuration = mWorkDuration;
         lock.unlock();
         timer.addTimestamp(timestamp);
-        timer.sleep();
+        timer.sleep(-workDuration);
         {
             std::unique_lock workLock(mWorkMutex);
             const auto now = std::chrono::steady_clock::now();
             if (now - mLastWorkRun > mRefreshPeriod / 2) {
                 // Assume we got here first and there's work to do
                 ScopedTrace trace("doWork");
-                mDoWork();
+                mWorkDuration = mDoWork();
                 mLastWorkRun = now;
             }
         }

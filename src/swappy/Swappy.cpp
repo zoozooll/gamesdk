@@ -117,24 +117,23 @@ bool Swappy::swap(EGLDisplay display, EGLSurface surface) {
 
     swappy->waitForNextFrame(display);
 
-    const bool result = swappy->setPresentationTime(display, surface);
+    const auto swapStart = std::chrono::steady_clock::now();
+
+    bool result = swappy->setPresentationTime(display, surface);
     if (!result) {
         return result;
     }
 
     swappy->resetSyncFence(display);
 
-    return eglSwapBuffers(display, surface) == EGL_TRUE;
-}
+    result = (eglSwapBuffers(display, surface) == EGL_TRUE);
 
-void Swappy::sleepModulo(int32_t modulo) {
-    Swappy *swappy = getInstance();
-    if (!swappy) {
-        ALOGE("Failed to get Swappy instance in sleepUntilNextFrame");
-        return;
-    }
+    swappy->updateSwapDuration(std::chrono::steady_clock::now() - swapStart);
 
-    swappy->waitModulo(modulo);
+    // This is the start of the next frame
+    swappy->startFrame();
+
+    return result;
 }
 
 Swappy *Swappy::getInstance() {
@@ -160,9 +159,10 @@ Swappy::Swappy(nanoseconds refreshPeriod,
                nanoseconds appOffset,
                nanoseconds sfOffset,
                ConstructorTag /*tag*/)
-    : mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
+    : mRefreshPeriod(refreshPeriod),
+      mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
                                                                  sfOffset - appOffset,
-                                                                 [this]() { wakeClient(); })) {
+                                                                 [this]() { return wakeClient(); })) {
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 
     ALOGI("Initialized Swappy with refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld",
@@ -183,18 +183,36 @@ void Swappy::handleChoreographer() {
     mChoreographerFilter->onChoreographer();
 }
 
-void Swappy::wakeClient() {
+std::chrono::nanoseconds Swappy::wakeClient() {
     std::lock_guard<std::mutex> lock(mWaitingMutex);
     ++mCurrentFrame;
+
+    // We're attempting to align with SurfaceFlinger's vsync, but it's always better to be a little
+    // late than a little early (since a little early could cause our frame to be picked up
+    // prematurely), so we pad by an additional millisecond.
+    mCurrentFrameTimestamp = std::chrono::steady_clock::now() + mSwapDuration.load() + 1ms;
     mWaitingCondition.notify_all();
+    return mSwapDuration;
 }
 
-int32_t Swappy::waitModulo(int32_t modulo) {
+void Swappy::startFrame() {
+    TRACE_CALL();
+    const auto [currentFrame, currentFrameTimestamp] = [this] {
+        std::unique_lock<std::mutex> lock(mWaitingMutex);
+        return std::make_tuple(mCurrentFrame, mCurrentFrameTimestamp);
+    }();
+    mTargetFrame = currentFrame + mSwapInterval;
+
+    // We compute the target time as now
+    //   + the presumed time generating the frame on the CPU (1 swap period)
+    //   + the time the buffer will be on the GPU and in the queue to the compositor (1 swap period)
+    mPresentationTime = currentFrameTimestamp + (mSwapInterval * 2) * mRefreshPeriod;
+}
+
+void Swappy::waitUntil(int32_t frameNumber) {
     TRACE_CALL();
     std::unique_lock<std::mutex> lock(mWaitingMutex);
-    const int32_t target = mCurrentFrame + (mSwapInterval - mCurrentFrame % mSwapInterval) + modulo;
-    mWaitingCondition.wait(lock, [&]() { return mCurrentFrame >= target; });
-    return mCurrentFrame;
+    mWaitingCondition.wait(lock, [&]() { return mCurrentFrame >= frameNumber; });
 }
 
 void Swappy::waitOneFrame() {
@@ -205,7 +223,7 @@ void Swappy::waitOneFrame() {
 }
 
 void Swappy::waitForNextFrame(EGLDisplay display) {
-    waitModulo(0);
+    waitUntil(mTargetFrame);
 
     // If the frame hasn't completed yet, go into frame-by-frame slip until it completes
     while (!getEgl()->lastFrameIsComplete(display)) {
@@ -220,5 +238,17 @@ void Swappy::resetSyncFence(EGLDisplay display) {
 
 bool Swappy::setPresentationTime(EGLDisplay display, EGLSurface surface) {
     TRACE_CALL();
-    return getEgl()->setPresentationTime(display, surface, mSwapInterval.load());
+    return getEgl()->setPresentationTime(display, surface, mPresentationTime);
+}
+
+void Swappy::updateSwapDuration(std::chrono::nanoseconds duration) {
+    // TODO: The exponential smoothing factor here is arbitrary
+    mSwapDuration = (mSwapDuration.load() * 4 / 5) + duration / 5;
+
+    // Clamp the swap duration to half the refresh period
+    //
+    // We do this since the swap duration can be a bit noisy during periods such as app startup,
+    // which can cause some stuttering as the smoothing catches up with the actual duration. By
+    // clamping, we reduce the maximum error which reduces the calibration time.
+    if (mSwapDuration.load() > (mRefreshPeriod / 2)) mSwapDuration = mRefreshPeriod / 2;
 }
