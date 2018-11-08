@@ -4,7 +4,7 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Werror -Wthread-safety -D _
 
 # ============== Games SDK
 
-include_directories( ../../../includes ) # Games SDK Public Includes
+include_directories( ../../../include ) # Games SDK Public Includes
 include_directories( ../../../src ) # Games SDK Internal Includes
 
 add_subdirectory(../../../src/swappy ./swappy-output)   # Swappy Library

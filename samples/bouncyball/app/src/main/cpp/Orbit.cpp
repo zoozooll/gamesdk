@@ -24,7 +24,8 @@
 
 #include "swappy/Log.h"
 #include "swappy/Settings.h"
-#include "swappy/Swappy_c.h"
+
+#include "swappy/swappy.h"
 
 #include "Renderer.h"
 

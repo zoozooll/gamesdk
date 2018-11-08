@@ -25,7 +25,8 @@
 #include <android/native_window.h>
 
 #include "swappy/Log.h"
-#include "swappy/Swappy_c.h"
+
+#include "swappy/swappy.h"
 
 #include "Circle.h"
 
