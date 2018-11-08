@@ -22,9 +22,11 @@
 
 class ChoreographerFilter {
   public:
+    using Worker = std::function<std::chrono::nanoseconds()>;
+
     explicit ChoreographerFilter(std::chrono::nanoseconds refreshPeriod,
                                  std::chrono::nanoseconds appToSfDelay,
-                                 std::function<void()> doWork);
+                                 Worker doWork);
     ~ChoreographerFilter();
 
     void onChoreographer();
@@ -49,8 +51,9 @@ class ChoreographerFilter {
 
     std::mutex mWorkMutex;
     std::chrono::steady_clock::time_point mLastWorkRun;
+    std::chrono::nanoseconds mWorkDuration;
 
     const std::chrono::nanoseconds mRefreshPeriod;
     const std::chrono::nanoseconds mAppToSfDelay;
-    const std::function<void()> mDoWork;
+    const Worker mDoWork;
 };

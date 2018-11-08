@@ -47,6 +47,7 @@ class Settings {
     std::chrono::nanoseconds getRefreshPeriod() const;
     int32_t getSwapInterval() const;
     bool getUseAffinity() const;
+    bool getHotPocket() const;
 
   private:
     void notifyListeners();
@@ -58,4 +59,5 @@ class Settings {
         mRefreshPeriod GUARDED_BY(mMutex) = std::chrono::nanoseconds{12'345'678};
     int32_t mSwapInterval GUARDED_BY(mMutex) = 1;
     bool mUseAffinity GUARDED_BY(mMutex) = true;
+    bool mHotPocket GUARDED_BY(mMutex) = false;
 };

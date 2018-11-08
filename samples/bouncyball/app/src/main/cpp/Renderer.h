@@ -80,4 +80,15 @@ class Renderer {
     void draw(ThreadState *threadState);
 
     WorkerThread<ThreadState> mWorkerThread = {"Renderer", Affinity::Odd};
+
+    class HotPocketState {
+      public:
+        void onSettingsChanged(const Settings *);
+
+        bool isEnabled = false;
+        bool isStarted = false;
+    };
+    WorkerThread<HotPocketState> mHotPocketThread = {"HotPocket", Affinity::Even};
+
+    void spin();
 };
