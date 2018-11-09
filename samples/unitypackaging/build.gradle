@@ -32,7 +32,7 @@ task createZip(type: Zip) {
         into('android')
     }
     from('../../includes/swappy') {
-        include('Swappy_c.h')
+        include('swappy.h')
         into('include')
     }
     archiveName 'builds.zip'

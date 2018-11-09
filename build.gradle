@@ -6,36 +6,52 @@ import static org.gradle.internal.logging.text.StyledTextOutput.Style;
 defaultTasks 'clean', 'archiveZip'
 
 def getAndroidNDKPath() {
-  def path = System.getenv("ANDROID_HOME")
-  if (path == null) {
-    path = System.getenv("ANDROID_NDK")
-  }
-  return path;
+  return System.getenv("ANDROID_NDK")
 }
-
+def getAndroidSDKPath() {
+  return System.getenv("ANDROID_HOME")
+}
 ext.tempFolder = '.temp'
 ext.buildFolder = 'build'
 ext.androidNDK = getAndroidNDKPath()
 ext.androidNDKVersion = "26"
+ext.androidSDK = getAndroidSDKPath()
 
-println "Build folder: $buildFolder"
-println "Android NDK folder: $androidNDK"
+if (ext.androidSDK == null) {
+  throw new GradleException('Must set ANDROID_HOME')
+}
 
 if (ext.androidNDK == null) {
-  throw new GradleException('Must set ANDROID_HOME or ANDROID_NDK')
+  ext.androidNDK = ext.androidSDK + '/ndk-bundle'
+  if (!file(ext.androidNDK).exists())
+    throw new GradleException('No NDK found in SDK: must set ANDROID_NDK')
 }
+
+def findCMake() {
+  def cmakes = fileTree(project.property('androidSDK')).matching { include 'cmake/*/bin/cmake' }
+  if (cmakes.size()==0) {
+    throw new GradleException('No cmake found in ' + project.property('androidSDK') + 'cmake')
+  }
+  return cmakes.last();
+}
+
+ext.cmake = findCMake()
+
+println "Build folder: $buildFolder"
+println "Android SDK folder: $androidSDK"
+println "Android NDK folder: $androidNDK"
+println "Using cmake from: $cmake"
 
 def buildGameSDK(arch, ndkVersion) {
   def cmakeFolder = project.property('tempFolder') + '/' + arch + '/.cmake'
   def buildFolder = project.property('buildFolder') + '/libs/' + arch
-
   mkdir cmakeFolder
   mkdir buildFolder
 
   exec {
     workingDir cmakeFolder
 
-    commandLine "cmake",
+    commandLine "$cmake",
      "$projectDir/src/swappy/",
      "-DCMAKE_BUILD_TYPE=Release ",
      "-DANDROID_PLATFORM=android-" + ndkVersion,
@@ -69,23 +85,27 @@ task clean(type: Delete) {
 }
 
 task build() {
+  def includeFolder = project.property('buildFolder') + '/include'
   doFirst {
-    delete project.property('buildFolder') + '/include'
+    delete includeFolder
+    mkdir includeFolder
   }
 
   def ndkVersion = project.property('androidNDKVersion')
   buildGameSDK("armeabi-v7a", ndkVersion)
   buildGameSDK("arm64-v8a", ndkVersion)
 
-  copy {
-    from "$projectDir/include"
-    into project.property('buildFolder') + '/include'
+  doLast {
+    copy {
+      from "$projectDir/include"
+      into includeFolder
+    }
   }
 }
 
 task archiveZip(type: Zip, dependsOn: 'build') {
   baseName = project.property('buildFolder') + '/gamesdk'
-
+  
   from fileTree(project.property('buildFolder'))
   exclude "*.zip"
 
