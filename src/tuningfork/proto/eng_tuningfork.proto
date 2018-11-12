@@ -1,7 +1,9 @@
 syntax = "proto2";
 
+//option optimize_for = LITE_RUNTIME;
+
 import "google/protobuf/descriptor.proto";
-import "proto/tuningfork.proto";
+import "tuningfork.proto";
 
 package com.google.tuningfork;
 
