@@ -1,5 +1,7 @@
 syntax = "proto2";
 
+//option optimize_for = LITE_RUNTIME;
+
 package com.google.tuningfork;
 
 // This is the base annotation with minimal info.
@@ -24,6 +26,7 @@ message Settings {
     required Submission method = 1;
     required int32 intervalms_or_count = 2;
     required int32 max_instrumentation_keys = 3;
+    repeated int32 annotation_enum_size = 4;
   }
   required AggregationStrategy aggregation_strategy = 1;
   repeated Histogram histograms = 2;
