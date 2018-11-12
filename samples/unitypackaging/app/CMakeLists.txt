@@ -10,7 +10,7 @@ set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections" 
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_SOURCE_DIR}/version.script" )
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-s" )
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../includes)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../include)
 
 add_library( androidgamesdk
 
