@@ -1,8 +1,10 @@
 syntax = "proto2";
 
+//option optimize_for = LITE_RUNTIME;
+
 package logs.proto.tuningfork;
 
-import "proto/tuningfork.proto";
+import "tuningfork.proto";
 
 message TuningForkLogEvent {
   // This may be unnecessary given there is a fingerprint in the Clearcut message
