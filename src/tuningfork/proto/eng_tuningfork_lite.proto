@@ -1,0 +1,25 @@
+syntax = "proto2";
+
+option optimize_for = LITE_RUNTIME;
+
+import "google/protobuf/descriptor.proto";
+import "tuningfork.proto";
+
+package com.google.tuningfork;
+
+extend .google.protobuf.MessageOptions {
+  // This option is needed in order to limit the number of possible levels
+  //  and hence the number of histograms recorded.
+  optional int32 max_level_value = 50000;
+};
+
+enum LoadingState {
+  LOADING = 0;
+  NOT_LOADING = 1;
+}
+// This is the base annotation for a game engine like Unity.
+// The user should extend with their own annotations.
+extend Annotation {
+  optional LoadingState loading_state = 1;
+  optional int32 level = 2;
+}

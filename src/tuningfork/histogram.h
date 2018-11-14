@@ -48,7 +48,7 @@ public:
     void Add(Sample dt_ms);
 
     // Reset the histogram
-    void Clear();
+    void Clear(bool autorange = false);
 
     // Get the total number of samples added so far
     size_t Count() const { return count_; }

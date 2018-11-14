@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-#include "../../main/cpp/histogram.h"
+#include "tuningfork/histogram.h"
 
 #include "histogram_test.h"
 
