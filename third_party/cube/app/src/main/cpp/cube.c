@@ -46,8 +46,13 @@
 
 #ifdef ANDROID
 #include "vulkan_wrapper.h"
+#include <android/trace.h>
 #else
 #include <vulkan/vulkan.h>
+
+// The following 2 macros stub-out the Android systrace interface:
+#define ATrace_beginSection(...) ((void)0)
+#define ATrace_endSection(...) ((void)0)
 #endif
 
 #include <vulkan/vk_platform.h>
@@ -1000,14 +1005,17 @@ static void demo_draw(struct demo *demo) {
     VkResult U_ASSERT_ONLY err;
 
     // Ensure no more than FRAME_LAG renderings are outstanding
+    ATrace_beginSection("cube_WaitForFences");
     vkWaitForFences(demo->device, 1, &demo->fences[demo->frame_index], VK_TRUE, UINT64_MAX);
+    ATrace_endSection();
     vkResetFences(demo->device, 1, &demo->fences[demo->frame_index]);
 
     do {
         // Get the index of the next available swapchain image:
-        err =
-            demo->fpAcquireNextImageKHR(demo->device, demo->swapchain, UINT64_MAX,
-                                        demo->image_acquired_semaphores[demo->frame_index], VK_NULL_HANDLE, &demo->current_buffer);
+        ATrace_beginSection("cube_AcquireNextImage");
+        err = demo->fpAcquireNextImageKHR(demo->device, demo->swapchain, UINT64_MAX,
+                                      demo->image_acquired_semaphores[demo->frame_index], VK_NULL_HANDLE, &demo->current_buffer);
+        ATrace_endSection();
 
         if (err == VK_ERROR_OUT_OF_DATE_KHR) {
             // demo->swapchain is out of date (e.g. the window was resized) and
@@ -1052,8 +1060,10 @@ static void demo_draw(struct demo *demo) {
     submit_info.pCommandBuffers = &demo->swapchain_image_resources[demo->current_buffer].cmd;
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &demo->draw_complete_semaphores[demo->frame_index];
+    ATrace_beginSection("cube_QueueSubmit");
     err = vkQueueSubmit(demo->graphics_queue, 1, &submit_info, demo->fences[demo->frame_index]);
     assert(!err);
+    ATrace_endSection();
 
     if (demo->separate_present_queue) {
         // If we are using separate queues, change image ownership to the
@@ -1148,7 +1158,9 @@ static void demo_draw(struct demo *demo) {
         }
     }
 
+    ATrace_beginSection("cube_QueuePresent");
     err = demo->fpQueuePresentKHR(demo->present_queue, &present);
+    ATrace_endSection();
     demo->frame_index += 1;
     demo->frame_index %= FRAME_LAG;
 
