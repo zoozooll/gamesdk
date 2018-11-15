@@ -136,6 +136,79 @@ void DbgMsg(char *fmt, ...) {
 }
 #endif
 
+// Uncomment the following line in order to log events for the first 10 frames:
+//#define ANDROID_LOG_PRESENT_EVENTS
+typedef enum TimingEvent {
+    EVENT_CALLING_ANI = 1,
+    EVENT_CALLED_ANI  = 2,
+    EVENT_CALLING_QS  = 3,
+    EVENT_CALLED_QS   = 4,
+    EVENT_CALLING_QP  = 5,
+    EVENT_CALLED_QP   = 6,
+    EVENT_CALLING_WFF = 7,
+    EVENT_CALLED_WFF  = 8,
+} TimingEvent;
+struct TrackTiming {
+    uint64_t now;
+    uint64_t lastEvent;
+    uint64_t lastANI;
+    uint32_t frame;
+};
+struct TrackTiming timing;
+void InitializeTrackTiming() {
+    timing.now = 0;
+    timing.lastEvent = 0;
+    timing.lastANI = 0;
+    timing.frame = 0;
+}
+void logEvent(TimingEvent event)
+{
+#ifdef ANDROID_LOG_PRESENT_EVENTS
+    timing.now = getTimeInNanoseconds();
+    uint64_t delta = timing.now - timing.lastEvent;
+    uint64_t deltaANI = timing.now - timing.lastANI;
+    if (timing.frame > 30) return;
+    switch (event) {
+        case EVENT_CALLING_ANI:
+            DbgMsg("About to call vkAcquireNextImageKHR at %llu nsec"
+                   " (delta %llu)", timing.now, delta);
+            break;
+        case EVENT_CALLED_ANI:
+            DbgMsg("After calling vkAcquireNextImageKHR at %llu nsec"
+                   " (delta %llu) (delta from last ANI: %llu)",
+                   timing.now, delta, deltaANI);
+            timing.lastANI = timing.now;
+            timing.frame++;
+            break;
+        case EVENT_CALLING_QS:
+            DbgMsg("About to call vkQueueSubmit at         %llu nsec"
+                   " (delta %llu)", timing.now, delta);
+            break;
+        case EVENT_CALLED_QS:
+            DbgMsg("After calling vkQueueSubmit at         %llu nsec"
+                   " (delta %llu)", timing.now, delta);
+            break;
+        case EVENT_CALLING_QP:
+            DbgMsg("About to call vkQueuePresentKHR at     %llu nsec"
+                   " (delta %llu)", timing.now, delta);
+            break;
+        case EVENT_CALLED_QP:
+            DbgMsg("After calling vkQueuePresentKHR at     %llu nsec"
+                   " (delta %llu)", timing.now, delta);
+            break;
+        case EVENT_CALLING_WFF:
+            DbgMsg("About to call vkWaitForFences at       %llu nsec"
+                   " (delta %llu)", timing.now, delta);
+            break;
+        case EVENT_CALLED_WFF:
+            DbgMsg("After calling vkWaitForFences at       %llu nsec"
+                   " (delta %llu)", timing.now, delta);
+            break;
+    }
+    timing.lastEvent = timing.now;
+#endif // ANDROID_LOG_PRESENT_EVENTS
+}
+
 #define GET_INSTANCE_PROC_ADDR(inst, entrypoint)                                                              \
     {                                                                                                         \
         demo->fp##entrypoint = (PFN_vk##entrypoint)vkGetInstanceProcAddr(inst, "vk" #entrypoint);             \
@@ -1005,17 +1078,22 @@ static void demo_draw(struct demo *demo) {
     VkResult U_ASSERT_ONLY err;
 
     // Ensure no more than FRAME_LAG renderings are outstanding
+    logEvent(EVENT_CALLING_WFF);
     ATrace_beginSection("cube_WaitForFences");
     vkWaitForFences(demo->device, 1, &demo->fences[demo->frame_index], VK_TRUE, UINT64_MAX);
     ATrace_endSection();
+    logEvent(EVENT_CALLED_WFF);
+
     vkResetFences(demo->device, 1, &demo->fences[demo->frame_index]);
 
     do {
         // Get the index of the next available swapchain image:
+        logEvent(EVENT_CALLING_ANI);
         ATrace_beginSection("cube_AcquireNextImage");
         err = demo->fpAcquireNextImageKHR(demo->device, demo->swapchain, UINT64_MAX,
                                       demo->image_acquired_semaphores[demo->frame_index], VK_NULL_HANDLE, &demo->current_buffer);
         ATrace_endSection();
+        logEvent(EVENT_CALLED_ANI);
 
         if (err == VK_ERROR_OUT_OF_DATE_KHR) {
             // demo->swapchain is out of date (e.g. the window was resized) and
@@ -1158,9 +1236,12 @@ static void demo_draw(struct demo *demo) {
         }
     }
 
+    logEvent(EVENT_CALLING_QP);
     ATrace_beginSection("cube_QueuePresent");
     err = demo->fpQueuePresentKHR(demo->present_queue, &present);
     ATrace_endSection();
+    logEvent(EVENT_CALLED_QP);
+
     demo->frame_index += 1;
     demo->frame_index %= FRAME_LAG;
 
