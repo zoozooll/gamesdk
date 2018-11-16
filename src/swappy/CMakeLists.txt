@@ -17,6 +17,7 @@ add_library( swappy_static
              STATIC
 
              ChoreographerFilter.cpp
+             ChoreographerThread.cpp
              EGL.cpp
              Swappy.cpp
              Settings.cpp
