@@ -268,17 +268,23 @@ VkResult SwappyVkGoogleDisplayTiming::doQueuePresent(VkQueue                 que
 
 void SwappyVkGoogleDisplayTiming::calculateNextDesiredPresentTime(VkSwapchainKHR swapchain)
 {
+    struct timespec currTime;
+    clock_gettime(CLOCK_MONOTONIC, &currTime);
+    uint64_t currentTime =
+            ((uint64_t) currTime.tv_sec * kBillion) + (uint64_t) currTime.tv_nsec;
+
+
     // Determine the desiredPresentTime:
     if (!mNextDesiredPresentTime) {
-        struct timespec currTime;
-        clock_gettime(CLOCK_MONOTONIC, &currTime);
-        uint64_t currentTime =
-                ((uint64_t)currTime.tv_sec * kBillion) + (uint64_t)currTime.tv_nsec;
         mNextDesiredPresentTime = currentTime + mRefreshDur;
     } else {
         // Look at the timing of past presents, and potentially adjust mNextDesiredPresentTime:
         checkPastPresentTiming(swapchain);
         mNextDesiredPresentTime += mRefreshDur * mInterval;
+
+        // Make sure the calculated time is not before the current time to present
+        if (mNextDesiredPresentTime < currentTime)
+            mNextDesiredPresentTime = currentTime + mRefreshDur;
     }
 }
 
