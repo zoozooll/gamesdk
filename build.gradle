@@ -8,9 +8,11 @@ defaultTasks 'clean', 'archiveZip'
 def getAndroidNDKPath() {
   return System.getenv("ANDROID_NDK")
 }
+
 def getAndroidSDKPath() {
   return System.getenv("ANDROID_HOME")
 }
+
 ext.tempFolder = '.temp'
 ext.buildFolder = 'build'
 ext.androidNDK = getAndroidNDKPath()
@@ -28,8 +30,13 @@ if (ext.androidNDK == null) {
 }
 
 def findCMake() {
+  def cmake = System.getenv("CMAKE");
+  if (cmake != null) {
+    return cmake;
+  }
+
   def cmakes = fileTree(project.property('androidSDK')).matching { include 'cmake/*/bin/cmake' }
-  if (cmakes.size()==0) {
+  if (cmakes.size() == 0) {
     throw new GradleException('No cmake found in ' + project.property('androidSDK') + 'cmake')
   }
   return cmakes.last();
@@ -42,17 +49,12 @@ println "Android SDK folder: $androidSDK"
 println "Android NDK folder: $androidNDK"
 println "Using cmake from: $cmake"
 
-def buildGameSDK(arch, ndkVersion) {
-  def cmakeFolder = project.property('tempFolder') + '/' + arch + '/.cmake'
-  def buildFolder = project.property('buildFolder') + '/libs/' + arch
-  mkdir cmakeFolder
-  mkdir buildFolder
-
+def cmake(projectFolder, cmakeFolder, arch, ndkVersion) {
   exec {
     workingDir cmakeFolder
 
     commandLine "$cmake",
-     "$projectDir/src/swappy/",
+     "$projectFolder",
      "-DCMAKE_BUILD_TYPE=Release ",
      "-DANDROID_PLATFORM=android-" + ndkVersion,
      "-DANDROID_NDK=" + project.property('androidNDK') + " ",
@@ -62,6 +64,20 @@ def buildGameSDK(arch, ndkVersion) {
      "-DCMAKE_TOOLCHAIN_FILE=" + project.property('androidNDK') + "/build/cmake/android.toolchain.cmake",
      "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=./"
   }
+}
+
+def buildGameSDK(arch, ndkVersion) {
+  def cmakeFolder = project.property('tempFolder') + '/' + arch + '/.cmake'
+  def buildFolder = project.property('buildFolder') + '/libs/' + arch
+
+  mkdir cmakeFolder
+  mkdir buildFolder
+
+  exec {
+    commandLine "$cmake", '--version'
+  }
+
+  cmake("$projectDir/src/swappy/", cmakeFolder, arch, ndkVersion)
 
   exec {
     workingDir cmakeFolder
@@ -105,7 +121,7 @@ task build() {
 
 task archiveZip(type: Zip, dependsOn: 'build') {
   baseName = project.property('buildFolder') + '/gamesdk'
-  
+
   from fileTree(project.property('buildFolder'))
   exclude "*.zip"
 
