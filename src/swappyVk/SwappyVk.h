@@ -17,7 +17,11 @@
 #ifndef SWAPPYVK_H
 #define SWAPPYVK_H
 
+#ifndef ANDROID
 #include <vulkan/vulkan.h>
+#else
+#include <vulkan_wrapper.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

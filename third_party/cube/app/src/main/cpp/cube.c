@@ -2270,6 +2270,8 @@ static void demo_prepare(struct demo *demo) {
         assert(!err);
     }
 
+    DbgMsg("graphics_queue_family_index=%u", demo->graphics_queue_family_index);
+
     const VkCommandBufferAllocateInfo cmd = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .pNext = NULL,

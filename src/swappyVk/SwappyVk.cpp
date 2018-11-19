@@ -24,6 +24,7 @@
 #ifdef ANDROID
 #include <mutex>
 #include <pthread.h>
+#include <list>
 #include <android/looper.h>
 #include <android/choreographer.h>
 #include <android/log.h>
@@ -115,6 +116,8 @@ public:
             mPhysicalDevice(physicalDevice), mDevice(device), mRefreshDur(refreshDur),
             mInterval(interval), mSwappyVk(swappyVk), mLibVulkan(libVulkan), mInitialized(false)
     {
+        InitVulkan();
+
         mpfnGetDeviceProcAddr =
                 reinterpret_cast<PFN_vkGetDeviceProcAddr>(
                     dlsym(mLibVulkan, "vkGetDeviceProcAddr"));
@@ -456,12 +459,167 @@ public:
 
     ~SwappyVkGoogleDisplayTimingAndroid() {
         stopChoreographerThread();
+        destroyVkSyncObjects();
     }
 
-    virtual VkResult doQueuePresent(VkQueue                 queue,
-                                    const VkPresentInfoKHR* pPresentInfo) override;
+    virtual bool doGetRefreshCycleDuration(VkSwapchainKHR swapchain,
+                                          uint64_t*      pRefreshDuration) override {
+        bool res = SwappyVkGoogleDisplayTiming::doGetRefreshCycleDuration(swapchain, pRefreshDuration);
+        initializeVkSyncObjects();
+        return res;
+    }
 
+
+
+    virtual VkResult doQueuePresent(VkQueue queue,
+                                    const VkPresentInfoKHR *pPresentInfo) override;
+
+private:
+    VkResult initializeVkSyncObjects();
+    void destroyVkSyncObjects();
+
+    void waitForFenceChoreographer();
+
+    struct VkSync {
+        VkFence fence;
+        VkSemaphore semaphore;
+        VkCommandBuffer command;
+        VkEvent event;
+    };
+
+    std::list<VkSync> mFreeSync;
+    std::list<VkSync> mPendingSync;
+    VkCommandPool mCommandPool;
+
+    static constexpr int MAX_PENDING_FENCES = 1;
 };
+
+VkResult SwappyVkGoogleDisplayTimingAndroid::initializeVkSyncObjects()
+{
+    VkSync sync;
+
+    const VkCommandPoolCreateInfo cmd_pool_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = NULL,
+            .queueFamilyIndex = 0, // adyabr TODO: need to get the queue family index somehow
+            .flags = 0,
+    };
+
+    VkResult res = vkCreateCommandPool(mDevice, &cmd_pool_info, NULL, &mCommandPool);
+    if (res) {
+        ALOGE("vkCreateCommandPool failed %d", res);
+        return res;
+    }
+    const VkCommandBufferAllocateInfo present_cmd_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = NULL,
+            .commandPool = mCommandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+    };
+
+    for(int i = 0; i < MAX_PENDING_FENCES; i++) {
+        VkFenceCreateInfo fence_ci =
+                {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = NULL, .flags = 0};
+
+        res = vkCreateFence(mDevice, &fence_ci, NULL, &sync.fence);
+        if (res) {
+            ALOGE("failed to create fence: %d", res);
+            return res;
+        }
+
+        VkSemaphoreCreateInfo semaphore_ci =
+                {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, .pNext = NULL, .flags = 0};
+
+        res = vkCreateSemaphore(mDevice, &semaphore_ci, NULL, &sync.semaphore);
+        if (res) {
+            ALOGE("failed to create semaphore: %d", res);
+            return res;
+        }
+
+
+        res = vkAllocateCommandBuffers(mDevice, &present_cmd_info, &sync.command);
+        if (res) {
+            ALOGE("vkAllocateCommandBuffers failed %d", res);
+            return res;
+        }
+
+        const VkCommandBufferBeginInfo cmd_buf_info = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .pNext = NULL,
+                .flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+                .pInheritanceInfo = NULL,
+        };
+
+        res = vkBeginCommandBuffer(sync.command, &cmd_buf_info);
+        if (res) {
+            ALOGE("vkAllocateCommandBuffers failed %d", res);
+            return res;
+        }
+
+        VkEventCreateInfo event_info = {
+                .sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO,
+                .pNext = NULL,
+                .flags = 0,
+        };
+
+        res = vkCreateEvent(mDevice, &event_info, NULL, &sync.event);
+        if (res) {
+            ALOGE("vkCreateEvent failed %d", res);
+            return res;
+        }
+
+        vkCmdSetEvent(sync.command, sync.event, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+        res = vkEndCommandBuffer(sync.command);
+        if (res) {
+            ALOGE("vkCreateEvent failed %d", res);
+            return res;
+        }
+
+        mFreeSync.push_back(sync);
+    }
+
+    return VK_SUCCESS;
+}
+
+void SwappyVkGoogleDisplayTimingAndroid::destroyVkSyncObjects() {
+    while (mPendingSync.size() > 0) {
+        VkSync sync = mPendingSync.front();
+        mPendingSync.pop_front();
+        vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE, UINT64_MAX);
+        mFreeSync.push_back(sync);
+    }
+
+    while (mFreeSync.size() > 0) {
+        VkSync sync = mPendingSync.front();
+        mPendingSync.pop_front();
+        vkFreeCommandBuffers(mDevice, mCommandPool, 1, &sync.command);
+        vkDestroyEvent(mDevice, sync.event, NULL);
+        vkDestroySemaphore(mDevice, sync.semaphore, NULL);
+        vkDestroyFence(mDevice, sync.fence, NULL);
+    }
+
+    vkDestroyCommandPool(mDevice, mCommandPool, NULL);
+}
+
+void SwappyVkGoogleDisplayTimingAndroid::waitForFenceChoreographer()
+{
+    std::unique_lock<std::mutex> lock(mWaitingMutex);
+    VkSync sync = mPendingSync.front();
+    mPendingSync.pop_front();
+    ALOGE("wait fence=%llu", sync.fence);
+    mWaitingCondition.wait(lock, [&]() {
+        if (vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE, 0) == VK_TIMEOUT) {
+            AChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+            return false;
+        }
+        return true;
+    });
+
+    vkResetFences(mDevice, 1, &sync.fence);
+    mFreeSync.push_back(sync);
+}
 
 VkResult SwappyVkGoogleDisplayTimingAndroid::doQueuePresent(VkQueue                 queue,
                                                      const VkPresentInfoKHR* pPresentInfo)
@@ -485,11 +643,15 @@ VkResult SwappyVkGoogleDisplayTimingAndroid::doQueuePresent(VkQueue             
             return true;
         });
     }
+
+    if (mPendingSync.size() >= MAX_PENDING_FENCES) {
+        waitForFenceChoreographer();
+    }
+
     clock_gettime(CLOCK_MONOTONIC, &currTime);
     currentTime =
             ((uint64_t) currTime.tv_sec * kBillion) + (uint64_t) currTime.tv_nsec;
     mNextDesiredPresentTime = currentTime + mRefreshDur * mInterval;
-
 
     // Setup the new structures to pass:
     VkPresentTimeGOOGLE pPresentTimes[pPresentInfo->swapchainCount];
@@ -499,12 +661,36 @@ VkResult SwappyVkGoogleDisplayTimingAndroid::doQueuePresent(VkQueue             
     }
     mNextPresentID++;
 
+    VkSync sync = mFreeSync.front();
+    mFreeSync.pop_front();
+    mPendingSync.push_back(sync);
+
+    ALOGE("submit fence=%llu", sync.fence); // adyabr TODO: remove all ALOGE!
+
+    VkPipelineStageFlags pipe_stage_flags;
+    VkSubmitInfo submit_info;
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = NULL;
+    submit_info.pWaitDstStageMask = &pipe_stage_flags;
+    pipe_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    submit_info.waitSemaphoreCount = pPresentInfo->waitSemaphoreCount;
+    submit_info.pWaitSemaphores = pPresentInfo->pWaitSemaphores;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &sync.command;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &sync.semaphore;
+    ret = vkQueueSubmit(queue, 1, &submit_info, sync.fence);
+    if (ret) {
+        ALOGE("Failed to vkQueueSubmit %d", ret);
+        return ret;
+    }
+
     VkPresentTimesInfoGOOGLE presentTimesInfo = {VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE,
                                                  pPresentInfo->pNext, pPresentInfo->swapchainCount,
                                                  pPresentTimes};
     VkPresentInfoKHR replacementPresentInfo = {pPresentInfo->sType, &presentTimesInfo,
-                                               pPresentInfo->waitSemaphoreCount,
-                                               pPresentInfo->pWaitSemaphores,
+                                               1,
+                                               &sync.semaphore,
                                                pPresentInfo->swapchainCount,
                                                pPresentInfo->pSwapchains,
                                                pPresentInfo->pImageIndices, pPresentInfo->pResults};
