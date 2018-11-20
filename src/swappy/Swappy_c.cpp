@@ -37,10 +37,6 @@ bool Swappy_swap(EGLDisplay display, EGLSurface surface) {
     return Swappy::swap(display, surface);
 }
 
-void Swappy_onChoreographer(int64_t frameTimeNanos) {
-    Swappy::onChoreographer(frameTimeNanos);
-}
-
 void Swappy_setRefreshPeriod(uint64_t period_ns) {
     Settings::getInstance()->setRefreshPeriod(std::chrono::nanoseconds(period_ns));
 }

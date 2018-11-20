@@ -25,6 +25,7 @@
 #include "Trace.h"
 
 #include "ChoreographerFilter.h"
+#include "ChoreographerThread.h"
 #include "EGL.h"
 
 using std::chrono::milliseconds;
@@ -97,8 +98,8 @@ void Swappy::init(nanoseconds refreshPeriod, nanoseconds appOffset, nanoseconds 
     sInstance = std::make_unique<Swappy>(refreshPeriod, appOffset, sfOffset, ConstructorTag{});
 }
 
-void Swappy::onChoreographer(int64_t /*frameTimeNanos*/) {
-    Swappy *swappy = getInstance();
+void Swappy::onChoreographer(void* data) {
+    Swappy *swappy = reinterpret_cast<Swappy *>(data);
     if (!swappy) {
         ALOGE("Failed to get Swappy instance in onChoreographer");
         return;
@@ -115,6 +116,7 @@ bool Swappy::swap(EGLDisplay display, EGLSurface surface) {
         return EGL_FALSE;
     }
 
+    swappy->mChoreographerThread->postFrameCallbacks();
     swappy->waitForNextFrame(display);
 
     const auto swapStart = std::chrono::steady_clock::now();
@@ -162,7 +164,9 @@ Swappy::Swappy(nanoseconds refreshPeriod,
     : mRefreshPeriod(refreshPeriod),
       mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
                                                                  sfOffset - appOffset,
-                                                                 [this]() { return wakeClient(); })) {
+                                                                 [this]() { return wakeClient(); })),
+      mChoreographerThread(std::make_unique<ChoreographerThread>(std::bind(onChoreographer, this))) {
+
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 
     ALOGI("Initialized Swappy with refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld",
