@@ -317,18 +317,6 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
 
         long now = System.nanoTime();
 
-        // Call down to the engine first to avoid delays
-        mChoreographerExecutor.execute(() -> {
-            nOnChoreographer(frameTimeNanos);
-            mUIThreadHandler.postAtFrontOfQueue(() -> {
-                if (mIsRunning) {
-                    Trace.beginSection("Requesting callback");
-                    Choreographer.getInstance().postFrameCallback(this);
-                    Trace.endSection();
-                }
-            });
-        });
-
         long arrivalDelta = now - mLastArrivalTime;
         long timestampDelta = now - mLastFrameTimestamp;
         mLastArrivalTime = now;
@@ -367,7 +355,6 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
     public native void nClearSurface();
     public native void nStart();
     public native void nStop();
-    public native void nOnChoreographer(long frameTimeNanos);
     public native void nSetPreference(String key, String value);
 
     private MenuItem mInfoOverlayButton;

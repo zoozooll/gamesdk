@@ -77,12 +77,6 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nStop(JNIEnv * /* env */, jobject
 }
 
 JNIEXPORT void JNICALL
-Java_com_prefabulated_bouncyball_OrbitActivity_nOnChoreographer(JNIEnv * /* env */, jobject /* this */,
-                                                         jlong frameTimeNanos) {
-    Swappy_onChoreographer(frameTimeNanos);
-}
-
-JNIEXPORT void JNICALL
 Java_com_prefabulated_bouncyball_OrbitActivity_nSetPreference(JNIEnv *env, jobject /* this */,
                                                          jstring key, jstring value) {
     Settings::getInstance()->setPreference(to_string(key, env), to_string(value, env));
