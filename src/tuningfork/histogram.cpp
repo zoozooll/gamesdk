@@ -118,10 +118,10 @@ void Histogram::Fill(TuningForkHistogram *h) const {
     }
 }
 
-void Histogram::Clear() {
+void Histogram::Clear(bool autorange) {
     std::fill(buckets_.begin(), buckets_.end(), 0);
     samples_.clear();
-    auto_range_ = true;
+    auto_range_ = autorange;
     count_ = 0;
 }
 
