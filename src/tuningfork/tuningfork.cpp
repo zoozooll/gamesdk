@@ -16,7 +16,7 @@
 #include "histogram.h"
 #include "prong.h"
 #include "uploadthread.h"
-#include "Trace.h"
+#include "swappy/Trace.h"
 
 #include "tuningfork.pb.h"
 #include "tuningfork_clearcut_log.pb.h"
@@ -30,6 +30,7 @@
 #include <sstream>
 
 
+#define LOG_INFO(MSG) __android_log_print(ANDROID_LOG_INFO, "TuningFork", MSG )
 #define LOG_ERROR(MSG) __android_log_print(ANDROID_LOG_ERROR, "TuningFork", MSG )
 
 /* Annotations come into tuning fork as a serialized protobuf. The protobuf can only have
@@ -99,14 +100,15 @@ private:
 public:
     TuningForkImpl(const Settings &settings,
                    Backend *backend,
-                   ITimeProvider *time_provider_) : settings_(settings),
+                   ITimeProvider *time_provider) : settings_(settings),
                                                     trace_(Trace::create()),
                                                     backend_(backend),
                                                     upload_thread_(backend),
                                                     current_annotation_id_(0),
-                                                    time_provider_(time_provider_) {
-        if (time_provider_ == nullptr)
+                                                    time_provider_(time_provider) {
+        if (time_provider_ == nullptr) {
             time_provider_ = s_mono_time_provider.get();
+        }
         last_submit_time_ns_ = time_provider_->NowNs();
 
         InitHistogramSettings();
@@ -126,6 +128,8 @@ public:
         current_prong_cache_ = prong_caches_[0].get();
         live_traces_.resize(max_num_prongs_);
         for (auto &t: live_traces_) t = TimePoint::min();
+
+        LOG_INFO("TuningFork initialized");
     }
 
     ~TuningForkImpl() {
@@ -147,6 +151,7 @@ public:
 
     void EndTrace(TraceHandle);
 
+    void Debug(std::string);
 private:
     Prong *TickNanos(uint64_t compound_id, TimePoint t);
 
@@ -191,8 +196,9 @@ bool GetFidelityParameters(ProtobufSerialization &params, size_t timeout_ms) {
 void FrameTick(InstrumentationKey id) {
     if (!s_impl) {
         LOG_ERROR("Failed to get TuningFork instance");
-    } else
+    } else {
         s_impl->FrameTick(id);
+    }
 }
 
 void FrameDeltaTimeNanos(InstrumentationKey id, Duration dt) {
@@ -337,10 +343,13 @@ void TuningForkImpl::EndTrace(TraceHandle h) {
         TraceNanos(h, time_provider_->NowNs() - i);
     live_traces_[h] = TimePoint::min();
 }
+void TuningForkImpl::Debug(std::string s) {
+    __android_log_print(ANDROID_LOG_INFO, "TuningFork", "%p Debug %s %p %p",
+        this, s.c_str(), trace_.get(), time_provider_);
+}
 
 void TuningForkImpl::FrameTick(InstrumentationKey key) {
     trace_->beginSection("TFTick");
-
     auto t = time_provider_->NowNs();
     auto compound_id = MakeCompoundId(key, current_annotation_id_);
     auto p = TickNanos(compound_id, t);
