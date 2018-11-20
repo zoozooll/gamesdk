@@ -14,7 +14,7 @@
 
 #include "tuningfork_test.h"
 
-#include "../../main/cpp/tuningfork.h"
+#include "tuningfork/tuningfork.h"
 
 #include "tuningfork.pb.h"
 #include "tuningfork_clearcut_log.pb.h"

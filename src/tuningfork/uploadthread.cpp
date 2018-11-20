@@ -26,8 +26,12 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
     std::string s;
     evt.SerializeToString(&s);
 #else
+#ifdef PROTOBUF_FULL
     // This doesn't work for protobuf-lite
     std::string s = evt.DebugString();
+#else
+#error("One of PROTOBUF_LITE or PROTOBUF_FULL must be set")
+#endif
 #endif
     __android_log_print(ANDROID_LOG_INFO, "TuningFork", "%s", s.c_str());
     return true;
