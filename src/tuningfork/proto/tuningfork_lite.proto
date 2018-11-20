@@ -1,5 +1,7 @@
 syntax = "proto2";
 
+option optimize_for = LITE_RUNTIME;
+
 package com.google.tuningfork;
 
 // This is the base annotation with minimal info.
