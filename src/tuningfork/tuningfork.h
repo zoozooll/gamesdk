@@ -15,10 +15,16 @@
 #ifndef TUNINGFORK_TUNINGFORK_H
 #define TUNINGFORK_TUNINGFORK_H
 
+#ifdef PROTOBUF_NANO
+#include "pb_encode.h"
+#include "pb_decode.h"
+#endif
+
 #include <stdint.h>
 #include <string>
 #include <chrono>
 #include <vector>
+#include <android/log.h>
 
 namespace tuningfork {
 
@@ -30,27 +36,32 @@ enum {
 
 typedef std::vector<uint8_t> ProtobufSerialization;
 
-template <typename T>
-bool SerializationToProtobuf(const ProtobufSerialization &ser, T &pb) {
-    return pb.ParseFromArray(ser.data(), ser.size());
-}
-template <typename T>
-bool ProtobufToSerialization(const T &pb, ProtobufSerialization &ser) {
-    ser.resize(pb.ByteSize());
-    return pb.SerializeToArray(ser.data(), ser.size());
-}
-template <typename T>
-ProtobufSerialization Serialize(const T &pb) {
-    ProtobufSerialization ser(pb.ByteSize());
-    pb.SerializeToArray(ser.data(), ser.size());
-    return ser;
-}
-
 // The instrumentation key identifies a tick point within a frame or a trace segment
 typedef uint16_t InstrumentationKey;
 typedef uint64_t TraceHandle;
 typedef std::chrono::steady_clock::time_point TimePoint;
 typedef std::chrono::steady_clock::duration Duration;
+
+struct Settings {
+    struct AggregationStrategy {
+        enum Submission {
+            TICK_BASED,
+            TIME_BASED
+        };
+        Submission method;
+        int32_t intervalms_or_count;
+        int32_t max_instrumentation_keys;
+        std::vector<int> annotation_enum_size;
+    };
+    struct Histogram {
+        int32_t instrument_key;
+        float bucket_min;
+        float bucket_max;
+        int32_t n_buckets;
+    };
+    AggregationStrategy aggregation_strategy;
+    std::vector<Histogram> histograms;
+};
 
 class Backend {
 public:

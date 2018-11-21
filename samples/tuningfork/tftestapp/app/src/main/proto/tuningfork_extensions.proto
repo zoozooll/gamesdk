@@ -1,7 +1,5 @@
 syntax = "proto2";
 
-//option optimize_for = LITE_RUNTIME;
-
 import "tuningfork.proto";
 
 enum Level {
@@ -12,4 +10,15 @@ enum Level {
 
 extend com.google.tuningfork.Annotation {
   optional Level level = 1;
+}
+
+enum LOD {
+  LOD_1 = 1;
+  LOD_2 = 2;
+  LOD_3 = 3;
+  LOD_4 = 4;
+};
+
+extend com.google.tuningfork.FidelityParams {
+  optional LOD lod = 1;
 }
