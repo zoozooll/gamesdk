@@ -12,34 +12,24 @@
  * limitations under the License.
  */
 
-#include <sstream>
 #include "uploadthread.h"
+#include "clearcutserializer.h"
 
 namespace tuningfork {
 
 DebugBackend::~DebugBackend() {}
 
 bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
-    TuningForkLogEvent evt;
-    SerializationToProtobuf(evt_ser, evt);
-#ifdef PROTOBUF_LITE
     std::string s;
-    evt.SerializeToString(&s);
-#else
-#ifdef PROTOBUF_FULL
-    // This doesn't work for protobuf-lite
-    std::string s = evt.DebugString();
-#else
-#error("One of PROTOBUF_LITE or PROTOBUF_FULL must be set")
-#endif
-#endif
+    s = "<nano/>"; // TODO: pb_decode and output
     __android_log_print(ANDROID_LOG_INFO, "TuningFork", "%s", s.c_str());
     return true;
 }
 
 bool DebugBackend::GetFidelityParams(ProtobufSerialization &fp_ser, size_t timeout_ms) {
     FidelityParams fpDefault;
-    ProtobufToSerialization(fpDefault, fp_ser);
+    // TODO: put some dummy params here for testing
+    fp_ser.clear();
     return true;
 };
 
@@ -81,8 +71,12 @@ void UploadThread::Stop() {
 void UploadThread::Run() {
     while (!do_quit_) {
         std::unique_lock<std::mutex> lock(mutex_);
-        if (ready_)
-            ProcessHistogramCache();
+        if (ready_) {
+            ProtobufSerialization evt_ser;
+            ClearcutSerializer::SerializeEvent(*ready_, current_fidelity_params_, evt_ser);
+            backend_->Process(evt_ser);
+            ready_ = nullptr;
+        }
         cv_.wait_for(lock, std::chrono::milliseconds(1000));
     }
 }
@@ -100,15 +94,4 @@ bool UploadThread::Submit(const ProngCache *prongs) {
         return false;
 }
 
-void UploadThread::ProcessHistogramCache() {
-
-    TuningForkLogEvent evt;
-    SerializationToProtobuf(current_fidelity_params_, *evt.mutable_fidelityparams());
-    ready_->FillHistograms(evt);
-    ProtobufSerialization evt_ser;
-    ProtobufToSerialization(evt, evt_ser);
-    backend_->Process(evt_ser);
-    ready_ = nullptr;
-}
-
-}
+} // namespace tuningfork {
