@@ -1,4 +1,19 @@
-#include "device_info.h"
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+ #include "device_info/device_info.h"
+ #include "frameworks/opt/gamesdk/include/device_info/device_info.pb.h"
 
 namespace {
 typedef int64_t int64;
@@ -58,9 +73,9 @@ void splitAdd(const std::string& toSplit, char delimeter,
 }  // namespace string_util
 
 std::vector<std::string> readHardware() {
-  std::vector<std::string> result;
   std::ifstream f("/proc/cpuinfo");
-  if (f.fail()) return result;
+  if (f.fail()) return std::vector<std::string>{"ERROR"};
+  std::vector<std::string> result;
   const std::string FIELD_KEY = "Hardware\t: ";
   std::string line;
   while (std::getline(f, line)) {
@@ -549,9 +564,7 @@ void addGlConstsV3_2(device_info::gl& gl) {
 }  // namespace
 
 namespace device_info {
-device_info::root createProto() {
-  device_info::root proto;
-
+void createProto(device_info::root& proto) {
   int cpuIndexMax = readCpuIndexMax();
   proto.set_cpu_max_index(cpuIndexMax);
 
@@ -631,7 +644,16 @@ device_info::root createProto() {
   }
 
   flushGlErrors();
-
-  return proto;
 }
+
+std::string getDebugString() {
+  device_info::root proto;
+  createProto(proto);
+
+  std::string output;
+  output.append("renderer = ");
+  output.append(proto.gl().renderer());
+  return output;
+}
+
 }  // namespace device_info
