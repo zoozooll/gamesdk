@@ -1,17 +1,15 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-# PROTOBUF_VARIANT must be set to FULL, LITE or BOTH
-# The LITE version uses the *_lite.proto files with
-# option optimize_for = LITE_RUNTIME;
 if( NOT DEFINED PROTOBUF_VARIANT)
   message(FATAL_ERROR "PROTOBUF_VARIANT not defined")
-endif()
-if( NOT DEFINED PROTOBUF_SRC_DIR)
-  message(FATAL_ERROR "PROTOBUF_SRC_DIR not defined")
 endif()
 if( NOT DEFINED PROTOBUF_INSTALL_DIR)
   message(FATAL_ERROR "PROTOBUF_INSTALL_DIR not defined")
 endif()
+if( NOT DEFINED PROTOBUF_SRC_DIR)
+  message(FATAL_ERROR "PROTOBUF_SRC_DIR not defined")
+endif()
+set( PROTOBUF_NANO_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../external/nanopb-c")
 
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS -Os -fPIC" )
@@ -39,31 +37,48 @@ function(extra_pb_link_options libname)
   set_link_options(${libname} protobuf_version.script)
 endfunction()
 
+function(extra_pb_nano_link_options libname)
+  set_link_options(${libname} protobuf_nano_version.script)
+endfunction()
+
 
 include_directories(${PROTOBUF_SRC_DIR})
+include_directories(${PROTOBUF_NANO_SRC_DIR})
 include_directories( ../../include )
 include_directories( ../../src/swappy )
 include_directories( ../)
 
 set(_PROTO_GENS_DIR ${CMAKE_BINARY_DIR}/gens)
 set(PROTO_GENS_DIR ${_PROTO_GENS_DIR} PARENT_SCOPE)
-file(MAKE_DIRECTORY ${_PROTO_GENS_DIR})
+file(MAKE_DIRECTORY ${_PROTO_GENS_DIR}/full)
+file(MAKE_DIRECTORY ${_PROTO_GENS_DIR}/lite)
+file(MAKE_DIRECTORY ${_PROTO_GENS_DIR}/nano)
 set(_PROTOC_EXECUTABLE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
 
-function(protobuf_generate_cpp)
+function(protobuf_generate_base)
   if(NOT ARGN)
     message(SEND_ERROR "Error: PROTOBUF_GENERATE_CPP() called without any proto files")
     return()
   endif()
 
+  set(_extension ${ARGV0})
+  set(_out_opt ${ARGV1})
+  set(_extra_opts ${ARGV2})
+  set(_gens_subdir ${ARGV3})
+  set(_working_dir ${ARGV4})
+  list(REMOVE_AT ARGN 0)
+  list(REMOVE_AT ARGN 0)
+  list(REMOVE_AT ARGN 0)
+  list(REMOVE_AT ARGN 0)
+  list(REMOVE_AT ARGN 0)
+
   set(_protobuf_include_path -I .)
-  set(_working_dir ${ARGV0})
-  set(_PROTO_GENS_DIR ${CMAKE_BINARY_DIR}/gens)
+  set(_PROTO_GENS_DIR ${CMAKE_BINARY_DIR}/gens${_gens_subdir})
   set(_PROTOC_EXECUTABLE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
   message(STATUS "_working_dir=${_working_dir}")
   message(STATUS "_PROTO_GENS_DIR=${_PROTO_GENS_DIR}")
+  message(STATUS "_extension=${_extension}")
   message(STATUS "_PROTOC_EXECUTABLE=${_PROTOC_EXECUTABLE}")
-  list(REMOVE_AT ARGN 0)
   foreach(FIL ${ARGN})
     message(STATUS "FIL=${FIL}")
     get_filename_component(ABS_FIL ${FIL} ABSOLUTE)
@@ -78,10 +93,11 @@ function(protobuf_generate_cpp)
     message(STATUS "RELFIL_WE=${RELFIL_WE}")
 
     add_custom_command(
-      OUTPUT "${_PROTO_GENS_DIR}${RELFIL_WE}.pb.cc"
+      OUTPUT "${_PROTO_GENS_DIR}${RELFIL_WE}.pb.${_extension}"
              "${_PROTO_GENS_DIR}${RELFIL_WE}.pb.h"
       COMMAND ${_PROTOC_EXECUTABLE}
-      ARGS --cpp_out=${_PROTO_GENS_DIR}
+      ARGS ${_out_opt}=${_PROTO_GENS_DIR}
+           ${_extra_opts}
            ${_protobuf_include_path}
            ${REL_FIL}
       DEPENDS ${ABS_FIL} ${_PROTOC_EXECUTABLE}
@@ -91,8 +107,22 @@ function(protobuf_generate_cpp)
 
       message(STATUS "${_PROTO_GENS_DIR}${RELFIL_WE}.pb.*")
 
-    set_source_files_properties("${_PROTO_GENS_DIR}${RELFIL_WE}.pb.cc" "${_PROTO_GENS_DIR}${RELFIL_WE}.pb.h" PROPERTIES GENERATED TRUE)
+    set_source_files_properties("${_PROTO_GENS_DIR}${RELFIL_WE}.pb.${_extension}" "${_PROTO_GENS_DIR}${RELFIL_WE}.pb.h" PROPERTIES GENERATED TRUE)
   endforeach()
+endfunction()
+
+get_filename_component(ABS_PROTOBUF_NANO_SRC_DIR ${PROTOBUF_NANO_SRC_DIR} ABSOLUTE)
+
+function(protobuf_generate_nano_c)
+  protobuf_generate_base("c" "--nanopb_out" "--plugin=protoc-gen-nanopb=${ABS_PROTOBUF_NANO_SRC_DIR}/generator/protoc-gen-nanopb" "/nano" ${ARGN})
+endfunction()
+
+function(protobuf_generate_full_cpp)
+  protobuf_generate_base("cc" "--cpp_out" "" "/full" ${ARGN})
+endfunction()
+
+function(protobuf_generate_lite_cpp)
+  protobuf_generate_base("cc" "--cpp_out" "" "/lite" ${ARGN})
 endfunction()
 
 include_directories(${_PROTO_GENS_DIR})
@@ -177,6 +207,7 @@ set(PROTOBUF_SRCS
           ${PROTOBUF_SRC_DIR}/google/protobuf/util/type_resolver_util.cc
           ${PROTOBUF_SRC_DIR}/google/protobuf/wire_format.cc
           ${PROTOBUF_SRC_DIR}/google/protobuf/wrappers.pb.cc)
+
 add_library( protobuf-lite-static
         STATIC
 ${PROTOBUF_LITE_SRCS})
@@ -186,7 +217,8 @@ SHARED
 ${PROTOBUF_LITE_SRCS})
 extra_pb_link_options(protobuf-lite)
 
-if (${PROTOBUF_VARIANT} STREQUAL "FULL" OR ${PROTOBUF_VARIANT} STREQUAL "BOTH")
+if (${PROTOBUF_VARIANT} STREQUAL "FULL" OR ${PROTOBUF_VARIANT} STREQUAL "ALL")
+
 add_library( protobuf-static
         STATIC ${PROTOBUF_LITE_SRCS} ${PROTOBUF_SRCS}
 )
@@ -199,80 +231,45 @@ extra_pb_link_options(protobuf)
 
 endif ()
 
-protobuf_generate_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/proto proto/tuningfork.proto
+set(PROTOBUF_NANO_SRCS
+        ${PROTOBUF_NANO_SRC_DIR}/pb_encode.c
+        ${PROTOBUF_NANO_SRC_DIR}/pb_decode.c
+        ${PROTOBUF_NANO_SRC_DIR}/pb_common.c
+)
+
+add_library( protobuf-nano-static
+        STATIC ${PROTOBUF_NANO_SRCS}
+)
+add_library( protobuf-nano
+        SHARED ${PROTOBUF_NANO_SRCS}
+)
+extra_pb_nano_link_options(protobuf-nano)
+
+protobuf_generate_nano_c( ${CMAKE_CURRENT_SOURCE_DIR}/proto
+                       proto/tuningfork.proto
                        proto/tuningfork_clearcut_log.proto )
-protobuf_generate_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/proto proto/tuningfork_lite.proto
-                       proto/tuningfork_clearcut_log_lite.proto )
+protobuf_generate_full_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/proto
+                       proto/tuningfork.proto
+                       proto/tuningfork_clearcut_log.proto )
 
 set( TUNINGFORK_SRCS
             histogram.cpp
             prong.cpp
             uploadthread.cpp
             tuningfork.cpp
-	    tuningfork_c.cpp )
-set( TF_PROTO_SRCS
-            ${_PROTO_GENS_DIR}/tuningfork.pb.cc
-            ${_PROTO_GENS_DIR}/tuningfork_clearcut_log.pb.cc)
-set( TF_PROTO_LITE_SRCS
-            ${_PROTO_GENS_DIR}/tuningfork_lite.pb.cc
-            ${_PROTO_GENS_DIR}/tuningfork_clearcut_log_lite.pb.cc)
+	        tuningfork_c.cpp
+	        clearcutserializer.cpp
+	        protobuf_util.cpp
+            ${_PROTO_GENS_DIR}/nano/tuningfork.pb.c
+            ${_PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c)
 
-add_library( tuningfork-pl-static
-            STATIC
-${TUNINGFORK_SRCS})
+add_library( tuningfork-static
+	     STATIC ${TUNINGFORK_SRCS} ${PROTOBUF_NANO_SRCS})
+set_target_properties( tuningfork-static PROPERTIES COMPILE_OPTIONS "-DPROTOBUF_NANO" )
 
-set_target_properties( tuningfork-pl-static PROPERTIES
-     COMPILE_OPTIONS "-DPROTOBUF_LITE" )
-
-if (${PROTOBUF_VARIANT} STREQUAL "LITE" OR ${PROTOBUF_VARIANT} STREQUAL "BOTH")
-
-# Proto-lite, shared linkage
-add_library( tuningfork-pl
-	     SHARED ${TUNINGFORK_SRCS}	${TF_PROTO_LITE_SRCS})
-set_target_properties( tuningfork-pl PROPERTIES
-     COMPILE_OPTIONS "-DPROTOBUF_LITE" )
-target_link_libraries( tuningfork-pl
-                      log
-                      protobuf-lite)
-extra_tf_link_options( tuningfork-pl )
-
-# Proto-lite, statically linked
-add_library( tuningfork-pls
-	     SHARED ${TUNINGFORK_SRCS} ${TF_PROTO_LITE_SRCS})
-set_target_properties( tuningfork-pls PROPERTIES
-     COMPILE_OPTIONS "-DPROTOBUF_LITE" )
-target_link_libraries( tuningfork-pls
-                      log
-                      protobuf-lite-static)
-extra_tf_link_options( tuningfork-pls )
-endif()
-
-if (${PROTOBUF_VARIANT} STREQUAL "FULL" OR ${PROTOBUF_VARIANT} STREQUAL "BOTH")
-
-add_library( tuningfork-p-static
-	     STATIC ${TUNINGFORK_SRCS} ${TF_PROTO_SRCS})
-set_target_properties( tuningfork-p-static PROPERTIES
-     COMPILE_OPTIONS "-DPROTOBUF_FULL" )
-
-# Proto full, shared linkage
-add_library( tuningfork-p
-	     SHARED ${TUNINGFORK_SRCS} ${TF_PROTO_SRCS})
-set_target_properties( tuningfork-p PROPERTIES
-     COMPILE_OPTIONS "-DPROTOBUF_FULL" )
-target_link_libraries( tuningfork-p
-                      log
-                      protobuf)
-extra_tf_link_options( tuningfork-p )
-
-#Proto full, statically linked
-add_library( tuningfork-ps
-	     SHARED ${TUNINGFORK_SRCS} ${TF_PROTO_SRCS})
-set_target_properties( tuningfork-ps PROPERTIES
-     COMPILE_OPTIONS "-DPROTOBUF_FULL" )
-target_link_libraries( tuningfork-ps
-                      log
-                      protobuf-static)
-extra_tf_link_options( tuningfork-ps )
-
-endif ()
-
+add_library( tuningfork
+	     SHARED ${TUNINGFORK_SRCS} ${PROTOBUF_NANO_SRCS})
+set_target_properties( tuningfork PROPERTIES COMPILE_OPTIONS "-DPROTOBUF_NANO" )
+target_link_libraries( tuningfork
+                      log)
+extra_tf_link_options( tuningfork )

@@ -12,25 +12,17 @@
  * limitations under the License.
  */
 
-#ifndef TUNINGFORK_PRONG_H
-#define TUNINGFORK_PRONG_H
+#pragma once
 
 #include "tuningfork.h"
 #include "histogram.h"
 
 #include <inttypes.h>
 #include <vector>
-#include <android/log.h>
 #include <map>
 #include <string>
 
 namespace tuningfork {
-
-using ::com::google::tuningfork::FidelityParams;
-using ::com::google::tuningfork::Settings;
-using ::com::google::tuningfork::Annotation;
-using ::logs::proto::tuningfork::TuningForkLogEvent;
-using ::logs::proto::tuningfork::TuningForkHistogram;
 
 typedef ProtobufSerialization SerializedAnnotation;
 
@@ -70,7 +62,7 @@ public:
         return histogram_.Count();
     }
 
-    void Fill(TuningForkHistogram *h) const;
+    friend class ClearcutSerializer;
 };
 
 // Simple fixed-size cache
@@ -85,10 +77,8 @@ public:
 
     void Clear();
 
-    void FillHistograms(TuningForkLogEvent &evt) const;
+    friend class ClearcutSerializer;
 
 };
 
 } // namespace tuningfork {
-
-#endif //TUNINGFORK_PRONG_H

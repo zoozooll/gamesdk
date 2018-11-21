@@ -1,6 +1,8 @@
 TUNINGFORK {
     global:
         *TF*;
+        *tuningfork*;
+        *histogram_test*;
     local:
         *;
 };
