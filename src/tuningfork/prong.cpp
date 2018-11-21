@@ -21,15 +21,6 @@
 
 namespace tuningfork {
 
-void Prong::Fill(TuningForkHistogram *h) const {
-    h->set_instrument_id(instrumentation_key_);
-    if (!SerializationToProtobuf(annotation_, *h->mutable_annotation()))
-        __android_log_print(ANDROID_LOG_WARN, "TuningFork",
-                            "Could not parse Annotation serialization");
-    histogram_.Fill(h);
-}
-
-
 // Allocate all the prongs up front
 ProngCache::ProngCache(size_t size, int max_num_instrumentation_keys,
                        const std::vector<Settings::Histogram> &histogram_settings,
@@ -61,15 +52,6 @@ void ProngCache::Clear() {
     for (auto &p: prongs_) {
         if (p->histogram_.Count() > 0)
             p->histogram_.Clear();
-    }
-}
-
-void ProngCache::FillHistograms(TuningForkLogEvent &evt) const {
-    for (auto &p: prongs_) {
-        if (p->histogram_.Count() > 0) {
-            TuningForkHistogram *h = evt.add_histograms();
-            p->Fill(h);
-        }
     }
 }
 

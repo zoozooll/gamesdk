@@ -49,8 +49,7 @@ public:
         current_fidelity_params_ = fp;
     }
 
-private:
-    void ProcessHistogramCache();
+    friend class ClearcutSerializer;
 };
 
 } // namespace tuningfork {

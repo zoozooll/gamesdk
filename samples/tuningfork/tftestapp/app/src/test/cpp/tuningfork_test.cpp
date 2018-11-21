@@ -14,11 +14,12 @@
 
 #include "tuningfork_test.h"
 
+#include "tuningfork/protobuf_util.h"
 #include "tuningfork/tuningfork.h"
 
-#include "tuningfork.pb.h"
-#include "tuningfork_clearcut_log.pb.h"
-#include "tuningfork_extensions.pb.h"
+#include "full/tuningfork.pb.h"
+#include "full/tuningfork_clearcut_log.pb.h"
+#include "full/tuningfork_extensions.pb.h"
 
 #include <vector>
 #include <mutex>
@@ -42,7 +43,7 @@ public:
         {
             std::lock_guard<std::mutex> lock(*mutex);
             TuningForkLogEvent evt;
-            SerializationToProtobuf(evt_ser, evt);
+            Deserialize(evt_ser, evt);
 #ifdef PROTOBUF_LITE
             result = evt.SerializeAsString();
 #else
@@ -83,7 +84,8 @@ struct HistogramSettings {
     int nBuckets;
 };
 Settings TestSettings(Settings::AggregationStrategy::Submission method, int n_ticks, int n_keys,
-                      std::vector<int> annotation_size, const std::vector<HistogramSettings>& hists = {}) {
+                      std::vector<int> annotation_size,
+                      const std::vector<HistogramSettings>& hists = {}) {
     // Make sure we set all required fields
     Settings s;
     s.mutable_aggregation_strategy()->set_method(method);

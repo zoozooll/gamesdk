@@ -13,24 +13,29 @@
  */
 
 #include "tuningfork.h"
-#include "histogram.h"
-#include "prong.h"
-#include "uploadthread.h"
-#include "swappy/Trace.h"
-
-#include "tuningfork.pb.h"
-#include "tuningfork_clearcut_log.pb.h"
 
 #include <inttypes.h>
-#include <android/log.h>
 #include <vector>
 #include <map>
 #include <memory>
 #include <chrono>
 #include <sstream>
 
+#include <android/log.h>
+#include "pb_decode.h"
+#include "swappy/Trace.h"
+
+#include "histogram.h"
+#include "prong.h"
+#include "uploadthread.h"
+#include "clearcutserializer.h"
+#include "protobuf_util.h"
+
+
+typedef com_google_tuningfork_Settings PBSettings;
 
 #define LOG_INFO(MSG) __android_log_print(ANDROID_LOG_INFO, "TuningFork", MSG )
+#define LOG_DEBUG(MSG) __android_log_print(ANDROID_LOG_DEBUG, "TuningFork", MSG )
 #define LOG_ERROR(MSG) __android_log_print(ANDROID_LOG_ERROR, "TuningFork", MSG )
 
 /* Annotations come into tuning fork as a serialized protobuf. The protobuf can only have
@@ -65,12 +70,6 @@
 
 namespace tuningfork {
 
-using ::com::google::tuningfork::FidelityParams;
-using ::com::google::tuningfork::Settings;
-using ::com::google::tuningfork::Annotation;
-using ::logs::proto::tuningfork::TuningForkLogEvent;
-using ::logs::proto::tuningfork::TuningForkHistogram;
-
 typedef uint64_t AnnotationId;
 
 class MonoTimeProvider : public ITimeProvider {
@@ -96,7 +95,6 @@ private:
     std::vector<int> annotation_radix_mult_;
     AnnotationId current_annotation_id_;
     ITimeProvider *time_provider_;
-    std::vector<Settings::Histogram> histogram_settings_;
 public:
     TuningForkImpl(const Settings &settings,
                    Backend *backend,
@@ -115,16 +113,17 @@ public:
         InitAnnotationRadixes();
 
         size_t max_num_prongs_ = 0;
-        int max_ikeys = settings.aggregation_strategy().max_instrumentation_keys();
+        int max_ikeys = settings.aggregation_strategy.max_instrumentation_keys;
+
         if (annotation_radix_mult_.size() == 0 || max_ikeys == 0)
             LOG_ERROR("Neither max_annotations nor max_instrumentation_keys can be zero");
         else
             max_num_prongs_ = max_ikeys * annotation_radix_mult_.back();
         auto serializeId = [this](uint64_t id) { return SerializeAnnotationId(id); };
         prong_caches_[0] = std::make_unique<ProngCache>(max_num_prongs_, max_ikeys,
-                                                        histogram_settings_, serializeId);
+                                                        settings_.histograms, serializeId);
         prong_caches_[1] = std::make_unique<ProngCache>(max_num_prongs_, max_ikeys,
-                                                        histogram_settings_, serializeId);
+                                                        settings.histograms, serializeId);
         current_prong_cache_ = prong_caches_[0].get();
         live_traces_.resize(max_num_prongs_);
         for (auto &t: live_traces_) t = TimePoint::min();
@@ -164,7 +163,7 @@ private:
     AnnotationId DecodeAnnotationSerialization(const SerializedAnnotation &ser);
 
     int GetInstrumentationKey(uint64_t compoundId) {
-        return compoundId % settings_.aggregation_strategy().max_instrumentation_keys();
+        return compoundId % settings_.aggregation_strategy.max_instrumentation_keys;
     }
 
     uint64_t MakeCompoundId(InstrumentationKey k, AnnotationId a) {
@@ -176,11 +175,43 @@ private:
 
 std::unique_ptr<TuningForkImpl> s_impl;
 
+bool decodeAnnotationEnumSizes(pb_istream_t* stream, const pb_field_t *field, void** arg) {
+    Settings* settings = static_cast<Settings*>(*arg);
+    uint64_t a;
+    pb_decode_varint(stream, &a);
+    settings->aggregation_strategy.annotation_enum_size.push_back(a);
+    return true;
+}
+bool decodeHistograms(pb_istream_t* stream, const pb_field_t *field, void** arg) {
+    Settings* settings = static_cast<Settings*>(*arg);
+    com_google_tuningfork_Settings_Histogram hist;
+    pb_decode(stream, com_google_tuningfork_Settings_Histogram_fields, &hist);
+    settings->histograms.push_back({hist.instrument_key, hist.bucket_min, hist.bucket_max,
+                                    hist.n_buckets});
+    return true;
+}
+
 void Init(const ProtobufSerialization &settings_ser,
           Backend *backend,
           ITimeProvider *time_provider) {
     Settings settings;
-    SerializationToProtobuf(settings_ser, settings);
+    PBSettings pbsettings = com_google_tuningfork_Settings_init_zero;
+    pbsettings.aggregation_strategy.annotation_enum_size.funcs.decode = decodeAnnotationEnumSizes;
+    pbsettings.aggregation_strategy.annotation_enum_size.arg = &settings;
+    pbsettings.histograms.funcs.decode = decodeHistograms;
+    pbsettings.histograms.arg = &settings;
+    VectorStream str {const_cast<ProtobufSerialization*>(&settings_ser), 0};
+    pb_istream_t stream = {VectorStream::Read, &str, settings_ser.size()};
+    pb_decode(&stream, com_google_tuningfork_Settings_fields, &pbsettings);
+    if(pbsettings.aggregation_strategy.method
+          ==com_google_tuningfork_Settings_AggregationStrategy_Submission_TICK_BASED)
+        settings.aggregation_strategy.method = Settings::AggregationStrategy::TICK_BASED;
+    else
+        settings.aggregation_strategy.method = Settings::AggregationStrategy::TIME_BASED;
+    settings.aggregation_strategy.intervalms_or_count
+      = pbsettings.aggregation_strategy.intervalms_or_count;
+    settings.aggregation_strategy.max_instrumentation_keys
+      = pbsettings.aggregation_strategy.max_instrumentation_keys;
     s_impl = std::make_unique<TuningForkImpl>(settings, backend,
                                               time_provider);
 }
@@ -303,12 +334,12 @@ AnnotationId TuningForkImpl::DecodeAnnotationSerialization(const SerializedAnnot
             result += value;
     }
     // Shift over to leave room for the instrument id
-    return result * settings_.aggregation_strategy().max_instrumentation_keys();
+    return result * settings_.aggregation_strategy.max_instrumentation_keys;
 }
 
 SerializedAnnotation TuningForkImpl::SerializeAnnotationId(uint64_t id) {
     SerializedAnnotation ann;
-    uint64_t x = id / settings_.aggregation_strategy().max_instrumentation_keys();
+    uint64_t x = id / settings_.aggregation_strategy.max_instrumentation_keys;
     for (int i = 0; i < annotation_radix_mult_.size(); ++i) {
         int value = x % annotation_radix_mult_[i];
         if (value > 0) {
@@ -390,14 +421,15 @@ Prong *TuningForkImpl::TraceNanos(uint64_t compound_id, Duration dt) {
 }
 
 bool TuningForkImpl::ShouldSubmit(TimePoint t_ns, Prong *prong) {
-    switch (settings_.aggregation_strategy().method()) {
+    auto method = settings_.aggregation_strategy.method;
+    auto count = settings_.aggregation_strategy.intervalms_or_count;
+    switch (settings_.aggregation_strategy.method) {
         case Settings::AggregationStrategy::TIME_BASED:
             return (t_ns - last_submit_time_ns_) >=
-                   std::chrono::milliseconds(
-                       settings_.aggregation_strategy().intervalms_or_count());
+                   std::chrono::milliseconds(count);
         case Settings::AggregationStrategy::TICK_BASED:
             if (prong)
-                return prong->Count() >= settings_.aggregation_strategy().intervalms_or_count();
+                return prong->Count() >= count;
     }
     return false;
 }
@@ -419,28 +451,45 @@ void TuningForkImpl::CheckForSubmit(TimePoint t_ns, Prong *prong) {
 
 void TuningForkImpl::InitHistogramSettings() {
     Settings::Histogram default_histogram;
-    default_histogram.set_instrument_key(-1);
-    default_histogram.set_bucket_min(0);
-    default_histogram.set_bucket_max(0);
-    default_histogram.set_n_buckets(Histogram::kDefaultNumBuckets);
-    auto getHistogramSettings = [&](int ikey) {
-        for (int i = 0; i < settings_.histograms_size(); ++i) {
-            const Settings::Histogram &h = settings_.histograms(i);
-            if (ikey == h.instrument_key())
-                return h;
+    default_histogram.instrument_key = -1;
+    default_histogram.bucket_min = 0;
+    default_histogram.bucket_max = 0;
+    default_histogram.n_buckets = Histogram::kDefaultNumBuckets;
+    for(int i=0; i<settings_.aggregation_strategy.max_instrumentation_keys; ++i) {
+        if(settings_.histograms.size()<=i) {
+            settings_.histograms.push_back(default_histogram);
+            settings_.histograms.back().instrument_key = i;
         }
-        return default_histogram;
-    };
-    int nHist = settings_.histograms_size();
-    int n = settings_.aggregation_strategy().max_instrumentation_keys();
-    histogram_settings_.resize(n);
-    for (int i = 0; i < n; ++i) {
-        histogram_settings_[i].CopyFrom(getHistogramSettings(i));
+        else {
+            for(int j=i; j<settings_.aggregation_strategy.max_instrumentation_keys; ++j) {
+                auto& h = settings_.histograms[j];
+                if(h.instrument_key==i) {
+                    if(i!=j) {
+                        std::swap(settings_.histograms[j], settings_.histograms[i]);
+                    }
+                    break;
+                }
+            }
+        }
     }
+#ifndef NDEBUG
+    LOG_DEBUG("Settings::histograms");
+    for(int i=0; i< settings_.histograms.size();++i) {
+        auto& h = settings_.histograms[i];
+        __android_log_print(ANDROID_LOG_DEBUG, "TuningFork", "ikey: %d min: %f max: %f nbkts: %d", h.instrument_key, h.bucket_min, h.bucket_max, h.n_buckets);
+    }
+#endif
 }
 
 void TuningForkImpl::InitAnnotationRadixes() {
-    int n = settings_.aggregation_strategy().annotation_enum_size_size();
+#ifndef NDEBUG
+    LOG_DEBUG("Settings::annotation_enum_size");
+    auto& esz = settings_.aggregation_strategy.annotation_enum_size;
+    for(int i=0; i< esz.size();++i) {
+        __android_log_print(ANDROID_LOG_DEBUG, "TuningFork", "%d", esz[i]);
+    }
+#endif
+    int n = settings_.aggregation_strategy.annotation_enum_size.size();
     if (n == 0) {
         // With no annotations, we just have 1 possible prong per key
         annotation_radix_mult_.resize(1);
@@ -449,7 +498,7 @@ void TuningForkImpl::InitAnnotationRadixes() {
         annotation_radix_mult_.resize(n);
         int r = 1;
         for (int i = 0; i < n; ++i) {
-            r *= settings_.aggregation_strategy().annotation_enum_size(i) + 1;
+            r *= settings_.aggregation_strategy.annotation_enum_size[i] + 1;
             annotation_radix_mult_[i] = r;
         }
     }

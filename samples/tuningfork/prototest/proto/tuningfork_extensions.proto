@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-import "proto/tuningfork.proto";
+import "tuningfork.proto";
 
 enum Car {
   CAR_BEETLE = 1;

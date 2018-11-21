@@ -12,21 +12,15 @@
  * limitations under the License.
  */
 
-#ifndef TUNINGFORK_HISTOGRAM_H
-#define TUNINGFORK_HISTOGRAM_H
+#pragma once
 
 #include "tuningfork.h"
-#include "tuningfork.pb.h"
-#include "tuningfork_clearcut_log.pb.h"
 
 #include <inttypes.h>
 #include <vector>
 #include <string>
 
 namespace tuningfork {
-
-using ::com::google::tuningfork::Settings;
-using ::logs::proto::tuningfork::TuningForkHistogram;
 
 class Histogram {
     typedef double Sample;
@@ -41,8 +35,8 @@ class Histogram {
 public:
     static constexpr int kDefaultNumBuckets = 30;
 
-    Histogram(float start_ms = 0, float end_ms = 0, int num_buckets_between = kDefaultNumBuckets);
-    Histogram(const Settings::Histogram&);
+    explicit Histogram(float start_ms = 0, float end_ms = 0, int num_buckets_between = kDefaultNumBuckets);
+    explicit Histogram(const Settings::Histogram&);
 
     // Add a sample delta time
     void Add(Sample dt_ms);
@@ -56,14 +50,11 @@ public:
     // Get the histogram as a JSON object, for testing
     std::string ToJSON() const;
 
-    // Fill in the histogram from our data
-    void Fill(TuningForkHistogram *h) const;
-
     // Use the data we have to construct the bucket ranges. This is called automatically after
     //  sizeAtWhichToRange samples have been collected, if we are auto-ranging.
     void CalcBucketsFromSamples();
+
+    friend class ClearcutSerializer;
 };
 
 } // namespace tuningfork {
-
-#endif //TUNINGFORK_HISTOGRAM_H
