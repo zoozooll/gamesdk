@@ -58,7 +58,7 @@ ${PROTO_BUILD_DIR}/%.pb.o: ${PROTO_BUILD_DIR}/%.pb.cc | ${PROTO_BUILD_DIR}
 	${CC} -o $@ -c ${CDEFS} $<
 
 ${PROTO_BUILD_DIR}/%.pb.cc: ${PROTO_DIR}/%.proto | ${PROTO_BUILD_DIR}
-	${PROTOC} --cpp_out=${BUILD_DIR} -I. -I${PROTOBUF_ROOT}/include $<
+	${PROTOC} --cpp_out=${BUILD_DIR}/proto -Iproto -I${PROTOBUF_ROOT}/include $<
 
 ${BUILD_DIR}:
 	mkdir -p $@
