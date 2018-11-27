@@ -1,5 +1,7 @@
 #include "proto/eng_tuningfork_extensions.pb.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include "mocktuningfork.h"
 #include "gameengine.h"
 
@@ -38,9 +40,10 @@ void runWithGameEngine(size_t iters = 1, bool as_if_another_lang = false) {
   if(as_if_another_lang) {
     gameengine::init(settings, fidelityParamsCallback);
   } else {
-    std::string settings_ser;
-    settings.SerializeToString(&settings_ser);
-    gameengine::init(settings_ser, [&](const std::string& fp_ser) {
+    std::stringstream settings_ser;
+    std::ifstream fstr("tuningfork_settings.txt");
+    settings_ser << fstr.rdbuf();
+    gameengine::init(settings_ser.str(), [&](const std::string& fp_ser) {
                                      FidelityParams fp;
                                      fp.ParseFromString(fp_ser);
                                      fidelityParamsCallback(fp);}
