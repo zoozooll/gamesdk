@@ -37,7 +37,7 @@ cc_library_static {
   ],
   srcs: [
     "src/device_info/*.cpp",
-    "src/swappy/*.cpp",
+    "src/swappy/**/*.cpp",
     "include/**/*.proto",
   ],
   proto: {

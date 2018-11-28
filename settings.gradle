@@ -1,1 +1,3 @@
 rootProject.name = 'gamesdk'
+include ':swappy'
+project(':swappy').projectDir= new File('src/swappy')

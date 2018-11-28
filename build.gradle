@@ -49,6 +49,23 @@ println "Android SDK folder: $androidSDK"
 println "Android NDK folder: $androidNDK"
 println "Using cmake from: $cmake"
 
+buildscript {
+  repositories {
+    google()
+    jcenter()
+  }
+  dependencies {
+    classpath 'com.android.tools.build:gradle:3.2.1'
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    jcenter()
+  }
+}
+
 def cmake(projectFolder, cmakeFolder, arch, ndkVersion) {
   exec {
     workingDir cmakeFolder
@@ -100,7 +117,20 @@ task clean(type: Delete) {
   delete project.property('buildFolder')
 }
 
-task build() {
+task buildGameSDKJavaLibs() {
+  def buildFolder = project.property('buildFolder') + '/aar'
+  def outputFolder = 'src/swappy/build/outputs/aar'
+
+  dependsOn ':swappy:assembleRelease'
+  doLast {
+    copy {
+      from file(outputFolder + "/swappy-release.aar")
+      into file(buildFolder + "/swappy-release.aar")
+    }
+  }
+}
+
+task build(dependsOn: 'buildGameSDKJavaLibs') {
   def includeFolder = project.property('buildFolder') + '/include'
   doFirst {
     delete includeFolder
