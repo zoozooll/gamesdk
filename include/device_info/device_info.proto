@@ -1,6 +1,8 @@
 syntax = "proto2";
 
-package device_info;
+package androidgamesdk_deviceinfo;
+
+option java_package = "com.google.androidgamesdk";
 
 message cpu_core{
   optional int64 freq_max = 1;
