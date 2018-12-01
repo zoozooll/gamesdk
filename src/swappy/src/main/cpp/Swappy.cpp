@@ -101,13 +101,25 @@ void Swappy::init(JavaVM *vm, nanoseconds refreshPeriod, nanoseconds appOffset, 
     sInstance = std::make_unique<Swappy>(vm, refreshPeriod, appOffset, sfOffset, ConstructorTag{});
 }
 
-void Swappy::onChoreographer(void* data) {
-    Swappy *swappy = reinterpret_cast<Swappy *>(data);
+void Swappy::onChoreographer(int64_t frameTimeNanos) {
+    TRACE_CALL();
+
+    Swappy *swappy = getInstance();
     if (!swappy) {
-        ALOGE("Failed to get Swappy instance in onChoreographer");
+        ALOGE("Failed to get Swappy instance in swap");
         return;
     }
-    swappy->handleChoreographer();
+
+    if (!swappy->mUsingExternalChoreographer) {
+        swappy->mUsingExternalChoreographer = true;
+        swappy->mChoreographerThread =
+                ChoreographerThread::createChoreographerThread(
+                        ChoreographerThread::Type::App,
+                        nullptr,
+                        [swappy] { swappy->handleChoreographer(); });
+    }
+
+    swappy->mChoreographerThread->postFrameCallbacks();
 }
 
 bool Swappy::swap(EGLDisplay display, EGLSurface surface) {
@@ -119,7 +131,10 @@ bool Swappy::swap(EGLDisplay display, EGLSurface surface) {
         return EGL_FALSE;
     }
 
-    swappy->mChoreographerThread->postFrameCallbacks();
+    if (!swappy->mUsingExternalChoreographer) {
+        swappy->mChoreographerThread->postFrameCallbacks();
+    }
+
     swappy->waitForNextFrame(display);
 
     const auto swapStart = std::chrono::steady_clock::now();
@@ -169,7 +184,11 @@ Swappy::Swappy(JavaVM *vm,
       mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
                                                                  sfOffset - appOffset,
                                                                  [this]() { return wakeClient(); })),
-      mChoreographerThread(std::make_unique<ChoreographerThread>(vm, std::bind(onChoreographer, this))) {
+      mChoreographerThread(ChoreographerThread::createChoreographerThread(
+              ChoreographerThread::Type::Swappy,
+              vm,
+              [this]{ handleChoreographer(); }))
+{
 
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 

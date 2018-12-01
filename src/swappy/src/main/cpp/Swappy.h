@@ -48,6 +48,8 @@ class Swappy {
 
     static void init(JNIEnv *env, jobject jactivity);
 
+    static void onChoreographer(int64_t frameTimeNanos);
+
     static bool swap(EGLDisplay display, EGLSurface surface);
 
     static void init(JavaVM *vm,
@@ -86,8 +88,6 @@ private:
     void updateSwapDuration(std::chrono::nanoseconds duration);
     std::atomic<std::chrono::nanoseconds> mSwapDuration;
 
-    static void onChoreographer(void* data);
-
     static std::mutex sInstanceMutex;
     static std::unique_ptr<Swappy> sInstance;
 
@@ -107,5 +107,6 @@ private:
     const std::chrono::nanoseconds mRefreshPeriod;
     std::unique_ptr<ChoreographerFilter> mChoreographerFilter;
 
+    bool mUsingExternalChoreographer = false;
     std::unique_ptr<ChoreographerThread> mChoreographerThread;
 };
