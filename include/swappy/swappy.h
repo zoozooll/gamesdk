@@ -37,9 +37,6 @@ void Swappy_destroy();
 // buffer to be processed by the GPU before actually calling eglSwapBuffers.
 bool Swappy_swap(EGLDisplay display, EGLSurface surface);
 
-// Call this every choreographer tick
-void Swappy_onChoreographer(int64_t frameTimeNanos);
-
 // Parameter setters
 void Swappy_setRefreshPeriod(uint64_t period_ns);
 void Swappy_setUseAffinity(bool tf);
