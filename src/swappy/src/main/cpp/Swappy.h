@@ -40,7 +40,8 @@ class Swappy {
     struct ConstructorTag {
     };
   public:
-    Swappy(std::chrono::nanoseconds refreshPeriod,
+    Swappy(JavaVM *vm,
+           std::chrono::nanoseconds refreshPeriod,
            std::chrono::nanoseconds appOffset,
            std::chrono::nanoseconds sfOffset,
            ConstructorTag tag);
@@ -49,7 +50,8 @@ class Swappy {
 
     static bool swap(EGLDisplay display, EGLSurface surface);
 
-    static void init(std::chrono::nanoseconds refreshPeriod,
+    static void init(JavaVM *vm,
+                     std::chrono::nanoseconds refreshPeriod,
                      std::chrono::nanoseconds appOffset,
                      std::chrono::nanoseconds sfOffset);
 
