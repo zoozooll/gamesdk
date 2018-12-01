@@ -33,6 +33,11 @@ void Swappy_destroy() {
     Swappy::destroyInstance();
 }
 
+void Swappy_onChoreographer(int64_t frameTimeNanos)
+{
+    Swappy::onChoreographer(frameTimeNanos);
+}
+
 bool Swappy_swap(EGLDisplay display, EGLSurface surface) {
     return Swappy::swap(display, surface);
 }
