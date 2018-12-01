@@ -9,6 +9,8 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections" )
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections" )
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-s" )
 
+set ( SOURCE_LOCATION src/main/cpp)
+
 include_directories( ../../include )
 
 message( STATUS "Building swappy_static to ${CMAKE_CURRENT_BINARY_DIR}/build" )
@@ -16,14 +18,14 @@ add_library( swappy_static
 
              STATIC
 
-             ChoreographerFilter.cpp
-             ChoreographerThread.cpp
-             EGL.cpp
-             Swappy.cpp
-             Settings.cpp
-             Thread.cpp
-             Swappy.cpp
-             Swappy_c.cpp
+             ${SOURCE_LOCATION}/ChoreographerFilter.cpp
+             ${SOURCE_LOCATION}/ChoreographerThread.cpp
+             ${SOURCE_LOCATION}/EGL.cpp
+             ${SOURCE_LOCATION}/Swappy.cpp
+             ${SOURCE_LOCATION}/Settings.cpp
+             ${SOURCE_LOCATION}/Thread.cpp
+             ${SOURCE_LOCATION}/Swappy.cpp
+             ${SOURCE_LOCATION}/Swappy_c.cpp
 
              # Add new source files here
              )
@@ -35,7 +37,8 @@ add_library( swappy
 
              SHARED
 
-             Swappy_c.cpp)  # Looks like I need to specify at least one file to build,
+             ${SOURCE_LOCATION}/Swappy_c.cpp)
+                            # Looks like I need to specify at least one file to build,
                             # the result .so size suggests it's including the rest of the
                             # source files from the library
                             # also, removing the target_link to the static library
