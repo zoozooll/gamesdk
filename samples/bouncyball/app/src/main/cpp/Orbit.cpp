@@ -22,8 +22,8 @@
 
 #include <android/native_window_jni.h>
 
-#include "swappy/Log.h"
-#include "swappy/Settings.h"
+#include "swappy/src/main/cpp/Log.h"
+#include "swappy/src/main/cpp/Settings.h"
 
 #include "swappy/swappy.h"
 
