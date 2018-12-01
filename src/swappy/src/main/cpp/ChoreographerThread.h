@@ -24,7 +24,7 @@
 
 class ChoreographerThread {
 public:
-    ChoreographerThread(std::function<void()> onChoreographer);
+    ChoreographerThread(JavaVM *vm, std::function<void()> onChoreographer);
     ~ChoreographerThread();
 
     void postFrameCallbacks();
@@ -33,8 +33,14 @@ private:
     void looperThread();
     void onChoreographer();
     void scheduleNextFrameCallback() REQUIRES(mWaitingMutex);
+    void initializeChoreographer();
 
 private:
+    JavaVM *mJVM = nullptr;
+    JNIEnv *mEnv = nullptr;
+    jobject mChorMan = nullptr;
+    jmethodID mChorMan_postFrameCallback = nullptr;
+    jmethodID mChorMan_Terminate = nullptr;
     std::thread mThread;
     std::mutex mWaitingMutex;
     std::condition_variable mWaitingCondition;
@@ -44,6 +50,8 @@ private:
     std::function<void()> mCallback;
     int callbacksBeforeIdle GUARDED_BY(mWaitingMutex) = 0;
     static constexpr int MAX_CALLBACKS_BEFORE_IDLE = 10;
+
+    friend class ChoreographerCallback;
 
 };
 
