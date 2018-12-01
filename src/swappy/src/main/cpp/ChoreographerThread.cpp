@@ -16,15 +16,43 @@
 
 #define LOG_TAG "ChoreographerThread"
 
+#include <jni.h>
+
 #include "ChoreographerThread.h"
 #include "Log.h"
 #include "Thread.h"
 #include "Trace.h"
 
+void ChoreographerThread::postFrameCallbacks()
+{
+    // This method is called before calling to swap buffers
+    // It register to get maxCallbacksBeforeIdle frame callbacks before going idle
+    // so if app goes to idle the thread will not get further frame callbacks
+    std::lock_guard lock(mWaitingMutex);
+    if (callbacksBeforeIdle == 0) {
+        scheduleNextFrameCallback();
+    }
+    callbacksBeforeIdle = MAX_CALLBACKS_BEFORE_IDLE;
+}
+
+void ChoreographerThread::onChoreographer()
+{
+    {
+        std::lock_guard lock(mWaitingMutex);
+        callbacksBeforeIdle--;
+
+        if (callbacksBeforeIdle > 0) {
+            scheduleNextFrameCallback();
+        }
+    }
+    mCallback();
+}
+
 #if __ANDROID_API__ >= 24
-ChoreographerThread::ChoreographerThread(std::function<void()> onChoreographer) :
-    mCallback(onChoreographer),
-    mThread([this]() {looperThread();})
+ChoreographerThread::ChoreographerThread(JavaVM *vm,
+                                         std::function<void()> onChoreographer) :
+   mCallback(onChoreographer),
+   mThread([this]() {looperThread();})
 {
     std::unique_lock<std::mutex> lock(mWaitingMutex);
     // create a new ALooper thread to get Choreographer events
@@ -86,40 +114,73 @@ void ChoreographerThread::scheduleNextFrameCallback()
     AChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
 }
 
-void ChoreographerThread::postFrameCallbacks()
-{
-    // This method is called before calling to swap buffers
-    // It register to get maxCallbacksBeforeIdle frame callbacks before going idle
-    // so if app goes to idle the thread will not get further frame callbacks
-    std::lock_guard lock(mWaitingMutex);
-    if (callbacksBeforeIdle == 0) {
-        scheduleNextFrameCallback();
-    }
-    callbacksBeforeIdle = MAX_CALLBACKS_BEFORE_IDLE;
-}
-
-void ChoreographerThread::onChoreographer()
-{
-    {
-        std::lock_guard lock(mWaitingMutex);
-        callbacksBeforeIdle--;
-
-        if (callbacksBeforeIdle > 0) {
-            scheduleNextFrameCallback();
-        }
-    }
-    mCallback();
-}
 #else // __ANDROID_API__ >= 24
-ChoreographerThread::ChoreographerThread(std::function<void()> onChoreographer) :
-        mCallback(onChoreographer) {}
+ChoreographerThread::ChoreographerThread(JavaVM *vm,
+                                         std::function<void()> onChoreographer) :
+        mJVM(vm),
+        mCallback(onChoreographer) {
 
-void ChoreographerThread::postFrameCallbacks()
-{
-    // call the callback immediately as Chorepgrapher is not available
-    // The pacing will be done by ChoreographerFilter itself
-    mCallback();
+    JNIEnv *env;
+    mJVM->AttachCurrentThread(&env, nullptr);
+
+    jclass choreographerCallbackClass = env->FindClass("com/google/swappy/ChoreographerCallback");
+
+    jmethodID constructor = env->GetMethodID(
+            choreographerCallbackClass,
+            "<init>",
+            "(J)V");
+
+    mChorMan_postFrameCallback = env->GetMethodID(
+            choreographerCallbackClass,
+            "postFrameCallback",
+            "()V");
+
+    mChorMan_Terminate = env->GetMethodID(
+            choreographerCallbackClass,
+            "Terminate",
+            "()V");
+
+    jobject choreographerCallback = env->NewObject(choreographerCallbackClass, constructor, reinterpret_cast<jlong>(this));
+
+    mChorMan = env->NewGlobalRef(choreographerCallback);
 }
 
-ChoreographerThread::~ChoreographerThread() {}
+ChoreographerThread::~ChoreographerThread()
+{
+    if (!mChorMan) {
+        return;
+    }
+
+    JNIEnv *env;
+    mJVM->AttachCurrentThread(&env, nullptr);
+    env->CallVoidMethod(mChorMan, mChorMan_Terminate);
+    env->DeleteGlobalRef(mChorMan);
+    mJVM->DetachCurrentThread();
+}
+
+void ChoreographerThread::scheduleNextFrameCallback()
+{
+    JNIEnv *env;
+    mJVM->AttachCurrentThread(&env, nullptr);
+    env->CallVoidMethod(mChorMan, mChorMan_postFrameCallback);
+}
+
+// JNI interface
+class ChoreographerCallback {
+public:
+    static void onChoreographer(jlong cookie) {
+        reinterpret_cast<ChoreographerThread*>(cookie)->onChoreographer();
+    }
+};
+
+extern "C" {
+
+JNIEXPORT void JNICALL
+Java_com_google_swappy_ChoreographerCallback_nOnChoreographer(JNIEnv * /* env */, jobject /* this */,
+                                                                jlong cookie, jlong frameTimeNanos) {
+    ChoreographerCallback::onChoreographer(cookie);
+}
+
+} // extern "C"
+
 #endif // __ANDROID_API__ >= 24
