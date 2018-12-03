@@ -18,9 +18,9 @@ message TuningForkLogEvent {
 
 message TuningForkHistogram {
   // ID of the frame capture point
-  required int32 instrument_id = 1;
+  optional int32 instrument_id = 1;
   // Annotation extended by the developer
-  required .com.google.tuningfork.Annotation annotation = 2;
+  optional .com.google.tuningfork.Annotation annotation = 2;
   // Bucket counts.
   // The APK contains hard-coded bucket ranges for each instrument_id.
   repeated int32 counts = 3 [packed=true];
