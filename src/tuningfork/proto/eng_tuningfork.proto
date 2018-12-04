@@ -1,17 +1,8 @@
 syntax = "proto2";
 
-//option optimize_for = LITE_RUNTIME;
-
-import "google/protobuf/descriptor.proto";
 import "tuningfork.proto";
 
 package com.google.tuningfork;
-
-extend .google.protobuf.MessageOptions {
-  // This option is needed in order to limit the number of possible levels
-  //  and hence the number of histograms recorded.
-  optional int32 max_level_value = 50000;
-};
 
 enum LoadingState {
   LOADING = 0;

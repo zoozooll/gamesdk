@@ -23,7 +23,7 @@
 
 #include <android/log.h>
 #include "pb_decode.h"
-#include "swappy/Trace.h"
+#include "../swappy/src/main/cpp/Trace.h"
 
 #include "histogram.h"
 #include "prong.h"
