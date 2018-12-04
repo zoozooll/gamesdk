@@ -21,6 +21,7 @@ add_library( swappy_static
              ${SOURCE_LOCATION}/ChoreographerFilter.cpp
              ${SOURCE_LOCATION}/ChoreographerThread.cpp
              ${SOURCE_LOCATION}/EGL.cpp
+             ${SOURCE_LOCATION}/CpuInfo.cpp
              ${SOURCE_LOCATION}/Swappy.cpp
              ${SOURCE_LOCATION}/Settings.cpp
              ${SOURCE_LOCATION}/Thread.cpp
