@@ -16,7 +16,9 @@
 
 int main(){
   std::cout << "*Proto debug begin:" << std::endl;
-  std::cout << device_info::getDebugString()  << std::endl;
+  androidgamesdk_deviceinfo::root proto;
+  androidgamesdk_deviceinfo::createProto(proto);
+  std::cout << proto.cpu_present() << std::endl;
   std::cout << "*Proto debug end." << std::endl;
   std::cout << "fin." << std::endl;
   return 0;

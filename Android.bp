@@ -45,3 +45,8 @@ cc_library_static {
     type: "lite",
   },
 }
+
+filegroup {
+    name: "device_info_proto",
+    srcs: [ "include/device_info/device_info.proto" ],
+}

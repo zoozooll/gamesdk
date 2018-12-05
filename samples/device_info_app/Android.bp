@@ -14,7 +14,8 @@ android_app {
   manifest: "AndroidManifest.xml",
   sdk_version: "27",
   srcs: [
-    "*.java"
+    "*.java",
+    ":device_info_proto",
   ],
   resource_dirs: [
     "res",
@@ -24,5 +25,9 @@ android_app {
   ],
   static_libs: [
     "android-support-constraint-layout",
+    "libprotobuf-java-lite",
   ],
+  proto: {
+    type: "lite",
+  },
 }
