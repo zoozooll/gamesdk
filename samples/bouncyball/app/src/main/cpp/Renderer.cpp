@@ -41,6 +41,8 @@ void Renderer::setWindow(ANativeWindow *window, int32_t width, int32_t height) {
     mWorkerThread.run([=](ThreadState *threadState) {
         threadState->clearSurface();
 
+        ALOGE("Creating window surface %dx%d", width, height);
+
         if (!window) return;
 
         threadState->surface =
