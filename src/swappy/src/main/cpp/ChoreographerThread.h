@@ -23,6 +23,8 @@
 
 #include <thread>
 
+namespace swappy {
+
 class ChoreographerThread {
 public:
     enum class Type {
@@ -57,3 +59,5 @@ private:
     static int getSDKVersion(JavaVM *vm);
     static bool isChoreographerCallbackClassLoaded(JavaVM *vm);
 };
+
+} // namespace swappy

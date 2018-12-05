@@ -23,7 +23,7 @@
 
 #include <android/log.h>
 #include "pb_decode.h"
-#include "../swappy/src/main/cpp/Trace.h"
+#include "Trace.h"
 
 #include "histogram.h"
 #include "prong.h"
@@ -87,7 +87,7 @@ private:
     std::unique_ptr<ProngCache> prong_caches_[2];
     ProngCache *current_prong_cache_;
     TimePoint last_submit_time_ns_;
-    std::unique_ptr<Trace> trace_;
+    std::unique_ptr<gamesdk::Trace> trace_;
     std::vector<TimePoint> live_traces_;
     Backend *backend_;
     UploadThread upload_thread_;
@@ -99,7 +99,7 @@ public:
     TuningForkImpl(const Settings &settings,
                    Backend *backend,
                    ITimeProvider *time_provider) : settings_(settings),
-                                                    trace_(Trace::create()),
+                                                    trace_(gamesdk::Trace::create()),
                                                     backend_(backend),
                                                     upload_thread_(backend),
                                                     current_annotation_id_(0),

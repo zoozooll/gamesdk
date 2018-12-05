@@ -22,6 +22,8 @@
 #include <android/log.h>
 #include <android/trace.h>
 
+namespace gamesdk {
+
 class Trace {
   public:
     using ATrace_beginSection_type = void (*)(const char *sectionName);
@@ -125,6 +127,8 @@ struct ScopedTrace {
     bool mIsTracing = false;
 };
 
+} // namespace gamesdk
+
 #define PASTE_HELPER_HELPER(a, b) a ## b
 #define PASTE_HELPER(a, b) PASTE_HELPER_HELPER(a, b)
-#define TRACE_CALL() ScopedTrace PASTE_HELPER(scopedTrace, __LINE__)(__PRETTY_FUNCTION__)
+#define TRACE_CALL() gamesdk::ScopedTrace PASTE_HELPER(scopedTrace, __LINE__)(__PRETTY_FUNCTION__)

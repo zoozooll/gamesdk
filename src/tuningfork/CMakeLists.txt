@@ -52,7 +52,7 @@ include_directories(${PROTOBUF_SRC_DIR})
 include_directories(${PROTOBUF_NANO_SRC_DIR})
 include_directories( ../../include )
 include_directories( ../../src/swappy )
-include_directories( ../)
+include_directories( ../common )
 include_directories( ${MODPB64_DIR}/modp_b64)
 
 set(_PROTO_GENS_DIR ${CMAKE_BINARY_DIR}/gens)

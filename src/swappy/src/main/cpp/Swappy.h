@@ -29,6 +29,8 @@
 #include "swappy/swappy.h"
 #include "swappy/swappy_extra.h"
 
+namespace swappy {
+
 class ChoreographerFilter;
 class ChoreographerThread;
 class EGL;
@@ -138,3 +140,5 @@ private:
 
     SwappyTracerCallbacks mInjectedTracers;
 };
+
+} //namespace swappy
