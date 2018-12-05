@@ -21,11 +21,13 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.os.Build;
 
+import com.google.androidgamesdk.DeviceInfo;  // proto
+
 public class MainActivity extends Activity {
   static {
     System.loadLibrary("device_info_app");
   }
-  public native String jniGetDeviceInfoDebugString();
+  public native byte[] jniGetProtoSerialized();
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -38,9 +40,20 @@ public class MainActivity extends Activity {
       public void onClick(View view) {
         TextView tv = (TextView) findViewById(R.id.sample_text);
         String javaDebugString = Build.FINGERPRINT;
-        String nativeDebugString = jniGetDeviceInfoDebugString();
-
-        String message = String.format("Fingerprint = %s\nNative String = %s", javaDebugString, nativeDebugString);
+        String nativeDebugString = "UNSET";
+        try{
+          com.google.androidgamesdk.DeviceInfo.root proto;
+          byte[] nativeBytes = jniGetProtoSerialized();
+          proto = com.google.androidgamesdk.DeviceInfo.root.parseFrom(nativeBytes);
+          nativeDebugString = proto.getCpuPresent();
+        }catch(Exception e){
+          android.util.Log.e("device_info", "could not create proto.", e);
+        }
+        String message = String.format(
+          "Fingerprint = %s\nNative String = %s",
+          javaDebugString,
+          nativeDebugString
+        );
         tv.setText(message);
       }
     });

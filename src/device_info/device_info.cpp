@@ -13,7 +13,6 @@
  */
 
  #include "device_info/device_info.h"
- #include "frameworks/opt/gamesdk/include/device_info/device_info.pb.h"
 
 namespace {
 typedef int64_t int64;
@@ -200,7 +199,7 @@ GLboolean getBool(GLenum e) {
 }
 }  // namespace gl_util
 
-void addGlConstsV2_0(device_info::gl& gl) {
+void addGlConstsV2_0(androidgamesdk_deviceinfo::gl& gl) {
   gl.set_gl_aliased_line_width_range(
     ::gl_util::getFloat(GL_ALIASED_LINE_WIDTH_RANGE));
   gl.set_gl_aliased_point_size_range(
@@ -289,7 +288,7 @@ void addGlConstsV2_0(device_info::gl& gl) {
   gl.set_spf_fragment_int_hig_range(spfr);
   gl.set_spf_fragment_int_hig_prec(spfp);
 }
-void addGlConstsV3_0(device_info::gl& gl) {
+void addGlConstsV3_0(androidgamesdk_deviceinfo::gl& gl) {
   gl.set_gl_max_3d_texture_size(
     ::gl_util::getInt(GL_MAX_3D_TEXTURE_SIZE));
   gl.set_gl_max_array_texture_layers(
@@ -349,7 +348,7 @@ void addGlConstsV3_0(device_info::gl& gl) {
   gl.set_gl_max_uniform_block_size(
     ::gl_util::getInt64(GL_MAX_UNIFORM_BLOCK_SIZE));
 }
-void addGlConstsV3_1(device_info::gl& gl) {
+void addGlConstsV3_1(androidgamesdk_deviceinfo::gl& gl) {
   gl.set_gl_max_atomic_counter_buffer_bindings(
     ::gl_util::getInt(GL_MAX_ATOMIC_COUNTER_BUFFER_BINDINGS));
   gl.set_gl_max_atomic_counter_buffer_size(
@@ -452,7 +451,7 @@ void addGlConstsV3_1(device_info::gl& gl) {
   gl.set_gl_max_compute_work_group_size_2(
     ::gl_util::getIntIndexed(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2));
 }
-void addGlConstsV3_2(device_info::gl& gl) {
+void addGlConstsV3_2(androidgamesdk_deviceinfo::gl& gl) {
   gl.set_gl_context_flags(
     ::gl_util::getInt(GL_CONTEXT_FLAGS));
   gl.set_gl_fragment_interpolation_offset_bits(
@@ -563,13 +562,13 @@ void addGlConstsV3_2(device_info::gl& gl) {
 }
 }  // namespace
 
-namespace device_info {
-void createProto(device_info::root& proto) {
+namespace androidgamesdk_deviceinfo {
+void createProto(root& proto) {
   int cpuIndexMax = readCpuIndexMax();
   proto.set_cpu_max_index(cpuIndexMax);
 
   for (int cpuIndex = 0; cpuIndex <= cpuIndexMax; cpuIndex++) {
-    device_info::cpu_core* newCore = proto.add_cpu_core();
+    cpu_core* newCore = proto.add_cpu_core();
     int64 freqMax = readCpuFreqMax(cpuIndex);
     if (freqMax > 0) {
       newCore->set_freq_max(freqMax);
@@ -588,7 +587,7 @@ void createProto(device_info::root& proto) {
 
   setupEGl();
 
-  device_info::gl& gl = *proto.mutable_gl();
+  gl& gl = *proto.mutable_gl();
   gl.set_renderer(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
   gl.set_vendor(reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
   gl.set_version(reinterpret_cast<const char*>(glGetString(GL_VERSION)));
@@ -645,15 +644,4 @@ void createProto(device_info::root& proto) {
 
   flushGlErrors();
 }
-
-std::string getDebugString() {
-  device_info::root proto;
-  createProto(proto);
-
-  std::string output;
-  output.append("renderer = ");
-  output.append(proto.gl().renderer());
-  return output;
-}
-
 }  // namespace device_info
