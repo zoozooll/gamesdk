@@ -213,4 +213,10 @@ message root{
   repeated string cpu_extension = 5;
   repeated string hardware      = 6;
   optional gl gl                = 7;
+
+  optional string ro_chipname          = 11;
+  optional string ro_board_platform    = 12;
+  optional string ro_product_board     = 13;
+  optional string ro_mediatek_platform = 14;
+  optional string ro_arch              = 15;
 }
