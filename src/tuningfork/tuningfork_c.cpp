@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-#include "tuningfork_c.h"
+#include "tuningfork/tuningfork.h"
 #include "tuningfork.h"
 
 namespace {
