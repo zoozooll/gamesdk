@@ -14,6 +14,8 @@
 
  #include "device_info/device_info.h"
 
+#include <sys/system_properties.h>
+
 namespace {
 typedef int64_t int64;
 typedef uint32_t uint32;
@@ -643,5 +645,22 @@ void createProto(root& proto) {
   }
 
   flushGlErrors();
+
+  char buffer[PROP_VALUE_MAX];
+  int buffer_len = -1;
+  buffer_len =__system_property_get("ro.chipname", buffer);
+  proto.set_ro_chipname(std::string(buffer, buffer_len));
+
+  buffer_len =__system_property_get("ro.board.platform", buffer);
+  proto.set_ro_board_platform(std::string(buffer, buffer_len));
+
+  buffer_len =__system_property_get("ro.product.board", buffer);
+  proto.set_ro_product_board(std::string(buffer, buffer_len));
+
+  buffer_len =__system_property_get("ro.mediatek.platform", buffer);
+  proto.set_ro_mediatek_platform(std::string(buffer, buffer_len));
+
+  buffer_len =__system_property_get("ro.arch", buffer);
+  proto.set_ro_arch(std::string(buffer, buffer_len));
 }
 }  // namespace device_info
