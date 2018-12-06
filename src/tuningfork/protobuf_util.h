@@ -15,6 +15,7 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
 
 #ifdef PROTOBUF_NANO
 #include <pb.h>
