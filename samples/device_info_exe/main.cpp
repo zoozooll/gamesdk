@@ -14,12 +14,23 @@
 
 #include "device_info/device_info.h"
 
+#include <iostream>
+
 int main(){
   std::cout << "*Proto debug begin:" << std::endl;
+
   androidgamesdk_deviceinfo::root proto;
   androidgamesdk_deviceinfo::createProto(proto);
+
+  std::cout << "cpu present:" << std::endl;
   std::cout << proto.cpu_present() << std::endl;
+
+  std::cout << "compressed texture formats:" << std::endl;
+  std::cout << std::hex;
+  for(auto i : proto.gl().gl_compressed_texture_formats()){
+    std::cout << i << std::endl;
+  }
+
   std::cout << "*Proto debug end." << std::endl;
-  std::cout << "fin." << std::endl;
   return 0;
 }
