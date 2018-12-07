@@ -26,6 +26,7 @@
 #include "swappy/src/main/cpp/Settings.h"
 
 #include "swappy/swappy.h"
+#include "swappy/swappy_extra.h"
 
 #include "Renderer.h"
 
@@ -42,12 +43,25 @@ std::string to_string(jstring jstr, JNIEnv *env) {
 
 extern "C" {
 
+void startFrameCallback(void *) {
+}
+
 JNIEXPORT void JNICALL
 Java_com_prefabulated_bouncyball_OrbitActivity_nInit(JNIEnv *env, jobject activity) {
     // Get the Renderer instance to create it
     Renderer::getInstance();
 
     Swappy_init(env, activity);
+
+    SwappyTracer tracers;
+    tracers.preWait = nullptr;
+    tracers.postWait = nullptr;
+    tracers.preSwapBuffers = nullptr;
+    tracers.postSwapBuffers = nullptr;
+    tracers.startFrame = startFrameCallback;
+    tracers.userData = nullptr;
+
+    Swappy_injectTracer(&tracers);
 }
 
 JNIEXPORT void JNICALL
