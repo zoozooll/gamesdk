@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-
-#ifndef SWAPPY_EXTERNAL_CHOREOGRAPHER_H
-#define SWAPPY_EXTERNAL_CHOREOGRAPHER_H
+#pragma once
 
 #include <stdint.h>
 #include <EGL/egl.h>
@@ -32,8 +30,17 @@ extern "C" {
 // for the first time. Afterwards, call this every choreographer tick
 void Swappy_onChoreographer(int64_t frameTimeNanos);
 
+// Pass callbacks to be called each frame to trace execution
+struct SwappyTracer {
+    void (*preWait)(void*);
+    void (*postWait)(void*);
+    void (*preSwapBuffers)(void*);
+    void (*postSwapBuffers)(void*);
+    void (*startFrame)(void*);
+    void* userData;
+};
+void Swappy_injectTracer(const SwappyTracer *t);
+
 #ifdef __cplusplus
 };
 #endif
-
-#endif //SWAPPY_EXTERNAL_CHOREOGRAPHER_H
