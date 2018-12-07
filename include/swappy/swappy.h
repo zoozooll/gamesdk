@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <stdint.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
