@@ -73,6 +73,22 @@ void swappyVkDetermineDeviceExtensions(
     uint32_t*              pRequiredExtensionCount,
     char**                 pRequiredExtensions);
 
+/**
+ * Tell Swappy The queueFamiliyIndex used to create a specific VkQueue
+ *
+ * Swappy needs to know the queueFamilyIndex used for creating a specific VkQueue
+ * so it can use it when presenting.
+ *
+ * Parameters:
+ *
+ *  (IN)  queue            - A device queue.
+ *  (IN)  queueFamilyIndex  - The queue family index used to create the VkQueue.
+ *
+ */
+void SwappyVkSetQueueFamiliyIndex(
+        VkQueue     queue,
+        uint32_t    queueFamilyIndex);
+
 
 // TBD: For now, SwappyVk assumes only one VkSwapchainKHR per VkDevice, and that
 // applications don't re-create swapchains.  Is this long-term sufficient?
