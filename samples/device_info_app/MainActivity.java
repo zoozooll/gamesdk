@@ -39,22 +39,22 @@ public class MainActivity extends Activity {
       @Override
       public void onClick(View view) {
         TextView tv = (TextView) findViewById(R.id.sample_text);
-        String javaDebugString = Build.FINGERPRINT;
-        String nativeDebugString = "UNSET";
+        String msg = "Fingerprint(JAVA):\n" + Build.FINGERPRINT;
         try{
           com.google.androidgamesdk.DeviceInfo.root proto;
           byte[] nativeBytes = jniGetProtoSerialized();
           proto = com.google.androidgamesdk.DeviceInfo.root.parseFrom(nativeBytes);
-          nativeDebugString = proto.getCpuPresent();
+
+          msg += "\nFingerprint(ro.build.fingerprint):\n" + proto.getRoBuildFingerprint();
+          msg += "\nro_chipname:\n" + proto.getRoChipname();
+          msg += "\nro_board_platform:\n" + proto.getRoBoardPlatform();
+          msg += "\nro_product_board:\n" + proto.getRoProductBoard();
+          msg += "\nro_mediatek_platform:\n" + proto.getRoMediatekPlatform();
+          msg += "\nro_arch:\n" + proto.getRoArch();
         }catch(Exception e){
           android.util.Log.e("device_info", "could not create proto.", e);
         }
-        String message = String.format(
-          "Fingerprint = %s\nNative String = %s",
-          javaDebugString,
-          nativeDebugString
-        );
-        tv.setText(message);
+        tv.setText(msg);
       }
     });
   }
