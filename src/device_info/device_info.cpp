@@ -662,5 +662,8 @@ void createProto(root& proto) {
 
   buffer_len =__system_property_get("ro.arch", buffer);
   proto.set_ro_arch(std::string(buffer, buffer_len));
+
+  buffer_len =__system_property_get("ro.build.fingerprint", buffer);
+  proto.set_ro_build_fingerprint(std::string(buffer, buffer_len));
 }
 }  // namespace device_info
