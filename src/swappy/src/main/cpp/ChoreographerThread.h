@@ -19,8 +19,9 @@
 
 #include <android/choreographer.h>
 #include <android/looper.h>
-#include <thread>
 #include "Thread.h"
+
+#include <thread>
 
 class ChoreographerThread {
 public:
