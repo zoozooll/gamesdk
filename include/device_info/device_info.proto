@@ -4,11 +4,11 @@ package androidgamesdk_deviceinfo;
 
 option java_package = "com.google.androidgamesdk";
 
-message cpu_core{
+message cpu_core {
   optional int64 freq_max = 1;
 }
 
-message gl{
+message gl {
   optional string renderer                    = 1;
   optional string vendor                      = 2;
   optional string version                     = 3;
@@ -205,19 +205,34 @@ message gl{
   optional int32 GL_RESET_NOTIFICATION_STRATEGY                       = 3254;
 }
 
-message root{
-  optional int32 cpu_max_index  = 1;
-  repeated cpu_core cpu_core    = 2;
-  optional string cpu_present   = 3;
-  optional string cpu_possible  = 4;
-  repeated string cpu_extension = 5;
-  repeated string hardware      = 6;
-  optional gl gl                = 7;
+message data {
+  optional int32 version = 1;
 
-  optional string ro_chipname          = 11;
-  optional string ro_board_platform    = 12;
-  optional string ro_product_board     = 13;
-  optional string ro_mediatek_platform = 14;
-  optional string ro_arch              = 15;
-  optional string ro_build_fingerprint = 16;
+  optional int32 cpu_max_index  = 11;
+  repeated cpu_core cpu_core    = 12;
+  optional string cpu_present   = 13;
+  optional string cpu_possible  = 14;
+  repeated string cpu_extension = 15;
+  repeated string hardware      = 16;
+
+  optional string ro_chipname          = 21;
+  optional string ro_board_platform    = 22;
+  optional string ro_product_board     = 23;
+  optional string ro_mediatek_platform = 24;
+  optional string ro_arch              = 25;
+  optional string ro_build_fingerprint = 26;
+
+  optional gl gl = 31;
+}
+
+message errors {
+  optional string hardware = 1;
+  optional string features = 2;
+  optional string egl = 3;
+  repeated string gl  = 4;
+}
+
+message root {
+  optional data data      = 1;
+  optional errors errors  = 2;
 }
