@@ -22,6 +22,11 @@
 #include "Log.h"
 #include "Thread.h"
 #include "Trace.h"
+#include "CpuInfo.h"
+
+#include <sched.h>
+#include <pthread.h>
+#include <unistd.h>
 
 // AChoreographer is supported from API 24. To allow compilation for minSDK < 24
 // and still use AChoreographer for SDK >= 24 we need runtime support to call
@@ -128,9 +133,31 @@ void NDKChoreographerThread::looperThread()
         ALOGE("AChoreographer_getInstance failed");
         return;
     }
+
     mWaitingCondition.notify_all();
 
-    ALOGI("Staring Looper thread");
+    const char *name = "SwappyChoreographer";
+
+    CpuInfo cpu;
+    cpu_set_t cpu_set;
+    CPU_ZERO(&cpu_set);
+    CPU_SET(0, &cpu_set);
+
+    if (cpu.getNumberOfCpus() > 0) {
+        ALOGI("Swappy found %d CPUs [%s].", cpu.getNumberOfCpus(), cpu.getHardware().c_str());
+        if (cpu.getNumberOfLittleCores() > 0) {
+            cpu_set = cpu.getLittleCoresMask();
+        }
+    }
+
+    const auto tid = pthread_gettid_np(pthread_self());
+
+    ALOGI("Setting '%s' thread [%d-0x%x] affinity mask to 0x%x.",
+          name, tid, tid, to_mask(cpu_set));
+    sched_setaffinity(tid, sizeof(cpu_set), &cpu_set);
+
+    pthread_setname_np(pthread_self(), name);
+
     while (mThreadRunning) {
         // mutex should be unlocked before sleeping on pollAll
         mWaitingMutex.unlock();
@@ -264,8 +291,10 @@ ChoreographerThread::~ChoreographerThread() = default;
 
 void ChoreographerThread::postFrameCallbacks()
 {
+    TRACE_CALL();
+
     // This method is called before calling to swap buffers
-    // It register to get MAX_CALLBACKS_BEFORE_IDLE frame callbacks before going idle
+    // It registers to get MAX_CALLBACKS_BEFORE_IDLE frame callbacks before going idle
     // so if app goes to idle the thread will not get further frame callbacks
     std::lock_guard lock(mWaitingMutex);
     if (mCallbacksBeforeIdle == 0) {
@@ -276,6 +305,8 @@ void ChoreographerThread::postFrameCallbacks()
 
 void ChoreographerThread::onChoreographer()
 {
+    TRACE_CALL();
+
     {
         std::lock_guard lock(mWaitingMutex);
         mCallbacksBeforeIdle--;
