@@ -52,7 +52,8 @@ void TFInit(const CProtobufSerialization *settings);
 bool TFGetFidelityParameters(CProtobufSerialization *params, size_t timeout_ms);
 
 // Protobuf serialization of the current annotation
-void TFSetCurrentAnnotation(const CProtobufSerialization *annotation);
+// Returns 0 if the annotation could be set, -1 if not
+int TFSetCurrentAnnotation(const CProtobufSerialization *annotation);
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation
