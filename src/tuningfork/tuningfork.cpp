@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-#include "tuningfork.h"
+#include "tuningfork_internal.h"
 
 #include <inttypes.h>
 #include <vector>
@@ -138,19 +138,21 @@ public:
 
     void InitAnnotationRadixes();
 
+    // Returns true if the fidelity params were retrieved
     bool GetFidelityParameters(ProtobufSerialization &fidelityParams, size_t timeout_ms);
 
-    void SetCurrentAnnotation(const ProtobufSerialization &annotation);
+    // Returns the set annotation id or -1 if it could not be set
+    uint64_t SetCurrentAnnotation(const ProtobufSerialization &annotation);
 
     void FrameTick(InstrumentationKey id);
 
     void FrameDeltaTimeNanos(InstrumentationKey id, Duration dt);
 
+    // Returns the handle to be used by EndTrace
     TraceHandle StartTrace(InstrumentationKey key);
 
     void EndTrace(TraceHandle);
 
-    void Debug(std::string);
 private:
     Prong *TickNanos(uint64_t compound_id, TimePoint t);
 
@@ -252,24 +254,36 @@ void EndTrace(TraceHandle h) {
         s_impl->EndTrace(h);
 }
 
-void SetCurrentAnnotation(const ProtobufSerialization &ann) {
-    if (!s_impl) {
-        LOG_ERROR("Failed to get TuningFork instance");
-    } else
-        s_impl->SetCurrentAnnotation(ann);
-}
-
 constexpr int kKeyError = -1;
 constexpr AnnotationId kAnnotationError = -1;
 constexpr uint64_t kStreamError = -1;
 
-void TuningForkImpl::SetCurrentAnnotation(const ProtobufSerialization &annotation) {
+// Return the set annotation id or -1 if it could not be set
+uint64_t SetCurrentAnnotation(const ProtobufSerialization &ann) {
+    if (!s_impl) {
+        LOG_ERROR("Failed to get TuningFork instance");
+        return kAnnotationError;
+    } else
+        return s_impl->SetCurrentAnnotation(ann);
+}
+
+// Return the set annotation id or -1 if it could not be set
+uint64_t TuningForkImpl::SetCurrentAnnotation(const ProtobufSerialization &annotation) {
     current_annotation_ = annotation;
     auto id = DecodeAnnotationSerialization(annotation);
-    if (id == kAnnotationError)
+    if (id == kAnnotationError) {
+        __android_log_print(ANDROID_LOG_WARN, "TuningFork",
+                            "Error setting annotation of size %zu", annotation.size());
         current_annotation_id_ = 0;
-    else
+        return kAnnotationError;
+    }
+    else {
+#ifndef NDEBUG
+      __android_log_print(ANDROID_LOG_DEBUG, "TuningFork", "Set annotation id to %" PRIu64, id);
+#endif
         current_annotation_id_ = id;
+        return current_annotation_id_;
+    }
 }
 
 // This is a protobuf 1-based index
@@ -293,7 +307,7 @@ uint64_t GetBase128IntegerFromByteStream(const std::vector<uint8_t> &bytes, int 
 }
 
 void WriteBase128IntToStream(uint64_t x, std::vector<uint8_t> &bytes) {
-    while (x) {
+    do {
         uint8_t a = x & 0x7f;
         int b = x & 0xffffffffffffff80;
         if (b) {
@@ -303,7 +317,7 @@ void WriteBase128IntToStream(uint64_t x, std::vector<uint8_t> &bytes) {
             bytes.push_back(a);
             return;
         }
-    }
+    } while(x);
 }
 
 AnnotationId TuningForkImpl::DecodeAnnotationSerialization(const SerializedAnnotation &ser) {
@@ -322,6 +336,8 @@ AnnotationId TuningForkImpl::DecodeAnnotationSerialization(const SerializedAnnot
         uint64_t value = GetBase128IntegerFromByteStream(ser, i);
         if (value == kStreamError)
             return kAnnotationError;
+        // NB: Enums are base zero but we reserve 0 in the annotation for a missing enum
+        value += 1;
         // Check the range of the value
         if (value == 0 || value >= annotation_radix_mult_[key])
             return kAnnotationError;
@@ -345,7 +361,7 @@ SerializedAnnotation TuningForkImpl::SerializeAnnotationId(uint64_t id) {
         if (value > 0) {
             int key = (i + 1) << 3;
             ann.push_back(key);
-            WriteBase128IntToStream(value, ann);
+            WriteBase128IntToStream(value - 1, ann); // NB convert back to 0-based enum
         }
         x /= annotation_radix_mult_[i];
     }
@@ -373,10 +389,6 @@ void TuningForkImpl::EndTrace(TraceHandle h) {
     if (i != TimePoint::min())
         TraceNanos(h, time_provider_->NowNs() - i);
     live_traces_[h] = TimePoint::min();
-}
-void TuningForkImpl::Debug(std::string s) {
-    __android_log_print(ANDROID_LOG_INFO, "TuningFork", "%p Debug %s %p %p",
-        this, s.c_str(), trace_.get(), time_provider_);
 }
 
 void TuningForkImpl::FrameTick(InstrumentationKey key) {
@@ -472,23 +484,19 @@ void TuningForkImpl::InitHistogramSettings() {
             }
         }
     }
-#ifndef NDEBUG
     LOG_DEBUG("Settings::histograms");
     for(int i=0; i< settings_.histograms.size();++i) {
         auto& h = settings_.histograms[i];
         __android_log_print(ANDROID_LOG_DEBUG, "TuningFork", "ikey: %d min: %f max: %f nbkts: %d", h.instrument_key, h.bucket_min, h.bucket_max, h.n_buckets);
     }
-#endif
 }
 
 void TuningForkImpl::InitAnnotationRadixes() {
-#ifndef NDEBUG
     LOG_DEBUG("Settings::annotation_enum_size");
     auto& esz = settings_.aggregation_strategy.annotation_enum_size;
     for(int i=0; i< esz.size();++i) {
         __android_log_print(ANDROID_LOG_DEBUG, "TuningFork", "%d", esz[i]);
     }
-#endif
     int n = settings_.aggregation_strategy.annotation_enum_size.size();
     if (n == 0) {
         // With no annotations, we just have 1 possible prong per key

@@ -15,7 +15,7 @@
 #include "tuningfork_test.h"
 
 #include "tuningfork/protobuf_util.h"
-#include "tuningfork/tuningfork.h"
+#include "tuningfork/tuningfork_internal.h"
 
 #include "full/tuningfork.pb.h"
 #include "full/tuningfork_clearcut_log.pb.h"

@@ -13,7 +13,7 @@
  */
 
 #include "tuningfork/protobuf_util.h"
-#include "tuningfork/tuningfork.h"
+#include "tuningfork/tuningfork_internal.h"
 #include "full/tuningfork.pb.h"
 #include "full/tuningfork_clearcut_log.pb.h"
 #include "full/tuningfork_extensions.pb.h"
@@ -27,6 +27,9 @@ using ::logs::proto::tuningfork::TuningForkLogEvent;
 using ::logs::proto::tuningfork::TuningForkHistogram;
 
 namespace tf = tuningfork;
+namespace tuningfork {
+std::string base64_encode(const uint8_t *a, size_t n);
+}
 
 namespace {
 struct HistogramSettings {
@@ -53,6 +56,7 @@ Settings TestSettings(Settings::AggregationStrategy::Submission method, int n_ti
     }
     return s;
 }
+tf::DebugBackend dbgBackend;
 class LogcatBackend : public tf::Backend {
 public:
     ~LogcatBackend() override {}
@@ -68,7 +72,7 @@ public:
         std::string m = evt.DebugString();
         __android_log_print(ANDROID_LOG_INFO, "TuningFork", "Event (size=%zu) :\n %s",
                             tuningfork_log_event.size(), m.c_str());
-        return true;
+        return dbgBackend.Process(tuningfork_log_event);
     }
 };
 LogcatBackend myBackend;
@@ -79,6 +83,7 @@ void SetAnnotations() {
     if(Level_IsValid(sLevel)) {
         Annotation a;
         a.SetExtension(level, (Level)sLevel);
+        a.SetExtension(level2, (Level)sLevel);
         tf::SetCurrentAnnotation(tf::Serialize(a));
     }
 }
@@ -89,13 +94,13 @@ extern "C" {
 
 JNIEXPORT void JNICALL
 Java_com_google_tuningfork_TFTestActivity_nInit(JNIEnv */*env*/, jobject /*activity*/) {
-    Settings s = TestSettings(Settings::AggregationStrategy::TIME_BASED,
-                              1000, // Time in ms between events
+    Settings s = TestSettings(Settings::AggregationStrategy::TICK_BASED,
+                              100, // Time in ms between events
                               1, // Number of instrumentation keys (we only use SYSCPU)
-                              {4}, // annotation enum sizes (4 levels)
+                              {4, 4}, // annotation enum sizes (4 levels)
                               {{14, // histogram minimum delta time in ms
                                 19, // histogram maximum delta time in ms
-                                10} // number of buckets between the max and min (there will be
+                                70} // number of buckets between the max and min (there will be
                                   //   2 more for out-of-bounds ticks, too)
                               });
     tf::Init(tf::Serialize(s),&myBackend);
