@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "tuningfork.h"
+#include "tuningfork_internal.h"
 
 #include <inttypes.h>
 #include <vector>
