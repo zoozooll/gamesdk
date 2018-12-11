@@ -98,7 +98,8 @@ void Init(const ProtobufSerialization &settings, Backend *backend = 0,
 bool GetFidelityParameters(ProtobufSerialization &params, size_t timeout_ms);
 
 // Protobuf serialization of the current annotation
-void SetCurrentAnnotation(const ProtobufSerialization &annotation);
+// Returns the internal annotation id if it was set or -1 if not
+uint64_t SetCurrentAnnotation(const ProtobufSerialization &annotation);
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation

@@ -17,6 +17,8 @@ else()
   set(PROTOC_EXECUTABLE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
 endif()
 
+set( MODPB64_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../external/modp_b64")
+
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS -Os -fPIC" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions" )
@@ -52,6 +54,7 @@ include_directories(${PROTOBUF_NANO_SRC_DIR})
 include_directories( ../../include )
 include_directories( ../../src/swappy )
 include_directories( ../)
+include_directories( ${MODPB64_DIR}/modp_b64)
 
 set(_PROTO_GENS_DIR ${CMAKE_BINARY_DIR}/gens)
 set(PROTO_GENS_DIR ${_PROTO_GENS_DIR} PARENT_SCOPE)
@@ -256,7 +259,8 @@ extra_pb_nano_link_options(protobuf-nano)
 
 protobuf_generate_nano_c( ${CMAKE_CURRENT_SOURCE_DIR}/proto
   proto/tuningfork.proto
-  proto/tuningfork_clearcut_log.proto )
+  proto/tuningfork_clearcut_log.proto
+  proto/eng_tuningfork.proto)
 
 set( TUNINGFORK_SRCS
   histogram.cpp
@@ -266,8 +270,10 @@ set( TUNINGFORK_SRCS
   tuningfork_c.cpp
   clearcutserializer.cpp
   protobuf_util.cpp
+  ${MODPB64_DIR}/modp_b64.cc
   ${_PROTO_GENS_DIR}/nano/tuningfork.pb.c
-  ${_PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c)
+  ${_PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c
+  ${_PROTO_GENS_DIR}/nano/eng_tuningfork.pb.c)
 
 add_library( tuningfork-static
   STATIC ${TUNINGFORK_SRCS} ${PROTOBUF_NANO_SRCS})

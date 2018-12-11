@@ -20,8 +20,6 @@ include_directories(${PROTO_GENS_DIR})
 include_directories(${PROTOBUF_SRC_DIR})
 include_directories(${PROTOBUF_NANO_SRC_DIR})
 include_directories(../../../../src)
-include_directories(../../../../src/tuningfork/gens)
-include_directories(../../../../src/tuningfork/gens/full)
 
 add_library( tuningfork_test
              SHARED

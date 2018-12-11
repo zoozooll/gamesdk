@@ -12,21 +12,46 @@
  * limitations under the License.
  */
 
+#include <sstream>
 #include "uploadthread.h"
 #include "clearcutserializer.h"
+#include "modp_b64.h"
 
 namespace tuningfork {
 
 DebugBackend::~DebugBackend() {}
 
 bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
-    std::string s;
-    s = "<nano/>"; // TODO: pb_decode and output
-    __android_log_print(ANDROID_LOG_INFO, "TuningFork", "%s", s.c_str());
+    if (evt_ser.size() == 0) return false;
+    auto encode_len = modp_b64_encode_len(evt_ser.size());
+    std::vector<char> dest_buf(encode_len);
+    // This fills the dest buffer with a null-terminated string. It returns the length of
+    //  the string, not including the null char
+    auto n_encoded = modp_b64_encode(&dest_buf[0], reinterpret_cast<const char*>(&evt_ser[0]),
+        evt_ser.size());
+    if (n_encoded == -1 || encode_len != n_encoded+1) {
+        __android_log_print(ANDROID_LOG_WARN, "TuningFork", "Could not b64 encode protobuf");
+        return false;
+    }
+    std::string s(&dest_buf[0], n_encoded);
+    // Split the serialization into <128-byte chunks to avoid logcat line
+    //  truncation.
+    constexpr size_t maxStrLen = 128;
+    int n = (s.size() + maxStrLen - 1) / maxStrLen; // Round up
+    for (int i = 0, j = 0; i < n; ++i) {
+        std::stringstream str;
+        str << "(TCL" << (i + 1) << "/" << n << ")";
+        int m = std::min(s.size() - j, maxStrLen);
+        str << s.substr(j, m);
+        j += m;
+        __android_log_print(ANDROID_LOG_INFO, "TuningFork", "%s",
+                            str.str().c_str());
+    }
     return true;
 }
 
-bool DebugBackend::GetFidelityParams(ProtobufSerialization &fp_ser, size_t timeout_ms) {
+bool DebugBackend::GetFidelityParams(ProtobufSerialization &fp_ser,
+                                     size_t timeout_ms) {
     FidelityParams fpDefault;
     // TODO: put some dummy params here for testing
     fp_ser.clear();
@@ -36,7 +61,7 @@ bool DebugBackend::GetFidelityParams(ProtobufSerialization &fp_ser, size_t timeo
 std::unique_ptr<DebugBackend> s_debug_backend = std::make_unique<DebugBackend>();
 
 UploadThread::UploadThread(Backend *backend) : backend_(backend),
-                                                                  current_fidelity_params_(0) {
+                                               current_fidelity_params_(0) {
     if (backend_ == nullptr)
         backend_ = s_debug_backend.get();
     Start();
