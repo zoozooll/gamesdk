@@ -45,12 +45,13 @@ public class MainActivity extends Activity {
           byte[] nativeBytes = jniGetProtoSerialized();
           proto = com.google.androidgamesdk.DeviceInfo.root.parseFrom(nativeBytes);
 
-          msg += "\nFingerprint(ro.build.fingerprint):\n" + proto.getRoBuildFingerprint();
-          msg += "\nro_chipname:\n" + proto.getRoChipname();
-          msg += "\nro_board_platform:\n" + proto.getRoBoardPlatform();
-          msg += "\nro_product_board:\n" + proto.getRoProductBoard();
-          msg += "\nro_mediatek_platform:\n" + proto.getRoMediatekPlatform();
-          msg += "\nro_arch:\n" + proto.getRoArch();
+          com.google.androidgamesdk.DeviceInfo.data data = proto.getData();
+          msg += "\nFingerprint(ro.build.fingerprint):\n" + data.getRoBuildFingerprint();
+          msg += "\nro_chipname:\n" + data.getRoChipname();
+          msg += "\nro_board_platform:\n" + data.getRoBoardPlatform();
+          msg += "\nro_product_board:\n" + data.getRoProductBoard();
+          msg += "\nro_mediatek_platform:\n" + data.getRoMediatekPlatform();
+          msg += "\nro_arch:\n" + data.getRoArch();
         }catch(Exception e){
           android.util.Log.e("device_info", "could not create proto.", e);
         }
