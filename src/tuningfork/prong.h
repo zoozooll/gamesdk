@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "tuningfork.h"
+#include "tuningfork_internal.h"
 #include "histogram.h"
 
 #include <inttypes.h>

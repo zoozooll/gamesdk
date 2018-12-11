@@ -28,13 +28,17 @@ bool ClearcutSerializer::writeCountArray(pb_ostream_t *stream, const pb_field_t 
     const Histogram* h = static_cast<Histogram*>(*arg);
     if(!pb_encode_tag(stream, PB_WT_STRING, logs_proto_tuningfork_TuningForkHistogram_counts_tag))
         return false;
-    // Encode the length of the packed array
-    if (!pb_encode_varint(stream, h->num_buckets_))
+    // Get the length of the data
+    pb_ostream_t sizing_stream = PB_OSTREAM_SIZING;
+    for (int i = 0; i < h->num_buckets_; ++i)
+        pb_encode_varint(&sizing_stream, h->buckets_[i]);
+    // Encode the length of the packed array in bytes
+    if (!pb_encode_varint(stream, sizing_stream.bytes_written))
         return false;
     // Encode each item, without the type, since it's packed
     for (int i = 0; i < h->num_buckets_; ++i) {
-      if(!pb_encode_varint(stream, h->buckets_[i]))
-      return false;
+        if(!pb_encode_varint(stream, h->buckets_[i]))
+            return false;
     }
     return true;
 }
@@ -47,12 +51,14 @@ void ClearcutSerializer::Fill(const Histogram& h, ClearcutHistogram& ch) {
 bool ClearcutSerializer::writeAnnotation(pb_ostream_t* stream, const pb_extension_t *extension) {
     const Prong* p = static_cast<const Prong*>(extension->type->arg);
     if(p->annotation_.size()>0) {
-      pb_write(stream, &p->annotation_[0], p->annotation_.size());
+        pb_write(stream, &p->annotation_[0], p->annotation_.size());
     }
     return true;
 }
 void ClearcutSerializer::Fill(const Prong& p, ClearcutHistogram& h) {
+    h.has_instrument_id = true;
     h.instrument_id = p.instrumentation_key_;
+    h.has_annotation = true;
     h.annotation.extensions = &ext_;
     ext_.type = &ext_type_;
     ext_.next = 0;

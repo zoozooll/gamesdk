@@ -13,7 +13,7 @@
  */
 
 #include "tuningfork/tuningfork.h"
-#include "tuningfork.h"
+#include "tuningfork_internal.h"
 
 namespace {
 tuningfork::ProtobufSerialization ToProtobufSerialization(const CProtobufSerialization& cpbs) {
@@ -50,9 +50,17 @@ bool TFGetFidelityParameters(CProtobufSerialization *params, size_t timeout_ms) 
 }
 
 // Protobuf serialization of the current annotation
-void TFSetCurrentAnnotation(const CProtobufSerialization *annotation) {
+// Returns 0 if the annotation could be set, -1 if not
+int TFSetCurrentAnnotation(const CProtobufSerialization *annotation) {
   if(annotation)
-    tuningfork::SetCurrentAnnotation(ToProtobufSerialization(*annotation));
+    // Note that SetCurrentAnnotation returns the internal annotation id if it could be set
+    //  or -1 if it could not.
+    if(tuningfork::SetCurrentAnnotation(ToProtobufSerialization(*annotation))==-1)
+      return -1;
+    else
+      return 0;
+  else
+    return -1;
 }
 
 // Record a frame tick that will be associated with the instrumentation key and the current

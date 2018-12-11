@@ -14,3 +14,16 @@ extend Annotation {
   optional LoadingState loading_state = 1;
   optional int32 level = 2;
 }
+
+enum QualitySettings {
+  FASTEST = 0;
+  FAST = 1;
+  SIMPLE = 2;
+  GOOD = 3;
+  BEAUTIFUL = 4;
+  FANTASTIC = 5;
+}
+
+extend FidelityParams {
+  optional QualitySettings qualitySettings = 1;
+}
