@@ -23,11 +23,11 @@ int main(){
   androidgamesdk_deviceinfo::createProto(proto);
 
   std::cout << "cpu present:" << std::endl;
-  std::cout << proto.cpu_present() << std::endl;
+  std::cout << proto.data().cpu_present() << std::endl;
 
   std::cout << "compressed texture formats:" << std::endl;
   std::cout << std::hex;
-  for(auto i : proto.gl().gl_compressed_texture_formats()){
+  for(auto i : proto.data().gl().gl_compressed_texture_formats()){
     std::cout << i << std::endl;
   }
 

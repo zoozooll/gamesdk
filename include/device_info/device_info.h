@@ -12,19 +12,11 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include "frameworks/opt/gamesdk/include/device_info/device_info.pb.h"
 
-#include <EGL/egl.h>
-#include <GLES3/gl32.h>
-
-#include <cstdint>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <fstream>
-#include <vector>
-#include <set>
-
 namespace androidgamesdk_deviceinfo {
-void createProto(root& proto);
-}  // namespace device_info
+// returns number of errors
+int createProto(root& proto);
+}  // namespace androidgamesdk_deviceinfo
