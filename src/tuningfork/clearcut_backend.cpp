@@ -32,27 +32,28 @@ bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
     //Attach thread
     int envStatus  = vm_->GetEnv((void**)&env, JNI_VERSION_1_6);
 
-    if(envStatus == JNI_EVERSION) {
-        __android_log_print(
-                ANDROID_LOG_WARN,
-                LOG_TAG, "JNI Version is not supported, status : %d", envStatus);
-        return false;
-    }
-
-    if(envStatus == JNI_EDETACHED) {
-        int attachStatus = vm_->AttachCurrentThread(&env, (void*)NULL);
-        if(attachStatus!= 0) {
+    switch(envStatus) {
+        case JNI_OK:
+            break;
+        case JNI_EVERSION:
             __android_log_print(
                     ANDROID_LOG_WARN,
-                    LOG_TAG,
-                    "Thread is not attached, status : %d", attachStatus);
+                    LOG_TAG, "JNI Version is not supported, status : %d", envStatus);
             return false;
+        case JNI_EDETACHED: {
+            int attachStatus = vm_->AttachCurrentThread(&env, (void *) NULL);
+            if (attachStatus != JNI_OK) {
+                __android_log_print(
+                        ANDROID_LOG_WARN,
+                        LOG_TAG,
+                        "Thread is not attached, status : %d", attachStatus);
+                return false;
+            }
         }
-    }
-
-    if(envStatus != JNI_OK) {
-        __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "JNIEnv is not OK, status : %d", envStatus);
-        return false;
+            break;
+        default:
+            __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "JNIEnv is not OK, status : %d", envStatus);
+            return false;
     }
 
     //Cast to jbytearray
@@ -67,14 +68,19 @@ bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
 
     // Detach thread.
     vm_->DetachCurrentThread();
+    __android_log_print(
+            ANDROID_LOG_INFO,
+            LOG_TAG,
+            "Message was sent to clearcut");
     return !hasException;
 }
 
 bool ClearcutBackend::Init(JNIEnv *env, jobject activity) {
     env->GetJavaVM(&vm_);
-    if(vm_ == nullptr)
+    if(vm_ == nullptr) {
         __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", "JavaVM is null...");
         return false;
+    }
 
     try {
         bool inited = InitWithClearcut(env, activity, false);
