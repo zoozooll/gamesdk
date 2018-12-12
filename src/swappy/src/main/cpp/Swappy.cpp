@@ -197,7 +197,7 @@ void Swappy::addTracerCallbacks(SwappyTracer tracer) {
 }
 
 template<typename T> void executeTracers(T& tracers) {
-    for (auto tracer : tracers) {
+    for (const auto& tracer : tracers) {
         tracer();
     }
 }
