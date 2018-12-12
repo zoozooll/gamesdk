@@ -12,18 +12,45 @@
  * limitations under the License.
  */
 
- #include "device_info/device_info.h"
+#include "device_info/device_info.h"
 
 #include <sys/system_properties.h>
+#include <EGL/egl.h>
+#include <GLES3/gl32.h>
+
+#include <cstdint>
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <vector>
+#include <set>
 
 namespace {
-typedef int64_t int64;
-typedef uint32_t uint32;
-typedef uint8_t uint8;
+using ProtoRoot   = androidgamesdk_deviceinfo::root;
+using ProtoErrors = androidgamesdk_deviceinfo::errors;
+using ProtoData   = androidgamesdk_deviceinfo::data;
+using ProtoGl     = androidgamesdk_deviceinfo::gl;
 
 // size of GL view and texture in future
 constexpr int VIEW_WIDTH = 8;
 constexpr int VIEW_HEIGHT = VIEW_WIDTH;
+
+namespace string_util {
+bool startsWith(const std::string& text, const std::string& start) {
+  return text.compare(0, start.length(), start) == 0;
+}
+
+void splitAdd(const std::string& toSplit, char delimeter,
+              std::set<std::string>* result) {
+  std::istringstream istr(toSplit);
+  std::string piece;
+  while (std::getline(istr, piece, delimeter)) {
+    if (piece.length() > 0) {
+      result->insert(piece);
+    }
+  }
+}
+}  // namespace string_util
 
 template <typename T>
 T readFile(const std::string& fileName, const T& error) {
@@ -44,39 +71,25 @@ std::string readCpuPossible() {
   return readFile("/sys/devices/system/cpu/possible", ERROR);
 }
 int readCpuIndexMax() {
-  const int ERROR = -1;
+  constexpr int ERROR = -1;
   return readFile("/sys/devices/system/cpu/kernel_max", ERROR);
 }
-int64 readCpuFreqMax(int cpuIndex) {
+int64_t readCpuFreqMax(int cpuIndex) {
   const std::string fileName =
     "/sys/devices/system/cpu/cpu" +
     std::to_string(cpuIndex) +
     "/cpufreq/cpuinfo_max_freq";
-  const int64 ERROR = -1;
+  constexpr int64_t ERROR = -1;
   return readFile(fileName, ERROR);
 }
 
-namespace string_util {
-bool startsWith(const std::string& text, const std::string& start) {
-  return text.compare(0, start.length(), start) == 0;
-}
-
-void splitAdd(const std::string& toSplit, char delimeter,
-              std::set<std::string>* result) {
-  std::istringstream istr(toSplit);
-  std::string piece;
-  while (std::getline(istr, piece, delimeter)) {
-    if (piece.length() > 0) {
-      result->insert(piece);
-    }
-  }
-}
-}  // namespace string_util
-
-std::vector<std::string> readHardware() {
+// returns number of errors
+int readHardware(std::vector<std::string>& result, ProtoErrors& errors) {
   std::ifstream f("/proc/cpuinfo");
-  if (f.fail()) return std::vector<std::string>{"ERROR"};
-  std::vector<std::string> result;
+  if (f.fail()){
+    errors.set_hardware("Could not read.");
+    return 1;
+  }
   const std::string FIELD_KEY = "Hardware\t: ";
   std::string line;
   while (std::getline(f, line)) {
@@ -85,13 +98,16 @@ std::vector<std::string> readHardware() {
       result.push_back(val);
     }
   }
-  return result;
+  return 0;
 }
 
-std::set<std::string> readFeatures() {
-  std::set<std::string> result;
+// returns number of errors
+int readFeatures(std::set<std::string>& result, ProtoErrors& errors) {
   std::ifstream f("/proc/cpuinfo");
-  if (f.fail()) return result;
+  if (f.fail()){
+    errors.set_features("Could not read.");
+    return 1;
+  }
   const std::string FIELD_KEY = "Features\t: ";
   std::string line;
   while (std::getline(f, line)) {
@@ -100,34 +116,66 @@ std::set<std::string> readFeatures() {
       ::string_util::splitAdd(features, ' ', &result);
     }
   }
-  return result;
+  return 0;
 }
 
-// TODO: fail more gracefully
-void assertEGl(const char* title) {
+void addSystemProperties(::ProtoData& proto) {
+  char buffer[PROP_VALUE_MAX];
+  int buffer_len = -1;
+
+  buffer_len = __system_property_get("ro.chipname", buffer);
+  proto.set_ro_chipname(std::string(buffer, buffer_len));
+
+  buffer_len = __system_property_get("ro.board.platform", buffer);
+  proto.set_ro_board_platform(std::string(buffer, buffer_len));
+
+  buffer_len = __system_property_get("ro.product.board", buffer);
+  proto.set_ro_product_board(std::string(buffer, buffer_len));
+
+  buffer_len = __system_property_get("ro.mediatek.platform", buffer);
+  proto.set_ro_mediatek_platform(std::string(buffer, buffer_len));
+
+  buffer_len = __system_property_get("ro.arch", buffer);
+  proto.set_ro_arch(std::string(buffer, buffer_len));
+
+  buffer_len = __system_property_get("ro.build.fingerprint", buffer);
+  proto.set_ro_build_fingerprint(std::string(buffer, buffer_len));
+}
+
+// returns number of errors
+int checkEglError(const char* title, ::ProtoErrors& errors) {
   EGLint error = eglGetError();
-  if (error != EGL_SUCCESS) {
-    std::cerr << "*EGL Error: " << title << ": "
-              << std::hex << (int)error << std::dec;
-    exit(1);
-  }
+  if (error == EGL_SUCCESS) return 0;
+  std::stringstream ss;
+  ss << title << ": 0x" << std::hex << (int)error << std::dec;
+  errors.set_egl(ss.str());
+  return 1;
 }
 
-void flushGlErrors(const std::string& at = "") {
-  while (auto e = glGetError()) {
-    if (e == GL_NO_ERROR) break;
-    std::cerr << "*GL error: " <<
-              std::hex << (int)e << std::dec << at <<
-              std::endl;
+int flushGlErrors(::ProtoErrors& errors) {
+  int numErrors = 0;
+  while (GLenum e = glGetError() != GL_NO_ERROR) {
+    std::stringstream ss;
+    ss << "0x" << std::hex << (int)e << std::dec;
+    errors.add_gl(ss.str());
+    numErrors++;
   }
+  return numErrors;
 }
 
-void setupEGl() {
+// returns number of errors
+int setupEGl(::ProtoRoot& proto) {
+  ProtoErrors& errors = *proto.mutable_errors();
+
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  assertEGl("eglGetDisplay");
+  if (int numErrors = checkEglError("eglGetDisplay", errors)){
+    return numErrors;
+  }
 
   eglInitialize(display, nullptr, nullptr);  // do not care about egl version
-  assertEGl("eglInitialize");
+  if (int numErrors = checkEglError("eglInitialize", errors)){
+    return numErrors;
+  }
 
   EGLint configAttribs[] = {
     EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
@@ -141,7 +189,9 @@ void setupEGl() {
   EGLConfig config;
   EGLint numConfigs = -1;
   eglChooseConfig(display, configAttribs, &config, 1, &numConfigs);
-  assertEGl("eglChooseConfig");
+  if (int numErrors = checkEglError("eglChooseConfig", errors)){
+    return numErrors;
+  }
 
   EGLint contextAttribs[] = {
     EGL_CONTEXT_CLIENT_VERSION, 2,
@@ -149,7 +199,9 @@ void setupEGl() {
   };
   EGLContext context =
     eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs);
-  assertEGl("eglCreateContext");
+  if (int numErrors = checkEglError("eglCreateContext", errors)){
+    return numErrors;
+  }
 
   EGLint pbufferAttribs[] = {
     EGL_WIDTH,  VIEW_WIDTH,
@@ -157,16 +209,25 @@ void setupEGl() {
     EGL_NONE
   };
   EGLSurface surface = eglCreatePbufferSurface(display, config, pbufferAttribs);
-  assertEGl("eglCreatePbufferSurface");
+  if (int numErrors = checkEglError("eglCreatePbufferSurface", errors)){
+    return numErrors;
+  }
 
   eglMakeCurrent(display, surface, surface, context);
-  assertEGl("eglMakeCurrent");
+  if (int numErrors = checkEglError("eglMakeCurrent", errors)){
+    return numErrors;
+  }
+
+  return 0;
 }
 
 namespace gl_util {
 typedef const GLubyte* GlStr;
 typedef GlStr(*FuncTypeGlGetstringi)(GLenum, GLint);
 FuncTypeGlGetstringi glGetStringi = 0;
+const char* getStringIndexed(GLenum e, GLuint index){
+  return reinterpret_cast<const char*>(::gl_util::glGetStringi(e, index));
+}
 
 typedef void(*FuncTypeGlGetInteger64v)(GLenum, GLint64*);
 FuncTypeGlGetInteger64v glGetInteger64v = 0;
@@ -182,6 +243,10 @@ GLint getIntIndexed(GLenum e, GLuint index) {
   GLint result = -1;
   glGetIntegeri_v(e, index, &result);
   return result;
+}
+
+const char* getString(GLenum e){
+  return reinterpret_cast<const char*>(glGetString(e));
 }
 
 GLfloat getFloat(GLenum e) {
@@ -201,7 +266,7 @@ GLboolean getBool(GLenum e) {
 }
 }  // namespace gl_util
 
-void addGlConstsV2_0(androidgamesdk_deviceinfo::gl& gl) {
+void addGlConstsV2_0(::ProtoGl& gl) {
   gl.set_gl_aliased_line_width_range(
     ::gl_util::getFloat(GL_ALIASED_LINE_WIDTH_RANGE));
   gl.set_gl_aliased_point_size_range(
@@ -290,7 +355,7 @@ void addGlConstsV2_0(androidgamesdk_deviceinfo::gl& gl) {
   gl.set_spf_fragment_int_hig_range(spfr);
   gl.set_spf_fragment_int_hig_prec(spfp);
 }
-void addGlConstsV3_0(androidgamesdk_deviceinfo::gl& gl) {
+void addGlConstsV3_0(::ProtoGl& gl) {
   gl.set_gl_max_3d_texture_size(
     ::gl_util::getInt(GL_MAX_3D_TEXTURE_SIZE));
   gl.set_gl_max_array_texture_layers(
@@ -453,7 +518,7 @@ void addGlConstsV3_1(androidgamesdk_deviceinfo::gl& gl) {
   gl.set_gl_max_compute_work_group_size_2(
     ::gl_util::getIntIndexed(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2));
 }
-void addGlConstsV3_2(androidgamesdk_deviceinfo::gl& gl) {
+void addGlConstsV3_2(::ProtoGl& gl) {
   gl.set_gl_context_flags(
     ::gl_util::getInt(GL_CONTEXT_FLAGS));
   gl.set_gl_fragment_interpolation_offset_bits(
@@ -562,39 +627,22 @@ void addGlConstsV3_2(androidgamesdk_deviceinfo::gl& gl) {
   gl.set_gl_primitive_restart_for_patches_supported(
     ::gl_util::getBool(GL_PRIMITIVE_RESTART_FOR_PATCHES_SUPPORTED));
 }
-}  // namespace
 
-namespace androidgamesdk_deviceinfo {
-void createProto(root& proto) {
-  int cpuIndexMax = readCpuIndexMax();
-  proto.set_cpu_max_index(cpuIndexMax);
+// returns number of errors
+int addGl(::ProtoRoot& proto) {
+  int numErrors = 0;
 
-  for (int cpuIndex = 0; cpuIndex <= cpuIndexMax; cpuIndex++) {
-    cpu_core* newCore = proto.add_cpu_core();
-    int64 freqMax = readCpuFreqMax(cpuIndex);
-    if (freqMax > 0) {
-      newCore->set_freq_max(freqMax);
-    }
-  }
+  ::ProtoData& data = *proto.mutable_data();
+  ::ProtoGl& gl = *data.mutable_gl();
+  ::ProtoErrors& errors = *proto.mutable_errors();
 
-  proto.set_cpu_present(readCpuPresent());
-  proto.set_cpu_possible(readCpuPossible());
-
-  for (const std::string& s : readHardware()) {
-    proto.add_hardware(s);
-  }
-  for (const std::string& s : readFeatures()) {
-    proto.add_cpu_extension(s);
-  }
-
-  setupEGl();
-
-  gl& gl = *proto.mutable_gl();
-  gl.set_renderer(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
-  gl.set_vendor(reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
-  gl.set_version(reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+  gl.set_renderer(::gl_util::getString(GL_RENDERER));
+  gl.set_vendor(::gl_util::getString(GL_VENDOR));
+  gl.set_version(::gl_util::getString(GL_VERSION));
   gl.set_shading_language_version(
-    reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
+    ::gl_util::getString(GL_SHADING_LANGUAGE_VERSION));
+
+  numErrors += flushGlErrors(errors);
 
   GLint glVerMajor = -1;
   GLint glVerMinor = -1;
@@ -616,14 +664,11 @@ void createProto(root& proto) {
     ::gl_util::glGetStringi = reinterpret_cast<::gl_util::FuncTypeGlGetstringi>(
                                 eglGetProcAddress("glGetStringi"));
     for (int i = 0; i < numExts; i++) {
-      std::string s =
-        reinterpret_cast<const char*>(
-          ::gl_util::glGetStringi(GL_EXTENSIONS, i));
+      std::string s = ::gl_util::getStringIndexed(GL_EXTENSIONS, i);
       gl.add_extension(s);
     }
   } else {
-    std::string exts =
-      reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+    std::string exts = ::gl_util::getString(GL_EXTENSIONS);
     std::set<std::string> split;
     ::string_util::splitAdd(exts, ' ', &split);
     for (const std::string& s : split) {
@@ -644,26 +689,54 @@ void createProto(root& proto) {
     addGlConstsV3_2(gl);
   }
 
-  flushGlErrors();
-
-  char buffer[PROP_VALUE_MAX];
-  int buffer_len = -1;
-  buffer_len =__system_property_get("ro.chipname", buffer);
-  proto.set_ro_chipname(std::string(buffer, buffer_len));
-
-  buffer_len =__system_property_get("ro.board.platform", buffer);
-  proto.set_ro_board_platform(std::string(buffer, buffer_len));
-
-  buffer_len =__system_property_get("ro.product.board", buffer);
-  proto.set_ro_product_board(std::string(buffer, buffer_len));
-
-  buffer_len =__system_property_get("ro.mediatek.platform", buffer);
-  proto.set_ro_mediatek_platform(std::string(buffer, buffer_len));
-
-  buffer_len =__system_property_get("ro.arch", buffer);
-  proto.set_ro_arch(std::string(buffer, buffer_len));
-
-  buffer_len =__system_property_get("ro.build.fingerprint", buffer);
-  proto.set_ro_build_fingerprint(std::string(buffer, buffer_len));
+  numErrors += flushGlErrors(errors);
+  return numErrors;
 }
-}  // namespace device_info
+}  // namespace
+
+namespace androidgamesdk_deviceinfo {
+int createProto(::ProtoRoot& proto) {
+  int numErrors = 0;
+
+  ProtoData& data = *proto.mutable_data();
+  data.set_version(1);
+
+  int cpuIndexMax = readCpuIndexMax();
+  data.set_cpu_max_index(cpuIndexMax);
+
+  for (int cpuIndex = 0; cpuIndex <= cpuIndexMax; cpuIndex++) {
+    cpu_core* newCore = data.add_cpu_core();
+    int64_t freqMax = readCpuFreqMax(cpuIndex);
+    if (freqMax > 0) {
+      newCore->set_freq_max(freqMax);
+    }
+  }
+
+  data.set_cpu_present(readCpuPresent());
+  data.set_cpu_possible(readCpuPossible());
+
+  ProtoErrors& errors = *proto.mutable_errors();
+
+  std::vector<std::string> hardware;
+  numErrors += readHardware(hardware, errors);
+  for (const std::string& s : hardware) {
+    data.add_hardware(s);
+  }
+
+  std::set<std::string> features;
+  numErrors += readFeatures(features, errors);
+  for (const std::string& s : features) {
+    data.add_cpu_extension(s);
+  }
+
+  addSystemProperties(data);
+
+  int numErrorsEgl = setupEGl(proto);
+  numErrors += numErrorsEgl;
+  if (numErrorsEgl == 0) {
+    numErrors += addGl(proto);
+  }
+
+  return numErrors;
+}
+}  // namespace androidgamesdk_deviceinfo
