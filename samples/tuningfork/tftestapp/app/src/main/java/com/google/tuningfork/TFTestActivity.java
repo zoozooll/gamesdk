@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Choreographer;
+import com.google.android.gms.common.GoogleApiAvailability;
 
 public class TFTestActivity extends AppCompatActivity implements Choreographer.FrameCallback {
 
@@ -30,7 +31,7 @@ public class TFTestActivity extends AppCompatActivity implements Choreographer.F
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        CheckGMS();
         nInit();
     }
 
@@ -45,6 +46,16 @@ public class TFTestActivity extends AppCompatActivity implements Choreographer.F
 
         nOnChoreographer(t);
         Choreographer.getInstance().postFrameCallback(this);
+    }
+
+    private void CheckGMS() {
+
+        GoogleApiAvailability availability = GoogleApiAvailability.getInstance();
+        int status = availability.isGooglePlayServicesAvailable(this.getApplicationContext());
+        int version = GoogleApiAvailability.GOOGLE_PLAY_SERVICES_VERSION_CODE;
+
+        Log.i("Tuningfork Clearcut", "CheckGMS status: " + status);
+        Log.i("TUningfork Clearcut", "CheckGMS version: " + version);
     }
 
     public native void nInit();
