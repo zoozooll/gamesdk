@@ -139,7 +139,8 @@ public:
     void InitAnnotationRadixes();
 
     // Returns true if the fidelity params were retrieved
-    bool GetFidelityParameters(ProtobufSerialization &fidelityParams, size_t timeout_ms);
+    bool GetFidelityParameters(const ProtobufSerialization& defaultParams,
+                               ProtobufSerialization &fidelityParams, size_t timeout_ms);
 
     // Returns the set annotation id or -1 if it could not be set
     uint64_t SetCurrentAnnotation(const ProtobufSerialization &annotation);
@@ -218,12 +219,13 @@ void Init(const ProtobufSerialization &settings_ser,
                                               time_provider);
 }
 
-bool GetFidelityParameters(ProtobufSerialization &params, size_t timeout_ms) {
+bool GetFidelityParameters(const ProtobufSerialization &defaultParams,
+                           ProtobufSerialization &params, size_t timeout_ms) {
     if (!s_impl) {
         LOG_ERROR("Failed to get TuningFork instance");
         return false;
     } else
-        return s_impl->GetFidelityParameters(params, timeout_ms);
+        return s_impl->GetFidelityParameters(defaultParams, params, timeout_ms);
 }
 
 void FrameTick(InstrumentationKey id) {
@@ -368,10 +370,13 @@ SerializedAnnotation TuningForkImpl::SerializeAnnotationId(uint64_t id) {
     return ann;
 }
 
-bool TuningForkImpl::GetFidelityParameters(ProtobufSerialization &params_ser, size_t timeout_ms) {
+bool TuningForkImpl::GetFidelityParameters(const ProtobufSerialization& defaultParams,
+                                           ProtobufSerialization &params_ser, size_t timeout_ms) {
     auto result = backend_->GetFidelityParams(params_ser, timeout_ms);
     if (result) {
         upload_thread_.SetCurrentFidelityParams(params_ser);
+    } else {
+        upload_thread_.SetCurrentFidelityParams(defaultParams);
     }
     return result;
 }

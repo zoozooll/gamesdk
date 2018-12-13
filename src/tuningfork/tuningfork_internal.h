@@ -95,7 +95,10 @@ void Init(const ProtobufSerialization &settings, Backend *backend = 0,
 // Returns true if parameters could be downloaded within the timeout, false otherwise.
 // Note that once fidelity parameters are downloaded, any timing information is recorded
 //  as being associated with those parameters.
-bool GetFidelityParameters(ProtobufSerialization &params, size_t timeout_ms);
+// If you subsequently call GetFidelityParameters, any data that is already collected will be
+// submitted to the backend.
+bool GetFidelityParameters(const ProtobufSerialization& defaultParams,
+                           ProtobufSerialization &params, size_t timeout_ms);
 
 // Protobuf serialization of the current annotation
 // Returns the internal annotation id if it was set or -1 if not

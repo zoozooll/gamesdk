@@ -19,7 +19,8 @@ namespace {
 tuningfork::ProtobufSerialization ToProtobufSerialization(const CProtobufSerialization& cpbs) {
   return tuningfork::ProtobufSerialization(cpbs.bytes, cpbs.bytes + cpbs.size);
 }
-void ToCProtobufSerialization(const tuningfork::ProtobufSerialization& pbs, CProtobufSerialization* cpbs) {
+void ToCProtobufSerialization(const tuningfork::ProtobufSerialization& pbs,
+                              CProtobufSerialization* cpbs) {
   cpbs->bytes = (uint8_t*)::malloc(pbs.size());
   cpbs->size = pbs.size();
   cpbs->dealloc = ::free;
@@ -32,7 +33,7 @@ extern "C" {
 //  If no backend is passed, a debug version is used which returns empty fidelity params
 //   and outputs histograms in protobuf text format to logcat.
 //  If no timeProvider is passed, std::chrono::steady_clock is used.
-void TFInit(const CProtobufSerialization *settings) {
+void TuningFork_init(const CProtobufSerialization *settings) {
   if(settings)
     tuningfork::Init(ToProtobufSerialization(*settings));
 }
@@ -41,17 +42,21 @@ void TFInit(const CProtobufSerialization *settings) {
 // Returns true if parameters could be downloaded within the timeout, false otherwise.
 // Note that once fidelity parameters are downloaded, any timing information is recorded
 //  as being associated with those parameters.
-bool TFGetFidelityParameters(CProtobufSerialization *params, size_t timeout_ms) {
+bool TuningFork_getFidelityParameters(const CProtobufSerialization *defaultParams,
+                             CProtobufSerialization *params, size_t timeout_ms) {
+  tuningfork::ProtobufSerialization defaults;
+  if(defaultParams)
+    defaults = ToProtobufSerialization(*defaultParams);
   tuningfork::ProtobufSerialization s;
-  bool result = tuningfork::GetFidelityParameters(s, timeout_ms);
-  if(params)
+  bool result = tuningfork::GetFidelityParameters(defaults, s, timeout_ms);
+  if(result && params)
     ToCProtobufSerialization(s, params);
   return result;
 }
 
 // Protobuf serialization of the current annotation
 // Returns 0 if the annotation could be set, -1 if not
-int TFSetCurrentAnnotation(const CProtobufSerialization *annotation) {
+int TuningFork_setCurrentAnnotation(const CProtobufSerialization *annotation) {
   if(annotation)
     // Note that SetCurrentAnnotation returns the internal annotation id if it could be set
     //  or -1 if it could not.
@@ -65,22 +70,22 @@ int TFSetCurrentAnnotation(const CProtobufSerialization *annotation) {
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation
-void TFFrameTick(InstrumentationKey id) {
+void TuningFork_frameTick(InstrumentationKey id) {
   tuningfork::FrameTick(id);
 }
 
 // Record a frame tick using an external time, rather than system time
-void TFFrameDeltaTimeNanos(InstrumentationKey id, Duration dt) {
+void TuningFork_frameDeltaTimeNanos(InstrumentationKey id, Duration dt) {
   tuningfork::FrameDeltaTimeNanos(id, std::chrono::nanoseconds(dt));
 }
 
 // Start a trace segment
-TraceHandle TFStartTrace(InstrumentationKey key) {
+TraceHandle TuningFork_startTrace(InstrumentationKey key) {
   return tuningfork::StartTrace(key);
 }
 
 // Record a trace with the key and annotation set using startTrace
-void TFEndTrace(TraceHandle h) {
+void TuningFork_endTrace(TraceHandle h) {
   tuningfork::EndTrace(h);
 }
 
