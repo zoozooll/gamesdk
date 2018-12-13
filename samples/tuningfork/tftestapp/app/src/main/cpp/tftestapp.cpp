@@ -115,8 +115,9 @@ Java_com_google_tuningfork_TFTestActivity_nInit(JNIEnv *env, jobject activity) {
     else
         tf::Init(tf::Serialize(s), &myBackend);
 
+    tf::ProtobufSerialization defaultParams;
     tf::ProtobufSerialization params;
-    if(!tf::GetFidelityParameters(params, 1000)) {
+    if(!tf::GetFidelityParameters(defaultParams, params, 1000)) {
         __android_log_print(ANDROID_LOG_WARN, "TuningFork", "Could not get FidelityParams");
     }
     else {
