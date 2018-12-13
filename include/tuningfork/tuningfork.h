@@ -43,30 +43,33 @@ extern "C" {
 //  If no backend is passed, a debug version is used which returns empty fidelity params
 //   and outputs histograms in protobuf text format to logcat.
 //  If no timeProvider is passed, std::chrono::steady_clock is used.
-void TFInit(const CProtobufSerialization *settings);
+void TuningFork_init(const CProtobufSerialization *settings);
 
 // Blocking call to get fidelity parameters from the server.
 // Returns true if parameters could be downloaded within the timeout, false otherwise.
 // Note that once fidelity parameters are downloaded, any timing information is recorded
 //  as being associated with those parameters.
-bool TFGetFidelityParameters(CProtobufSerialization *params, size_t timeout_ms);
+// If you subsequently call GetFidelityParameters, any data that is already collected will be
+// submitted to the backend.
+bool TuningFork_getFidelityParameters(const CProtobufSerialization *defaultParams,
+                             CProtobufSerialization *params, size_t timeout_ms);
 
 // Protobuf serialization of the current annotation
 // Returns 0 if the annotation could be set, -1 if not
-int TFSetCurrentAnnotation(const CProtobufSerialization *annotation);
+int TuningFork_setCurrentAnnotation(const CProtobufSerialization *annotation);
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation
-void TFFrameTick(InstrumentationKey id);
+void TuningFork_frameTick(InstrumentationKey id);
 
 // Record a frame tick using an external time, rather than system time
-void TFFrameDeltaTimeNanos(InstrumentationKey id, Duration dt);
+void TuningFork_frameDeltaTimeNanos(InstrumentationKey id, Duration dt);
 
 // Start a trace segment
-TraceHandle TFStartTrace(InstrumentationKey key);
+TraceHandle TuningFork_startTrace(InstrumentationKey key);
 
 // Record a trace with the key and annotation set using startTrace
-void TFEndTrace(TraceHandle h);
+void TuningFork_endTrace(TraceHandle h);
 
 #ifdef __cplusplus
 }
