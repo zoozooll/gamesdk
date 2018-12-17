@@ -38,7 +38,7 @@ void Settings::setPreference(std::string key, std::string value) {
         if (key == "refresh_period") {
             mRefreshPeriod = std::chrono::nanoseconds{std::stoll(value)};
         } else if (key == "swap_interval") {
-            mSwapInterval = std::stoi(value);
+            mSwapIntervalNS = std::stof(value) * 1e6;
         } else if (key == "use_affinity") {
             mUseAffinity = (value == "true");
         } else if (key == "hot_pocket") {
@@ -61,14 +61,15 @@ void Settings::setRefreshPeriod(std::chrono::nanoseconds period) {
     // Notify the listeners without the lock held
     notifyListeners();
 }
-void Settings::setSwapInterval(uint32_t num_frames) {
+void Settings::setSwapIntervalNS(uint64_t swap_ns) {
     {
         std::lock_guard lock(mMutex);
-        mSwapInterval = num_frames;
+        mSwapIntervalNS = swap_ns;
     }
     // Notify the listeners without the lock held
     notifyListeners();
 }
+
 void Settings::setUseAffinity(bool tf) {
     {
         std::lock_guard lock(mMutex);
@@ -84,9 +85,9 @@ std::chrono::nanoseconds Settings::getRefreshPeriod() const {
     return mRefreshPeriod;
 }
 
-int32_t Settings::getSwapInterval() const {
+uint64_t Settings::getSwapIntervalNS() const {
     std::lock_guard lock(mMutex);
-    return mSwapInterval;
+    return mSwapIntervalNS;
 }
 
 bool Settings::getUseAffinity() const {

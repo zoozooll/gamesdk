@@ -50,8 +50,8 @@ void Swappy_setUseAffinity(bool tf) {
     Settings::getInstance()->setUseAffinity(tf);
 }
 
-void Swappy_setSwapInterval(uint32_t num_frames) {
-    Settings::getInstance()->setSwapInterval(num_frames);
+void Swappy_setSwapIntervalNS(uint64_t swap_ns) {
+    Settings::getInstance()->setSwapIntervalNS(swap_ns);
 }
 
 uint64_t Swappy_getRefreshPeriodNanos() {
@@ -62,8 +62,8 @@ bool Swappy_getUseAffinity() {
     return Settings::getInstance()->getUseAffinity();
 }
 
-int32_t Swappy_getSwapInterval() {
-    return Settings::getInstance()->getSwapInterval();
+uint64_t Swappy_getSwapIntervalNS() {
+    return Settings::getInstance()->getSwapIntervalNS();
 }
 
 void Swappy_injectTracer(const SwappyTracer *t) {

@@ -25,6 +25,11 @@
 extern "C" {
 #endif
 
+// swap interval constant helpers
+#define SWAPPY_SWAP_60FPS (16666667L)
+#define SWAPPY_SWAP_30FPS (33333333L)
+#define SWAPPY_SWAP_20FPS (50000000L)
+
 // Initialize Swappy, getting the required Android parameters from the display subsystem via JNI
 void Swappy_init(JNIEnv *env, jobject jactivity);
 
@@ -38,11 +43,11 @@ bool Swappy_swap(EGLDisplay display, EGLSurface surface);
 // Parameter setters
 void Swappy_setRefreshPeriod(uint64_t period_ns);
 void Swappy_setUseAffinity(bool tf);
-void Swappy_setSwapInterval(uint32_t num_frames);
+void Swappy_setSwapIntervalNS(uint64_t swap_ns);
 
 // Parameter getters
 uint64_t Swappy_getRefreshPeriodNanos();
-int32_t Swappy_getSwapInterval();
+uint64_t Swappy_getSwapIntervalNS();
 bool Swappy_getUseAffinity();
 
 #ifdef __cplusplus

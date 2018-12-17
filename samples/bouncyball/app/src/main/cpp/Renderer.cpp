@@ -134,7 +134,7 @@ Renderer::ThreadState::~ThreadState() {
 
 void Renderer::ThreadState::onSettingsChanged(const Settings * settings) {
     refreshPeriod = settings->getRefreshPeriod();
-    swapInterval = settings->getSwapInterval();
+    swapIntervalNS = settings->getSwapIntervalNS();
 }
 
 void Renderer::ThreadState::clearSurface() {
@@ -208,8 +208,8 @@ void Renderer::draw(ThreadState *threadState) {
     }
 
     calculateFps();
-    const float deltaSeconds = (threadState->refreshPeriod * threadState->swapInterval).count() / 1e9f;
 
+    float deltaSeconds = threadState->swapIntervalNS / 1e9f;
     threadState->x += threadState->velocity * deltaSeconds;
 
     if (threadState->x > 0.8f) {

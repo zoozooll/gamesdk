@@ -16,14 +16,11 @@
     <string name="swap_interval_key">swap_interval</string>
     <string name="swap_interval_title">Swap Interval</string>
     <string name="swap_interval_summary_prologue">Present a newly-rendered frame every\u0020</string>
-    <plurals name="swap_interval_summary_epilogue">
-        <item quantity="one">display refresh</item>
-        <item quantity="other">%d display refreshes</item>
-    </plurals>
-    <string-array name="swap_intervals">
-        <item>1</item>
-        <item>2</item>
-        <item>3</item>
+    <string name="swap_interval_summary_epilogue">ms</string>
+    <string-array name="swap_intervals_ms">
+        <item>16.6</item>
+        <item>33.3</item>
+        <item>50.0</item>
     </string-array>
 
     <string name="use_affinity_title">Use Affinity</string>
