@@ -74,7 +74,7 @@ class Renderer {
         float velocity = 1.6f;
 
         std::chrono::nanoseconds refreshPeriod = std::chrono::nanoseconds{0};
-        int32_t swapInterval = 1;
+        int64_t swapIntervalNS = 0;
         int32_t width = 0;
         int32_t height = 0;
     };

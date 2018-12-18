@@ -64,9 +64,10 @@ public class SettingsFragment
             return;
         }
 
-        int swapInterval = Integer.parseInt(swapIntervalString);
+        float swapInterval = Float.parseFloat(swapIntervalString);
         String summary = resources.getString(R.string.swap_interval_summary_prologue);
-        summary += resources.getQuantityString(R.plurals.swap_interval_summary_epilogue, swapInterval, swapInterval);
+        summary += swapInterval;
+        summary += resources.getString(R.string.swap_interval_summary_epilogue);
         mSwapIntervalPreference.setSummary(summary);
     }
 
