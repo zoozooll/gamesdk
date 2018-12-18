@@ -18,6 +18,7 @@
 
 #define LOG_TAG "Swappy"
 
+#include <cmath>
 #include <thread>
 
 #include "Log.h"
@@ -259,7 +260,9 @@ Swappy::Swappy(JavaVM *vm,
 }
 
 void Swappy::onSettingsChanged() {
-    mSwapInterval = Settings::getInstance()->getSwapInterval();
+    mSwapInterval = Settings::getInstance()->getSwapIntervalNS();
+    mSwapInterval = std::round(float(Settings::getInstance()->getSwapIntervalNS()) /
+                               float(mRefreshPeriod.count()));
 }
 
 void Swappy::handleChoreographer() {
