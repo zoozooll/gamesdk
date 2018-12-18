@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Swappy</string>
+    <string name="fps">Rendering FPS:</string>
     <string name="app_offset">App Offset:</string>
     <string name="choreographer_consistency">Choreographer Consistency</string>
     <string name="grid_1m_arr">1m Arr</string>

@@ -96,4 +96,9 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nSetPreference(JNIEnv *env, jobje
     Settings::getInstance()->setPreference(to_string(key, env), to_string(value, env));
 }
 
+JNIEXPORT float JNICALL
+Java_com_prefabulated_bouncyball_OrbitActivity_nGetAverageFps(JNIEnv * /* env */, jobject /* this */) {
+    return Renderer::getInstance()->getAverageFps();
+}
+
 } // extern "C"

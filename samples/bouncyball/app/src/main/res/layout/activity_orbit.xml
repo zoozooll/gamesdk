@@ -17,6 +17,14 @@
         android:orientation="vertical"
         android:visibility="invisible">
 
+        <TextView
+            android:id="@+id/fps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:text="@string/fps"
+            android:textAppearance="@style/InfoTextMedium" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
