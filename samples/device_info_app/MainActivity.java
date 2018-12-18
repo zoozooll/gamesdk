@@ -52,6 +52,7 @@ public class MainActivity extends Activity {
           msg += "\nro_product_board:\n" + data.getRoProductBoard();
           msg += "\nro_mediatek_platform:\n" + data.getRoMediatekPlatform();
           msg += "\nro_arch:\n" + data.getRoArch();
+          msg += "\nro_build_version_sdk:\n" + data.getRoBuildVersionSdk();
         }catch(Exception e){
           android.util.Log.e("device_info", "could not create proto.", e);
         }
