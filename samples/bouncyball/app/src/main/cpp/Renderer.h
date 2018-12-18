@@ -46,6 +46,8 @@ class Renderer {
     void start();
     void stop();
 
+    float getAverageFps();
+
     void requestDraw();
 
   private:
@@ -78,6 +80,7 @@ class Renderer {
     };
 
     void draw(ThreadState *threadState);
+    void calculateFps();
 
     WorkerThread<ThreadState> mWorkerThread = {"Renderer", Affinity::Odd};
 
@@ -91,4 +94,6 @@ class Renderer {
     WorkerThread<HotPocketState> mHotPocketThread = {"HotPocket", Affinity::Even};
 
     void spin();
+
+    float averageFps = -1.0f;
 };

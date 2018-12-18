@@ -315,7 +315,16 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
     public void doFrame(long frameTimeNanos) {
         Trace.beginSection("doFrame");
 
+        TextView fpsView = findViewById(R.id.fps);
+        fpsView.setText(String.format(Locale.US, "FPS: %.1f", nGetAverageFps()));
+
         long now = System.nanoTime();
+
+        if (mIsRunning) {
+            Trace.beginSection("Requesting callback");
+            Choreographer.getInstance().postFrameCallback(this);
+            Trace.endSection();
+        }
 
         long arrivalDelta = now - mLastArrivalTime;
         long timestampDelta = now - mLastFrameTimestamp;
@@ -356,6 +365,7 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
     public native void nStart();
     public native void nStop();
     public native void nSetPreference(String key, String value);
+    public native float nGetAverageFps();
 
     private MenuItem mInfoOverlayButton;
 
