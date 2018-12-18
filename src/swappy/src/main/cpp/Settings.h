@@ -41,11 +41,11 @@ class Settings {
     void setPreference(std::string key, std::string value);
 
     void setRefreshPeriod(std::chrono::nanoseconds period);
-    void setSwapInterval(uint32_t num_frames);
+    void setSwapIntervalNS(uint64_t swap_ns);
     void setUseAffinity(bool);
 
     std::chrono::nanoseconds getRefreshPeriod() const;
-    int32_t getSwapInterval() const;
+    uint64_t getSwapIntervalNS() const;
     bool getUseAffinity() const;
     bool getHotPocket() const;
 
@@ -57,7 +57,7 @@ class Settings {
 
     std::chrono::nanoseconds
         mRefreshPeriod GUARDED_BY(mMutex) = std::chrono::nanoseconds{12'345'678};
-    int32_t mSwapInterval GUARDED_BY(mMutex) = 1;
+    uint64_t mSwapIntervalNS GUARDED_BY(mMutex) = 16666667L;
     bool mUseAffinity GUARDED_BY(mMutex) = true;
     bool mHotPocket GUARDED_BY(mMutex) = false;
 };

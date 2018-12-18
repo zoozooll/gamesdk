@@ -7,9 +7,9 @@
     <ListPreference
         android:key="@string/swap_interval_key"
         android:title="@string/swap_interval_title"
-        android:entries="@array/swap_intervals"
-        android:entryValues="@array/swap_intervals"
-        android:defaultValue="1"/>
+        android:entries="@array/swap_intervals_ms"
+        android:entryValues="@array/swap_intervals_ms"
+        android:defaultValue="16.6"/>
 
     <SwitchPreference
         android:key="use_affinity"
