@@ -119,27 +119,61 @@ int readFeatures(std::set<std::string>& result, ProtoErrors& errors) {
   return 0;
 }
 
-void addSystemProperties(::ProtoData& proto) {
-  char buffer[PROP_VALUE_MAX];
-  int buffer_len = -1;
+std::string getSystemPropViaGet(const char* key, ::ProtoErrors& errors) {
+  char buffer[PROP_VALUE_MAX + 1];  // +1 for terminator
+  int bufferLen = __system_property_get(key, buffer);
+  if (bufferLen > PROP_VALUE_MAX){
+    const std::string HEADER = "Overflow: ";
+    errors.add_system_props(HEADER + key);
+    return "";
+  }
+  return std::string(buffer, bufferLen);
+}
 
-  buffer_len = __system_property_get("ro.chipname", buffer);
-  proto.set_ro_chipname(std::string(buffer, buffer_len));
+std::string getSystemPropViaReadCallback(const char* key) {
+  const prop_info* pi = __system_property_find(key);
+  if (pi == nullptr) {
+    return "";
+  }
+  std::string result;
+  __system_property_read_callback(pi,
+    [](void* cookie, const char*, const char* value, unsigned) {
+      auto sysOut = reinterpret_cast<std::string*>(cookie);
+      *sysOut = value;
+    },
+    &result
+  );
+  return result;
+}
 
-  buffer_len = __system_property_get("ro.board.platform", buffer);
-  proto.set_ro_board_platform(std::string(buffer, buffer_len));
+std::string getSystemProp(const char* key,
+  ::ProtoErrors& errors, bool useCallbackApi) {
+  if (useCallbackApi) {
+    return getSystemPropViaReadCallback(key);
+  } else {
+    return getSystemPropViaGet(key, errors);
+  }
+}
 
-  buffer_len = __system_property_get("ro.product.board", buffer);
-  proto.set_ro_product_board(std::string(buffer, buffer_len));
+void addSystemProperties(::ProtoData& data, ::ProtoErrors& errors) {
+  std::string sdkVersionString =
+    getSystemPropViaGet("ro.build.version.sdk", errors);
+  data.set_ro_build_version_sdk(sdkVersionString);
 
-  buffer_len = __system_property_get("ro.mediatek.platform", buffer);
-  proto.set_ro_mediatek_platform(std::string(buffer, buffer_len));
-
-  buffer_len = __system_property_get("ro.arch", buffer);
-  proto.set_ro_arch(std::string(buffer, buffer_len));
-
-  buffer_len = __system_property_get("ro.build.fingerprint", buffer);
-  proto.set_ro_build_fingerprint(std::string(buffer, buffer_len));
+  int sdkVersion = atoi(sdkVersionString.c_str());
+  bool useCallbackApi = (26 <= sdkVersion);
+  data.set_ro_chipname(
+    getSystemProp("ro.chipname", errors, useCallbackApi));
+  data.set_ro_board_platform(
+    getSystemProp("ro.board.platform", errors, useCallbackApi));
+  data.set_ro_product_board(
+    getSystemProp("ro.product.board", errors, useCallbackApi));
+  data.set_ro_mediatek_platform(
+    getSystemProp("ro.mediatek.platform", errors, useCallbackApi));
+  data.set_ro_arch(
+    getSystemProp("ro.arch", errors, useCallbackApi));
+  data.set_ro_build_fingerprint(
+    getSystemProp("ro.build.fingerprint", errors, useCallbackApi));
 }
 
 // returns number of errors
@@ -729,7 +763,7 @@ int createProto(::ProtoRoot& proto) {
     data.add_cpu_extension(s);
   }
 
-  addSystemProperties(data);
+  addSystemProperties(data, errors);
 
   int numErrorsEgl = setupEGl(proto);
   numErrors += numErrorsEgl;

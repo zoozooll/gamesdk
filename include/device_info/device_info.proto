@@ -215,21 +215,23 @@ message data {
   repeated string cpu_extension = 15;
   repeated string hardware      = 16;
 
-  optional string ro_chipname          = 21;
-  optional string ro_board_platform    = 22;
-  optional string ro_product_board     = 23;
-  optional string ro_mediatek_platform = 24;
-  optional string ro_arch              = 25;
-  optional string ro_build_fingerprint = 26;
+  optional string ro_build_version_sdk = 21;
+  optional string ro_chipname          = 22;
+  optional string ro_board_platform    = 23;
+  optional string ro_product_board     = 24;
+  optional string ro_mediatek_platform = 25;
+  optional string ro_arch              = 26;
+  optional string ro_build_fingerprint = 27;
 
   optional gl gl = 31;
 }
 
 message errors {
-  optional string hardware = 1;
-  optional string features = 2;
-  optional string egl = 3;
-  repeated string gl  = 4;
+  optional string hardware     = 1;
+  optional string features     = 2;
+  repeated string system_props = 3;
+  optional string egl          = 4;
+  repeated string gl           = 5;
 }
 
 message root {
