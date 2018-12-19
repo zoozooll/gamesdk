@@ -1,0 +1,10 @@
+cc_library_shared {
+  name: "libdevice_info_jni",
+  defaults: ["gamesdk-defaults"],
+  srcs: [
+    "device_info_jni.cpp",
+  ],
+  static_libs: [
+    "androidgamesdk",
+  ],
+}

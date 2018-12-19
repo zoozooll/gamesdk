@@ -155,7 +155,8 @@ std::string getSystemProp(const char* key,
   }
 }
 
-void addSystemProperties(::ProtoData& data, ::ProtoErrors& errors) {
+// returns number of errors
+int addSystemProperties(::ProtoData& data, ::ProtoErrors& errors) {
   std::string sdkVersionString =
     getSystemPropViaGet("ro.build.version.sdk", errors);
   data.set_ro_build_version_sdk(sdkVersionString);
@@ -174,6 +175,8 @@ void addSystemProperties(::ProtoData& data, ::ProtoErrors& errors) {
     getSystemProp("ro.arch", errors, useCallbackApi));
   data.set_ro_build_fingerprint(
     getSystemProp("ro.build.fingerprint", errors, useCallbackApi));
+
+  return errors.system_props_size();
 }
 
 // returns number of errors
@@ -763,7 +766,7 @@ int createProto(::ProtoRoot& proto) {
     data.add_cpu_extension(s);
   }
 
-  addSystemProperties(data, errors);
+  numErrors += addSystemProperties(data, errors);
 
   int numErrorsEgl = setupEGl(proto);
   numErrors += numErrorsEgl;
