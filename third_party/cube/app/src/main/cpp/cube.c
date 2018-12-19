@@ -2270,6 +2270,8 @@ static void demo_prepare(struct demo *demo) {
         assert(!err);
     }
 
+    DbgMsg("graphics_queue_family_index=%u", demo->graphics_queue_family_index);
+
     const VkCommandBufferAllocateInfo cmd = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .pNext = NULL,
@@ -3578,11 +3580,13 @@ static void demo_init_vk_swapchain(struct demo *demo) {
     }
 
     vkGetDeviceQueue(demo->device, demo->graphics_queue_family_index, 0, &demo->graphics_queue);
+    SwappyVkSetQueueFamiliyIndex(demo->graphics_queue, demo->graphics_queue_family_index);
 
     if (!demo->separate_present_queue) {
         demo->present_queue = demo->graphics_queue;
     } else {
         vkGetDeviceQueue(demo->device, demo->present_queue_family_index, 0, &demo->present_queue);
+        SwappyVkSetQueueFamiliyIndex(demo->present_queue, demo->present_queue_family_index);
     }
 
     // Get the list of VkFormat's that are supported:
