@@ -4,7 +4,7 @@ cc_library_shared {
     include_dirs: [
         "frameworks/native/libs/nativewindow/include/",
         "frameworks/native/libs/arect/include/",
-        "frameworks/opt/gamesdk/src",
+        "frameworks/opt/gamesdk/samples/common/include",
     ],
     srcs: [
         "app/src/main/cpp/**/*.cpp"

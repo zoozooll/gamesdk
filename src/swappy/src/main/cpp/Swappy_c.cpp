@@ -19,9 +19,10 @@
 #include "Swappy.h"
 
 #include "Settings.h"
-#include "Thread.h"
 
 #include <chrono>
+
+using namespace swappy;
 
 extern "C" {
 
@@ -70,4 +71,4 @@ void Swappy_injectTracer(const SwappyTracer *t) {
     Swappy::addTracer(t);
 }
 
-}
+} // extern "C" {

@@ -19,7 +19,7 @@
 #include <sched.h>
 #include <unistd.h>
 
-namespace swappy {
+namespace samples {
 
 int32_t getNumCpus() {
     static int32_t sNumCpus = []() {
@@ -68,4 +68,4 @@ void setAffinity(Affinity affinity) {
     sched_setaffinity(gettid(), sizeof(cpuSet), &cpuSet);
 }
 
-} // namespace swappy
+} // namespace samples {

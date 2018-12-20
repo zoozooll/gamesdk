@@ -22,6 +22,7 @@
 #include <map>
 #include <string>
 
+namespace swappy {
 
 class CpuInfo {
 public:
@@ -66,3 +67,5 @@ private:
 };
 
 unsigned int to_mask(cpu_set_t cpu_set);
+
+} // namespace swappy
