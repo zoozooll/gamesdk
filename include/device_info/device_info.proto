@@ -3,6 +3,7 @@ syntax = "proto2";
 package androidgamesdk_deviceinfo;
 
 option java_package = "com.google.androidgamesdk";
+option java_outer_classname = "DeviceInfoProto";
 
 message cpu_core {
   optional int64 freq_max = 1;

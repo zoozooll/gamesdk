@@ -21,14 +21,10 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.os.Build;
 
-import com.google.androidgamesdk.DeviceInfo;  // proto
+import com.google.androidgamesdk.DeviceInfoJni;
+import com.google.androidgamesdk.DeviceInfoProto;
 
 public class MainActivity extends Activity {
-  static {
-    System.loadLibrary("device_info_app");
-  }
-  public native byte[] jniGetProtoSerialized();
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -41,11 +37,11 @@ public class MainActivity extends Activity {
         TextView tv = (TextView) findViewById(R.id.sample_text);
         String msg = "Fingerprint(JAVA):\n" + Build.FINGERPRINT;
         try{
-          com.google.androidgamesdk.DeviceInfo.root proto;
-          byte[] nativeBytes = jniGetProtoSerialized();
-          proto = com.google.androidgamesdk.DeviceInfo.root.parseFrom(nativeBytes);
+          DeviceInfoProto.root proto;
+          byte[] nativeBytes = DeviceInfoJni.getProtoSerialized();
+          proto = DeviceInfoProto.root.parseFrom(nativeBytes);
 
-          com.google.androidgamesdk.DeviceInfo.data data = proto.getData();
+          DeviceInfoProto.data data = proto.getData();
           msg += "\nFingerprint(ro.build.fingerprint):\n" + data.getRoBuildFingerprint();
           msg += "\nro_chipname:\n" + data.getRoChipname();
           msg += "\nro_board_platform:\n" + data.getRoBoardPlatform();
