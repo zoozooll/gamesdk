@@ -32,7 +32,7 @@
 #define REQUIRES(...) \
   THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
 
-namespace swappy {
+namespace samples {
 
 enum class Affinity {
     None,
@@ -41,7 +41,9 @@ enum class Affinity {
 };
 
 int32_t getNumCpus();
+
 void setAffinity(int32_t cpu);
+
 void setAffinity(Affinity affinity);
 
-} // namespace swappy {
+}

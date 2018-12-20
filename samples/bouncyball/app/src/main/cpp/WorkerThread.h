@@ -21,20 +21,23 @@
 #include <queue>
 #include <thread>
 
-#include "swappy/src/main/cpp/Settings.h"
-#include "swappy/src/main/cpp/Thread.h"
+#include "Settings.h"
+#include "Thread.h"
 
-template <class ThreadState>
+namespace samples {
+
+template<class ThreadState>
 class WorkerThread {
-  public:
+public:
     using Work = std::function<void(ThreadState *)>;
 
-    WorkerThread(const char* name, Affinity affinity)
+    WorkerThread(const char *name, Affinity affinity)
         : mName(name),
           mAffinity(affinity) {
         launchThread();
         auto settingsChanged = [this](ThreadState *threadState) { onSettingsChanged(threadState); };
-        Settings::getInstance()->addListener([this, work = std::move(settingsChanged)]() { run(work); });
+        Settings::getInstance()->addListener(
+            [this, work = std::move(settingsChanged)]() { run(work); });
     }
 
     ~WorkerThread() {
@@ -52,7 +55,7 @@ class WorkerThread {
         launchThread();
     }
 
-  private:
+private:
     void launchThread() {
         std::lock_guard threadLock(mThreadMutex);
         if (mThread.joinable()) {
@@ -85,9 +88,9 @@ class WorkerThread {
         std::lock_guard lock(mWorkMutex);
         while (mIsActive) {
             mWorkCondition.wait(mWorkMutex,
-                                  [this]() REQUIRES(mWorkMutex) {
-                                      return !mWorkQueue.empty() || !mIsActive;
-                                  });
+                                [this]() REQUIRES(mWorkMutex) {
+                                    return !mWorkQueue.empty() || !mIsActive;
+                                });
             if (!mWorkQueue.empty()) {
                 auto head = mWorkQueue.front();
                 mWorkQueue.pop();
@@ -111,3 +114,5 @@ class WorkerThread {
     std::queue<std::function<void(ThreadState *)>> mWorkQueue GUARDED_BY(mWorkMutex);
     std::condition_variable_any mWorkCondition;
 };
+
+} // namespace samples

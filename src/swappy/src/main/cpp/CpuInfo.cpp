@@ -23,6 +23,8 @@
 
 #include "Log.h"
 
+namespace {
+
 bool startsWith(std::string &mainStr, const char *toMatch) {
     // std::string::find returns 0 if toMatch is found at beginning
     return mainStr.find(toMatch) == 0;
@@ -55,6 +57,10 @@ std::string ReadFile(const std::string& path) {
     fclose(fp);
     return std::string(buf);
 }
+
+} // anonymous namespace
+
+namespace swappy {
 
 CpuInfo::CpuInfo() {
     const auto BUFFER_LENGTH = 10240;
@@ -150,3 +156,5 @@ unsigned int to_mask(cpu_set_t cpu_set) {
     }
     return (int) mask.to_ulong();
 }
+
+} // namespace swappy

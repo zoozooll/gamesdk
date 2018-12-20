@@ -22,6 +22,8 @@
 
 using namespace std::chrono_literals;
 
+namespace swappy {
+
 std::unique_ptr<EGL> EGL::create(std::chrono::nanoseconds refreshPeriod) {
     auto eglPresentationTimeANDROID = reinterpret_cast<eglPresentationTimeANDROID_type>(
         eglGetProcAddress("eglPresentationTimeANDROID"));
@@ -103,3 +105,5 @@ bool EGL::setPresentationTime(EGLDisplay display,
     eglPresentationTimeANDROID(display, surface, time.time_since_epoch().count());
     return EGL_TRUE;
 }
+
+} // namespace swappy

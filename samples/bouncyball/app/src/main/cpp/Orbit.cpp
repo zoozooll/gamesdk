@@ -22,8 +22,8 @@
 
 #include <android/native_window_jni.h>
 
-#include "swappy/src/main/cpp/Log.h"
-#include "swappy/src/main/cpp/Settings.h"
+#include "Log.h"
+#include "Settings.h"
 
 #include "swappy/swappy.h"
 #include "swappy/swappy_extra.h"
@@ -31,14 +31,17 @@
 #include "Renderer.h"
 
 using std::chrono::nanoseconds;
+using namespace samples;
 
 namespace {
+
 std::string to_string(jstring jstr, JNIEnv *env) {
     const char *utf = env->GetStringUTFChars(jstr, nullptr);
     std::string str(utf);
     env->ReleaseStringUTFChars(jstr, utf);
     return str;
 }
+
 } // anonymous namespace
 
 extern "C" {

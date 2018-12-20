@@ -21,6 +21,8 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
+namespace swappy {
+
 class EGL {
   private:
     // Allows construction with std::unique_ptr from a static method, but disallows construction
@@ -55,3 +57,5 @@ class EGL {
     std::mutex mSyncFenceMutex;
     EGLSyncKHR mSyncFence = EGL_NO_SYNC_KHR;
 };
+
+} // namespace swappy

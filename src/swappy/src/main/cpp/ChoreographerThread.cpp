@@ -19,14 +19,17 @@
 #include <jni.h>
 
 #include "ChoreographerThread.h"
-#include "Log.h"
 #include "Thread.h"
-#include "Trace.h"
 #include "CpuInfo.h"
 
 #include <sched.h>
 #include <pthread.h>
 #include <unistd.h>
+
+#include "Log.h"
+#include "Trace.h"
+
+namespace swappy {
 
 // AChoreographer is supported from API 24. To allow compilation for minSDK < 24
 // and still use AChoreographer for SDK >= 24 we need runtime support to call
@@ -383,3 +386,5 @@ std::unique_ptr<ChoreographerThread>
     ALOGI("Using no Choreographer (Best Effort)");
     return std::make_unique<NoChoreographerThread>(onChoreographer);
 }
+
+} // namespace swappy

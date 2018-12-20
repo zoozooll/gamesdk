@@ -4,10 +4,10 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Werror -Wthread-safety -D _
 
 # ============== Games SDK
 
-include_directories( ../../../include ) # Games SDK Public Includes
-include_directories( ../../../src ) # Games SDK Internal Includes
-
 add_subdirectory(../../../src/swappy ./swappy-output)   # Swappy Library
+
+include_directories( ../../../include ) # Games SDK Public Includes
+include_directories( ../../common/include ) # Samples Includes
 
 # ============== Bouncy Ball
 
@@ -20,6 +20,8 @@ add_library( native-lib
              src/main/cpp/Circle.cpp
              src/main/cpp/Orbit.cpp
              src/main/cpp/Renderer.cpp
+             src/main/cpp/Settings.cpp
+             ../../common/src/Thread.cpp
         )
 
 
