@@ -24,42 +24,50 @@
 
 #include <EGL/egl.h>
 
-#include "swappy/src/main/cpp/Thread.h"
+#include "Thread.h"
 
 #include "WorkerThread.h"
+
+namespace samples {
 
 class Settings;
 
 class Renderer {
     // Allows construction with std::unique_ptr from a static method, but disallows construction
     // outside of the class since no one else can construct a ConstructorTag
-    struct ConstructorTag {};
+    struct ConstructorTag {
+    };
 
-  public:
+public:
     explicit Renderer(ConstructorTag) {}
-    static Renderer* getInstance();
+
+    static Renderer *getInstance();
 
     // Sets the active window to render into
     // Takes ownership of window and will release its reference
     void setWindow(ANativeWindow *window, int32_t width, int32_t height);
 
     void start();
+
     void stop();
 
     float getAverageFps();
 
     void requestDraw();
 
-  private:
+private:
     class ThreadState {
-      public:
+    public:
         ThreadState();
+
         ~ThreadState();
 
         void onSettingsChanged(const Settings *);
 
         void clearSurface();
+
         bool configHasAttribute(EGLint attribute, EGLint value);
+
         EGLBoolean makeCurrent(EGLSurface surface);
 
         EGLDisplay display = EGL_NO_DISPLAY;
@@ -85,15 +93,18 @@ class Renderer {
     WorkerThread<ThreadState> mWorkerThread = {"Renderer", Affinity::Odd};
 
     class HotPocketState {
-      public:
+    public:
         void onSettingsChanged(const Settings *);
 
         bool isEnabled = false;
         bool isStarted = false;
     };
+
     WorkerThread<HotPocketState> mHotPocketThread = {"HotPocket", Affinity::Even};
 
     void spin();
 
     float averageFps = -1.0f;
 };
+
+} // namespace samples

@@ -24,15 +24,17 @@
 #include <deque>
 #include <string>
 
-#include "Log.h"
 #include "Settings.h"
 #include "Thread.h"
+
+#include "Log.h"
 #include "Trace.h"
 
 using namespace std::chrono_literals;
 using time_point = std::chrono::steady_clock::time_point;
 
 namespace {
+
 class Timer {
   public:
     Timer(std::chrono::nanoseconds refreshPeriod, std::chrono::nanoseconds appToSfDelay)
@@ -93,7 +95,10 @@ class Timer {
     time_point mLastTimestamp = std::chrono::steady_clock::now();
     int32_t mRepeatCount = 0;
 };
-}
+
+} // anonymous namespace
+
+namespace swappy {
 
 ChoreographerFilter::ChoreographerFilter(std::chrono::nanoseconds refreshPeriod,
                                          std::chrono::nanoseconds appToSfDelay,
@@ -192,7 +197,7 @@ void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
             const auto now = std::chrono::steady_clock::now();
             if (now - mLastWorkRun > mRefreshPeriod / 2) {
                 // Assume we got here first and there's work to do
-                ScopedTrace trace("doWork");
+                gamesdk::ScopedTrace trace("doWork");
                 mWorkDuration = mDoWork();
                 mLastWorkRun = now;
             }
@@ -200,3 +205,5 @@ void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
         lock.lock();
     }
 }
+
+} // namespace swappy

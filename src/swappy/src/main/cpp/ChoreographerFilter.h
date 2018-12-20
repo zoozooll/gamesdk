@@ -20,6 +20,8 @@
 #include <thread>
 #include <vector>
 
+namespace swappy {
+
 class ChoreographerFilter {
   public:
     using Worker = std::function<std::chrono::nanoseconds()>;
@@ -57,3 +59,5 @@ class ChoreographerFilter {
     const std::chrono::nanoseconds mAppToSfDelay;
     const Worker mDoWork;
 };
+
+} // namespace swappy

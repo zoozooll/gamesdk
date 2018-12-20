@@ -20,6 +20,8 @@
 
 #include <GLES2/gl2.h>
 
+namespace samples {
+
 struct Circle {
     struct Color {
         Color(GLfloat r, GLfloat g, GLfloat b) : r(r), g(g), b(b) {}
@@ -49,3 +51,5 @@ struct Circle {
     const float x;
     const float y;
 };
+
+} // namespace samples

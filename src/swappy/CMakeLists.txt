@@ -12,6 +12,7 @@ set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-s" )
 set ( SOURCE_LOCATION src/main/cpp)
 
 include_directories( ../../include )
+include_directories( ../common )
 
 message( STATUS "Building swappy_static to ${CMAKE_CURRENT_BINARY_DIR}/build" )
 add_library( swappy_static
