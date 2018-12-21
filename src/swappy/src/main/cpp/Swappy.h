@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <list>
+#include <vector>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -28,6 +29,8 @@
 
 #include "swappy/swappy.h"
 #include "swappy/swappy_extra.h"
+
+#include "Thread.h"
 
 namespace swappy {
 
@@ -65,6 +68,12 @@ class Swappy {
     // Pass callbacks for tracing within the swap function
     static void addTracer(const SwappyTracer *tracer);
 
+    static uint64_t getSwapIntervalNS();
+
+    static void setAutoSwapInterval(bool enabled);
+
+    static void overrideAutoSwapInterval(uint64_t swap_ns);
+
     static void destroyInstance();
 
 private:
@@ -81,6 +90,7 @@ private:
     void preWaitCallbacks();
     void postWaitCallbacks();
     void startFrameCallbacks();
+    void swapIntervalChangedCallbacks();
 
     void onSettingsChanged();
 
@@ -104,12 +114,21 @@ private:
     bool setPresentationTime(EGLDisplay display, EGLSurface surface);
 
     void updateSwapDuration(std::chrono::nanoseconds duration);
-    std::atomic<std::chrono::nanoseconds> mSwapDuration;
+
+    void recordFrameTime(int frames);
+
+    bool updateSwapInterval();
+
+    int32_t nanoToSwapInterval(std::chrono::nanoseconds);
+
+    std::atomic<std::chrono::nanoseconds> mSwapDuration = std::chrono::nanoseconds(0);
 
     static std::mutex sInstanceMutex;
     static std::unique_ptr<Swappy> sInstance;
 
-    std::atomic<int32_t> mSwapInterval{1};
+    std::atomic<int32_t> mSwapInterval = 0;
+    std::atomic<int32_t> mAutoSwapInterval = 0;
+    int mAutoSwapIntervalThreshold = 0;
 
     std::mutex mWaitingMutex;
     std::condition_variable mWaitingCondition;
@@ -136,9 +155,18 @@ private:
         std::list<Tracer> preSwapBuffers;
         std::list<Tracer> postSwapBuffers;
         std::list<Tracer> startFrame;
+        std::list<Tracer> swapIntervalChanged;
     };
 
     SwappyTracerCallbacks mInjectedTracers;
+
+    std::mutex mFrameDurationsMutex;
+    std::vector<int> mFrameDurations GUARDED_BY(mFrameDurationsMutex);
+    int mFrameDurationsSum GUARDED_BY(mFrameDurationsMutex) = 0;
+    int mFrameDurationSamples GUARDED_BY(mFrameDurationsMutex);
+    bool mAutoSwapIntervalEnabled GUARDED_BY(mFrameDurationsMutex) = true;
+    static constexpr float FRAME_AVERAGE_HYSTERESIS = 0.1;
+    std::chrono::steady_clock::time_point mSwapTime;
 };
 
 } //namespace swappy

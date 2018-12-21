@@ -49,6 +49,11 @@ extern "C" {
 void startFrameCallback(void *) {
 }
 
+void swapIntervalChangedCallback(void *) {
+    uint64_t swap_ns = Swappy_getSwapIntervalNS();
+    ALOGI("Swappy changed swap interval to %.2fms", swap_ns / 1e6f);
+}
+
 JNIEXPORT void JNICALL
 Java_com_prefabulated_bouncyball_OrbitActivity_nInit(JNIEnv *env, jobject activity) {
     // Get the Renderer instance to create it
@@ -63,6 +68,7 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nInit(JNIEnv *env, jobject activi
     tracers.postSwapBuffers = nullptr;
     tracers.startFrame = startFrameCallback;
     tracers.userData = nullptr;
+    tracers.swapIntervalChanged = swapIntervalChangedCallback;
 
     Swappy_injectTracer(&tracers);
 }
@@ -97,6 +103,12 @@ JNIEXPORT void JNICALL
 Java_com_prefabulated_bouncyball_OrbitActivity_nSetPreference(JNIEnv *env, jobject /* this */,
                                                          jstring key, jstring value) {
     Settings::getInstance()->setPreference(to_string(key, env), to_string(value, env));
+}
+
+JNIEXPORT void JNICALL
+Java_com_prefabulated_bouncyball_OrbitActivity_nSetAutoSwapInterval(JNIEnv *env, jobject /* this */,
+                                                              jboolean enabled) {
+    Swappy_setAutoSwapInterval(enabled);
 }
 
 JNIEXPORT float JNICALL
