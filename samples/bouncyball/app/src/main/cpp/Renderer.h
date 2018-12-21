@@ -55,6 +55,8 @@ public:
 
     void requestDraw();
 
+    void setWorkload(int load);
+
 private:
     class ThreadState {
     public:
@@ -105,6 +107,8 @@ private:
     void spin();
 
     float averageFps = -1.0f;
+
+    int mWorkload = 0;
 };
 
 } // namespace samples

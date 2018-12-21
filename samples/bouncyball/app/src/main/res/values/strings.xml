@@ -28,4 +28,7 @@
 
     <string name="hot_pocket_title">Hot Pocket</string>
     <string name="hot_pocket_summary">Create a spinning thread to encourage higher frequencies</string>
+
+    <string name="workload_title">Work load</string>
+    <string name="workload_summary">Work load for rendering bouncyball (based on number of vertices)</string>
 </resources>

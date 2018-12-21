@@ -21,4 +21,11 @@
         android:title="@string/hot_pocket_title"
         android:summary="@string/hot_pocket_summary"/>
 
+    <SeekBarPreference
+        android:key="workload"
+        android:title="@string/workload_title"
+        android:summary="@string/workload_summary"
+        android:defaultValue="0" />
+
+
 </PreferenceScreen>
