@@ -38,8 +38,20 @@ struct SwappyTracer {
     void (*postSwapBuffers)(void*);
     void (*startFrame)(void*);
     void* userData;
+    void (*swapIntervalChanged)(void*);
+
 };
 void Swappy_injectTracer(const SwappyTracer *t);
+
+// toggle auto swap interval detection on/off
+// by default, swappy will adjust the swap interval based on actual frame rendering time.
+// App can set this mode to off using this function.
+// If App wants to override the swap interval calculated by swappy it can again to
+// Swappy_setSwapIntervalNS. Swappy will set swap interval to the overridden value and
+// reset its frame timings.
+// NOTE: Swappy may still change this value based on new frames rendering time. To completely
+// override auto swap interval value app needs to call first to Swappy_setAutoSwapInterval(false);
+void Swappy_setAutoSwapInterval(bool enabled);
 
 #ifdef __cplusplus
 };
