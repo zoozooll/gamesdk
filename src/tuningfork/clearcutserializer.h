@@ -42,12 +42,17 @@ public:
     static void Fill(const Prong& p, ClearcutHistogram& h);
     // Fill in the histogram data
     static void Fill(const Histogram& h, ClearcutHistogram& ch);
+    // Fill in the experiment ID
+    static void FillExperimentID(const std::string& experiment_id, TuningForkLogEvent& evt);
 
-    // Callbacks needed by nanopb
+
+        // Callbacks needed by nanopb
     static bool writeCountArray(pb_ostream_t *stream, const pb_field_t *field, void *const *arg);
     static bool writeAnnotation(pb_ostream_t* stream, const pb_extension_t *extension);
     static bool writeHistograms(pb_ostream_t* stream, const pb_field_t *field, void *const *arg);
     static bool writeFidelityParams(pb_ostream_t* stream, const pb_extension_t *extension);
+    static bool writeExperimentId(pb_ostream_t *stream, const pb_field_t *field, void *const *arg);
+
     // Used by annotation serializer
     static pb_extension_t ext_;
     static pb_extension_type_t ext_type_;
