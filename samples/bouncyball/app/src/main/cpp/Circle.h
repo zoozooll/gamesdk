@@ -39,12 +39,21 @@ struct Circle {
     Circle(const Color &color, float radius, float x, float y) : color(color), radius(radius), x(x),
                                                                  y(y) {};
 
-    static void draw(float aspectRatio, const std::vector<Circle> &circles);
+    static void draw(float aspectRatio, const std::vector<Circle> &circles, int workload);
 
-    static const size_t NUM_SEGMENTS = 36;
-    static const size_t NUM_VERTICES = 2 * (NUM_SEGMENTS + 2);
+    static int getSegmentsForWorkload(int workload) {
+        float loadF = workload / 100.0f;
 
-    static std::array<GLfloat, NUM_VERTICES> &getVertices();
+        int num_segmets = (MAX_SEGMENTS - MIN_SEGMENTS) * loadF + MIN_SEGMENTS;
+        // make sure we get full triangles
+        num_segmets = (num_segmets / 3) * 3;
+        return num_segmets;
+    }
+
+    static const long MAX_SEGMENTS = 28800000;
+    static const long MIN_SEGMENTS = 36;
+
+    static std::vector<GLfloat> &getVertices(int);
 
     const Color color;
     const float radius;
