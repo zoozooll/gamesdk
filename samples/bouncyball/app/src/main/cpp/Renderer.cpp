@@ -29,7 +29,6 @@
 #include "swappy/swappy.h"
 
 #include "Circle.h"
-
 using namespace std::chrono_literals;
 
 namespace samples {
@@ -201,6 +200,10 @@ void Renderer::calculateFps() {
     prev = now;
 }
 
+void Renderer::setWorkload(int load) {
+    mWorkload = load;
+}
+
 void Renderer::draw(ThreadState *threadState) {
     // Don't render if we have no surface
     if (threadState->surface == EGL_NO_SURFACE) {
@@ -232,7 +235,7 @@ void Renderer::draw(ThreadState *threadState) {
     const std::vector<Circle>
         circles = {{Circle::Color{0.0f, 1.0f, 1.0f}, 0.1f, threadState->x, 0.0f}};
 
-    Circle::draw(aspectRatio, circles);
+    Circle::draw(aspectRatio, circles, mWorkload);
 
     Swappy_swap(threadState->display, threadState->surface);
 

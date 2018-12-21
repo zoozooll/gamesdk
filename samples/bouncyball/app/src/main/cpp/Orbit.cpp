@@ -104,4 +104,10 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nGetAverageFps(JNIEnv * /* env */
     return Renderer::getInstance()->getAverageFps();
 }
 
+JNIEXPORT void JNICALL
+Java_com_prefabulated_bouncyball_OrbitActivity_nSetWorkload(JNIEnv * /* env */, jobject /* this */,
+                                                            jint load) {
+    Renderer::getInstance()->setWorkload(load);
+}
+
 } // extern "C"
