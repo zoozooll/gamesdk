@@ -27,6 +27,7 @@
 #include "Log.h"
 
 #include "swappy/swappy.h"
+#include "swappy/swappy_extra.h"
 
 #include "Circle.h"
 using namespace std::chrono_literals;
@@ -216,6 +217,11 @@ void Renderer::draw(ThreadState *threadState) {
     calculateFps();
 
     float deltaSeconds = threadState->swapIntervalNS / 1e9f;
+    if (threadState->lastUpdate - std::chrono::steady_clock::now() <= 100ms) {
+        deltaSeconds = (threadState->lastUpdate - std::chrono::steady_clock::now()).count() / 1e9f;
+    }
+    threadState->lastUpdate = std::chrono::steady_clock::now();
+
     threadState->x += threadState->velocity * deltaSeconds;
 
     if (threadState->x > 0.8f) {

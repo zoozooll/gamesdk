@@ -12,6 +12,12 @@
         android:defaultValue="16.6"/>
 
     <SwitchPreference
+        android:key="use_auto_swap_interval"
+        android:defaultValue="true"
+        android:title="@string/use_auto_swap_interval_title"
+        android:summary="@string/use_auto_swap_interval_summary"/>
+
+    <SwitchPreference
         android:key="use_affinity"
         android:title="@string/use_affinity_title"
         android:summary="@string/use_affinity_summary"/>
