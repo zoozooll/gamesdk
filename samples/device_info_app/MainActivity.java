@@ -21,8 +21,8 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.os.Build;
 
-import com.google.androidgamesdk.DeviceInfoJni;
 import com.google.androidgamesdk.DeviceInfoProto;
+import com.google.androidgamesdk.DeviceInfoJni;
 
 public class MainActivity extends Activity {
   @Override
@@ -37,18 +37,18 @@ public class MainActivity extends Activity {
         TextView tv = (TextView) findViewById(R.id.sample_text);
         String msg = "Fingerprint(JAVA):\n" + Build.FINGERPRINT;
         try{
-          DeviceInfoProto.Root proto;
+          DeviceInfoProto.InfoWithErrors proto;
           byte[] nativeBytes = DeviceInfoJni.getProtoSerialized();
-          proto = DeviceInfoProto.Root.parseFrom(nativeBytes);
+          proto = DeviceInfoProto.InfoWithErrors.parseFrom(nativeBytes);
 
-          DeviceInfoProto.Data data = proto.getData();
-          msg += "\nFingerprint(ro.build.fingerprint):\n" + data.getRoBuildFingerprint();
-          msg += "\nro_chipname:\n" + data.getRoChipname();
-          msg += "\nro_board_platform:\n" + data.getRoBoardPlatform();
-          msg += "\nro_product_board:\n" + data.getRoProductBoard();
-          msg += "\nro_mediatek_platform:\n" + data.getRoMediatekPlatform();
-          msg += "\nro_arch:\n" + data.getRoArch();
-          msg += "\nro_build_version_sdk:\n" + data.getRoBuildVersionSdk();
+          DeviceInfoProto.Info info = proto.getInfo();
+          msg += "\nFingerprint(ro.build.fingerprint):\n" + info.getRoBuildFingerprint();
+          msg += "\nro_chipname:\n" + info.getRoChipname();
+          msg += "\nro_board_platform:\n" + info.getRoBoardPlatform();
+          msg += "\nro_product_board:\n" + info.getRoProductBoard();
+          msg += "\nro_mediatek_platform:\n" + info.getRoMediatekPlatform();
+          msg += "\nro_arch:\n" + info.getRoArch();
+          msg += "\nro_build_version_sdk:\n" + info.getRoBuildVersionSdk();
         }catch(Exception e){
           android.util.Log.e("device_info", "could not create proto.", e);
         }

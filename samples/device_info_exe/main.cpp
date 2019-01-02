@@ -19,15 +19,15 @@
 int main(){
   std::cout << "*Proto debug begin:" << std::endl;
 
-  androidgamesdk_deviceinfo::Root proto;
+  androidgamesdk_deviceinfo::InfoWithErrors proto;
   androidgamesdk_deviceinfo::createProto(proto);
 
   std::cout << "cpu present:" << std::endl;
-  std::cout << proto.data().cpu_present() << std::endl;
+  std::cout << proto.info().cpu_present() << std::endl;
 
   std::cout << "compressed texture formats:" << std::endl;
   std::cout << std::hex;
-  for(auto i : proto.data().gl().gl_compressed_texture_formats()){
+  for(auto i : proto.info().gl().gl_compressed_texture_formats()){
     std::cout << i << std::endl;
   }
 
