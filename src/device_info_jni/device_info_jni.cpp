@@ -20,7 +20,7 @@ extern "C" {
 JNIEXPORT jbyteArray JNICALL
 Java_com_google_androidgamesdk_DeviceInfoJni_getProtoSerialized(
                                         JNIEnv *env, jobject) {
-  androidgamesdk_deviceinfo::Root proto;
+  androidgamesdk_deviceinfo::InfoWithErrors proto;
   androidgamesdk_deviceinfo::createProto(proto);
 
   size_t bufferSize = proto.ByteSize();
