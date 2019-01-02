@@ -18,5 +18,5 @@
 
 namespace androidgamesdk_deviceinfo {
 // returns number of errors
-int createProto(Root& proto);
+int createProto(InfoWithErrors& proto);
 }  // namespace androidgamesdk_deviceinfo

@@ -5,7 +5,7 @@ package androidgamesdk_deviceinfo;
 option java_package = "com.google.androidgamesdk";
 option java_outer_classname = "DeviceInfoProto";
 
-message Data {
+message Info {
   message CpuCore {
     optional int64 freq_max = 1;
   }
@@ -234,7 +234,7 @@ message Errors {
   repeated string gl           = 5;
 }
 
-message Root {
-  optional Data data      = 1;
+message InfoWithErrors {
+  optional Info info      = 1;
   optional Errors errors  = 2;
 }
