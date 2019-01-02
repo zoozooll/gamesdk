@@ -26,10 +26,11 @@
 #include <set>
 
 namespace {
-using ProtoRoot   = androidgamesdk_deviceinfo::root;
-using ProtoErrors = androidgamesdk_deviceinfo::errors;
-using ProtoData   = androidgamesdk_deviceinfo::data;
-using ProtoGl     = androidgamesdk_deviceinfo::gl;
+using ProtoRoot    = androidgamesdk_deviceinfo::Root;
+using ProtoErrors  = androidgamesdk_deviceinfo::Errors;
+using ProtoData    = androidgamesdk_deviceinfo::Data;
+using ProtoCpuCore = androidgamesdk_deviceinfo::Data::CpuCore;
+using ProtoGl      = androidgamesdk_deviceinfo::Data::Gl;
 
 // size of GL view and texture in future
 constexpr int VIEW_WIDTH = 8;
@@ -452,7 +453,7 @@ void addGlConstsV3_0(::ProtoGl& gl) {
   gl.set_gl_max_uniform_block_size(
     ::gl_util::getInt64(GL_MAX_UNIFORM_BLOCK_SIZE));
 }
-void addGlConstsV3_1(androidgamesdk_deviceinfo::gl& gl) {
+void addGlConstsV3_1(::ProtoGl& gl) {
   gl.set_gl_max_atomic_counter_buffer_bindings(
     ::gl_util::getInt(GL_MAX_ATOMIC_COUNTER_BUFFER_BINDINGS));
   gl.set_gl_max_atomic_counter_buffer_size(
@@ -742,7 +743,7 @@ int createProto(::ProtoRoot& proto) {
   data.set_cpu_max_index(cpuIndexMax);
 
   for (int cpuIndex = 0; cpuIndex <= cpuIndexMax; cpuIndex++) {
-    cpu_core* newCore = data.add_cpu_core();
+    ProtoCpuCore* newCore = data.add_cpu_core();
     int64_t freqMax = readCpuFreqMax(cpuIndex);
     if (freqMax > 0) {
       newCore->set_freq_max(freqMax);
