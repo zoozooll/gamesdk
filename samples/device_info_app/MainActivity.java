@@ -37,11 +37,11 @@ public class MainActivity extends Activity {
         TextView tv = (TextView) findViewById(R.id.sample_text);
         String msg = "Fingerprint(JAVA):\n" + Build.FINGERPRINT;
         try{
-          DeviceInfoProto.root proto;
+          DeviceInfoProto.Root proto;
           byte[] nativeBytes = DeviceInfoJni.getProtoSerialized();
-          proto = DeviceInfoProto.root.parseFrom(nativeBytes);
+          proto = DeviceInfoProto.Root.parseFrom(nativeBytes);
 
-          DeviceInfoProto.data data = proto.getData();
+          DeviceInfoProto.Data data = proto.getData();
           msg += "\nFingerprint(ro.build.fingerprint):\n" + data.getRoBuildFingerprint();
           msg += "\nro_chipname:\n" + data.getRoChipname();
           msg += "\nro_board_platform:\n" + data.getRoBoardPlatform();
