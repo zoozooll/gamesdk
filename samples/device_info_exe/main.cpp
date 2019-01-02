@@ -19,7 +19,7 @@
 int main(){
   std::cout << "*Proto debug begin:" << std::endl;
 
-  androidgamesdk_deviceinfo::root proto;
+  androidgamesdk_deviceinfo::Root proto;
   androidgamesdk_deviceinfo::createProto(proto);
 
   std::cout << "cpu present:" << std::endl;
