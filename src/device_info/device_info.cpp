@@ -26,11 +26,11 @@
 #include <set>
 
 namespace {
-using ProtoRoot    = androidgamesdk_deviceinfo::Root;
-using ProtoErrors  = androidgamesdk_deviceinfo::Errors;
-using ProtoData    = androidgamesdk_deviceinfo::Data;
-using ProtoCpuCore = androidgamesdk_deviceinfo::Data::CpuCore;
-using ProtoGl      = androidgamesdk_deviceinfo::Data::Gl;
+using ProtoInfoWithErrors = androidgamesdk_deviceinfo::InfoWithErrors;
+using ProtoErrors         = androidgamesdk_deviceinfo::Errors;
+using ProtoInfo           = androidgamesdk_deviceinfo::Info;
+using ProtoCpuCore        = androidgamesdk_deviceinfo::Info::CpuCore;
+using ProtoGl             = androidgamesdk_deviceinfo::Info::Gl;
 
 // size of GL view and texture in future
 constexpr int VIEW_WIDTH = 8;
@@ -157,24 +157,24 @@ std::string getSystemProp(const char* key,
 }
 
 // returns number of errors
-int addSystemProperties(::ProtoData& data, ::ProtoErrors& errors) {
+int addSystemProperties(::ProtoInfo& info, ::ProtoErrors& errors) {
   std::string sdkVersionString =
     getSystemPropViaGet("ro.build.version.sdk", errors);
-  data.set_ro_build_version_sdk(sdkVersionString);
+  info.set_ro_build_version_sdk(sdkVersionString);
 
   int sdkVersion = atoi(sdkVersionString.c_str());
   bool useCallbackApi = (26 <= sdkVersion);
-  data.set_ro_chipname(
+  info.set_ro_chipname(
     getSystemProp("ro.chipname", errors, useCallbackApi));
-  data.set_ro_board_platform(
+  info.set_ro_board_platform(
     getSystemProp("ro.board.platform", errors, useCallbackApi));
-  data.set_ro_product_board(
+  info.set_ro_product_board(
     getSystemProp("ro.product.board", errors, useCallbackApi));
-  data.set_ro_mediatek_platform(
+  info.set_ro_mediatek_platform(
     getSystemProp("ro.mediatek.platform", errors, useCallbackApi));
-  data.set_ro_arch(
+  info.set_ro_arch(
     getSystemProp("ro.arch", errors, useCallbackApi));
-  data.set_ro_build_fingerprint(
+  info.set_ro_build_fingerprint(
     getSystemProp("ro.build.fingerprint", errors, useCallbackApi));
 
   return errors.system_props_size();
@@ -202,7 +202,7 @@ int flushGlErrors(::ProtoErrors& errors) {
 }
 
 // returns number of errors
-int setupEGl(::ProtoRoot& proto) {
+int setupEGl(::ProtoInfoWithErrors& proto) {
   ProtoErrors& errors = *proto.mutable_errors();
 
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -667,11 +667,11 @@ void addGlConstsV3_2(::ProtoGl& gl) {
 }
 
 // returns number of errors
-int addGl(::ProtoRoot& proto) {
+int addGl(::ProtoInfoWithErrors& proto) {
   int numErrors = 0;
 
-  ::ProtoData& data = *proto.mutable_data();
-  ::ProtoGl& gl = *data.mutable_gl();
+  ::ProtoInfo& info = *proto.mutable_info();
+  ::ProtoGl& gl = *info.mutable_gl();
   ::ProtoErrors& errors = *proto.mutable_errors();
 
   gl.set_renderer(::gl_util::getString(GL_RENDERER));
@@ -733,41 +733,41 @@ int addGl(::ProtoRoot& proto) {
 }  // namespace
 
 namespace androidgamesdk_deviceinfo {
-int createProto(::ProtoRoot& proto) {
+int createProto(::ProtoInfoWithErrors& proto) {
   int numErrors = 0;
 
-  ProtoData& data = *proto.mutable_data();
-  data.set_version(1);
+  ProtoInfo& info = *proto.mutable_info();
+  info.set_version(1);
 
   int cpuIndexMax = readCpuIndexMax();
-  data.set_cpu_max_index(cpuIndexMax);
+  info.set_cpu_max_index(cpuIndexMax);
 
   for (int cpuIndex = 0; cpuIndex <= cpuIndexMax; cpuIndex++) {
-    ProtoCpuCore* newCore = data.add_cpu_core();
+    ProtoCpuCore* newCore = info.add_cpu_core();
     int64_t freqMax = readCpuFreqMax(cpuIndex);
     if (freqMax > 0) {
       newCore->set_freq_max(freqMax);
     }
   }
 
-  data.set_cpu_present(readCpuPresent());
-  data.set_cpu_possible(readCpuPossible());
+  info.set_cpu_present(readCpuPresent());
+  info.set_cpu_possible(readCpuPossible());
 
   ProtoErrors& errors = *proto.mutable_errors();
 
   std::vector<std::string> hardware;
   numErrors += readHardware(hardware, errors);
   for (const std::string& s : hardware) {
-    data.add_hardware(s);
+    info.add_hardware(s);
   }
 
   std::set<std::string> features;
   numErrors += readFeatures(features, errors);
   for (const std::string& s : features) {
-    data.add_cpu_extension(s);
+    info.add_cpu_extension(s);
   }
 
-  numErrors += addSystemProperties(data, errors);
+  numErrors += addSystemProperties(info, errors);
 
   int numErrorsEgl = setupEGl(proto);
   numErrors += numErrorsEgl;
