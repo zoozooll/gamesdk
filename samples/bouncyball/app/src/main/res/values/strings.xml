@@ -17,11 +17,6 @@
     <string name="swap_interval_title">Swap Interval</string>
     <string name="swap_interval_summary_prologue">Present a newly-rendered frame every\u0020</string>
     <string name="swap_interval_summary_epilogue">ms</string>
-    <string-array name="swap_intervals_ms">
-        <item>16.6</item>
-        <item>33.3</item>
-        <item>50.0</item>
-    </string-array>
 
     <string name="use_affinity_title">Use Affinity</string>
     <string name="use_affinity_summary">Allow worker threads to specify their CPU affinity</string>
