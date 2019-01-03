@@ -143,20 +143,22 @@ bool Swappy::swapInternal(EGLDisplay display, EGLSurface surface) {
         mChoreographerThread->postFrameCallbacks();
     }
 
-    waitForNextFrame(display);
+    bool needToSetPresentationTime = waitForNextFrame(display);
 
     mSwapTime = std::chrono::steady_clock::now();
 
-    bool result = setPresentationTime(display, surface);
-    if (!result) {
-        return result;
+    if (needToSetPresentationTime) {
+        bool setPresentationTimeResult = setPresentationTime(display, surface);
+        if (!setPresentationTimeResult) {
+            return setPresentationTimeResult;
+        }
     }
 
     resetSyncFence(display);
 
     preSwapBuffersCallbacks();
 
-    result = (eglSwapBuffers(display, surface) == EGL_TRUE);
+    bool swapBuffersResult = (eglSwapBuffers(display, surface) == EGL_TRUE);
 
     postSwapBuffersCallbacks();
 
@@ -168,7 +170,7 @@ bool Swappy::swapInternal(EGLDisplay display, EGLSurface surface) {
 
     startFrame();
 
-    return result;
+    return swapBuffersResult;
 }
 
 void Swappy::addTracer(const SwappyTracer *tracer) {
@@ -379,10 +381,11 @@ int32_t Swappy::nanoToSwapInterval(std::chrono::nanoseconds nano) {
     }
 }
 
-void Swappy::waitForNextFrame(EGLDisplay display) {
+bool Swappy::waitForNextFrame(EGLDisplay display) {
     preWaitCallbacks();
 
     int lateFrames = 0;
+    bool needToSetPresentationTime;
 
     // if we are running slower than the threshold there is no point to sleep, just let the
     // app run as fast as it can
@@ -406,16 +409,19 @@ void Swappy::waitForNextFrame(EGLDisplay display) {
         int32_t frameDiff = mCurrentFrame - mTargetFrame;
         frameDiff = (frameDiff / mAutoSwapInterval.load());
         mPresentationTime += frameDiff * mRefreshPeriod;
+        needToSetPresentationTime = true;
 
         lateFrames += frameDiff;
         recordFrameTime(mAutoSwapInterval + lateFrames);
+
     } else {
+        needToSetPresentationTime = false;
         auto timeNow = std::chrono::steady_clock::now();
-        mPresentationTime = timeNow;
         recordFrameTime(nanoToSwapInterval(timeNow - mSwapTime));
     }
 
     postWaitCallbacks();
+    return needToSetPresentationTime;
 }
 
 bool Swappy::updateSwapInterval() {
