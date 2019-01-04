@@ -24,7 +24,7 @@ namespace tuningfork {
 
 ClearcutBackend::~ClearcutBackend() {}
 
-const std::string ClearcutBackend::LOG_SOURCE = "CC_TUNING_FORK";
+const std::string ClearcutBackend::LOG_SOURCE = "TUNING_FORK";
 const char* ClearcutBackend::LOG_TAG = "TuningFork.Clearcut";
 
 bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
