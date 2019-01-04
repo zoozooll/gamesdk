@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-import "tuningfork.proto";
+package com.google.tuningfork;
 
 enum Level {
   LEVEL_1 = 0;
@@ -8,7 +8,7 @@ enum Level {
   LEVEL_3 = 2;
 };
 
-extend com.google.tuningfork.Annotation {
+message Annotation {
   optional Level level = 1;
   optional Level level2 = 2;
 }
@@ -20,6 +20,6 @@ enum LOD {
   LOD_4 = 3;
 };
 
-extend com.google.tuningfork.FidelityParams {
+message FidelityParams {
   optional LOD lod = 1;
 }
