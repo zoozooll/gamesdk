@@ -52,7 +52,6 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
 
 bool DebugBackend::GetFidelityParams(ProtobufSerialization &fp_ser,
                                      size_t timeout_ms) {
-    FidelityParams fpDefault;
     // TODO: put some dummy params here for testing
     fp_ser.clear();
     return true;
@@ -119,4 +118,4 @@ bool UploadThread::Submit(const ProngCache *prongs) {
         return false;
 }
 
-} // namespace tuningfork {
+} // namespace tuningfork
