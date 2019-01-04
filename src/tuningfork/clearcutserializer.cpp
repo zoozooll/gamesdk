@@ -15,13 +15,9 @@
 #include "clearcutserializer.h"
 
 #include "protobuf_util.h"
+#include "nano/tuningfork_clearcut_log.pb.h"
 
 namespace tuningfork {
-
-pb_extension_t ClearcutSerializer::ext_;
-pb_extension_type_t ClearcutSerializer::ext_type_;
-pb_extension_t ClearcutSerializer::ext2_;
-pb_extension_type_t ClearcutSerializer::ext2_type_;
 
 bool ClearcutSerializer::writeCountArray(pb_ostream_t *stream, const pb_field_t *field,
                                        void *const *arg) {
@@ -45,25 +41,23 @@ bool ClearcutSerializer::writeCountArray(pb_ostream_t *stream, const pb_field_t 
 
 void ClearcutSerializer::Fill(const Histogram& h, ClearcutHistogram& ch) {
      ch.counts.funcs.encode = writeCountArray;
-     ch.counts.arg = (void*)&h;
+     ch.counts.arg = (void*)(&h);
 }
 
-bool ClearcutSerializer::writeAnnotation(pb_ostream_t* stream, const pb_extension_t *extension) {
-    const Prong* p = static_cast<const Prong*>(extension->type->arg);
+bool ClearcutSerializer::writeAnnotation(pb_ostream_t* stream, const pb_field_t *field,
+                                         void *const *arg) {
+    const Prong* p = static_cast<const Prong*>(*arg);
     if(p->annotation_.size()>0) {
-        pb_write(stream, &p->annotation_[0], p->annotation_.size());
+        pb_encode_tag_for_field(stream, field);
+        pb_encode_string(stream, &p->annotation_[0], p->annotation_.size());
     }
     return true;
 }
 void ClearcutSerializer::Fill(const Prong& p, ClearcutHistogram& h) {
     h.has_instrument_id = true;
     h.instrument_id = p.instrumentation_key_;
-    h.has_annotation = true;
-    h.annotation.extensions = &ext_;
-    ext_.type = &ext_type_;
-    ext_.next = 0;
-    ext_type_.encode = writeAnnotation;
-    ext_type_.arg = &p;
+    h.annotation.funcs.encode = writeAnnotation;
+    h.annotation.arg = (void*)(&p);
     Fill(p.histogram_, h);
 }
 bool ClearcutSerializer::writeHistograms(pb_ostream_t* stream, const pb_field_t *field,
@@ -103,10 +97,12 @@ void ClearcutSerializer::FillHistograms(const ProngCache& pc, TuningForkLogEvent
     evt.histograms.arg = (void*)&pc;
 }
 
-bool ClearcutSerializer::writeFidelityParams(pb_ostream_t* stream, const pb_extension_t *extension) {
-    const ProtobufSerialization* fp = static_cast<const ProtobufSerialization*>(extension->type->arg);
+bool ClearcutSerializer::writeFidelityParams(pb_ostream_t* stream, const pb_field_t *field,
+                                             void *const *arg) {
+    const ProtobufSerialization* fp = static_cast<const ProtobufSerialization*>(*arg);
     if(fp->size()>0) {
-      pb_write(stream, &(*fp)[0], fp->size());
+        pb_encode_tag_for_field(stream, field);
+        pb_encode_string(stream, &(*fp)[0], fp->size());
     }
     return true;
 }
@@ -114,16 +110,12 @@ void ClearcutSerializer::SerializeEvent(const ProngCache& pc,
                                         const ProtobufSerialization& fidelity_params,
                                         ProtobufSerialization& evt_ser) {
     TuningForkLogEvent evt = logs_proto_tuningfork_TuningForkLogEvent_init_default;
-    evt.has_fidelityparams = true;
-    evt.fidelityparams.extensions = &ext2_;
-    ext2_.type = &ext2_type_;
-    ext2_.next = 0;
-    ext2_type_.encode = writeFidelityParams;
-    ext2_type_.arg = &fidelity_params;
+    evt.fidelityparams.funcs.encode = writeFidelityParams;
+    evt.fidelityparams.arg = (void*)&fidelity_params;
     ClearcutSerializer::FillHistograms(pc,evt);
     VectorStream str {&evt_ser, 0};
     pb_ostream_t stream = {VectorStream::Write, &str, SIZE_MAX, 0};
     pb_encode(&stream, logs_proto_tuningfork_TuningForkLogEvent_fields, &evt);
 }
 
-} // namespace tuningfork {
+} // namespace tuningfork

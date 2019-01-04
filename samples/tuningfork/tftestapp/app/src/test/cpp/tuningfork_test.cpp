@@ -121,7 +121,7 @@ std::string TestEndToEndWithAnnotation() {
     auto settings = TestSettings(Settings::AggregationStrategy::TICK_BASED, NTICKS - 1, 2, {3});
     tuningfork::Init(Serialize(settings), &testBackend, &timeProvider);
     Annotation ann;
-    ann.SetExtension(level, LEVEL_1);
+    ann.set_level(com::google::tuningfork::LEVEL_1);
     tuningfork::SetCurrentAnnotation(Serialize(ann));
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)

@@ -5,7 +5,8 @@ package logs.proto.tuningfork;
 import "tuningfork.proto";
 
 message TuningForkLogEvent {
-  optional .com.google.tuningfork.FidelityParams fidelityparams = 1;
+  // FidelityParams message serialization defined by the developer
+  optional bytes fidelityparams = 1;
   optional string experiment_id = 2;
   repeated TuningForkHistogram histograms = 3;
 }
@@ -13,8 +14,8 @@ message TuningForkLogEvent {
 message TuningForkHistogram {
   // ID of the frame capture point
   optional int32 instrument_id = 1;
-  // Annotation extended by the developer
-  optional .com.google.tuningfork.Annotation annotation = 2;
+  // Annotation message serialization defined by the developer
+  optional bytes annotation = 2;
   // Bucket counts.
   // The APK contains hard-coded bucket ranges for each instrument_id.
   repeated int32 counts = 3 [packed=true];
