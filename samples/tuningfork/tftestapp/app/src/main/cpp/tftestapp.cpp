@@ -21,19 +21,17 @@
 #include <jni.h>
 #include <tuningfork/clearcut_backend.h>
 
-
 using ::com::google::tuningfork::FidelityParams;
 using ::com::google::tuningfork::Settings;
 using ::com::google::tuningfork::Annotation;
 using ::logs::proto::tuningfork::TuningForkLogEvent;
 using ::logs::proto::tuningfork::TuningForkHistogram;
 
+namespace proto_tf = com::google::tuningfork;
 namespace tf = tuningfork;
-namespace tuningfork {
-std::string base64_encode(const uint8_t *a, size_t n);
-}
 
 namespace {
+
 struct HistogramSettings {
     float start, end;
     int nBuckets;
@@ -58,40 +56,76 @@ Settings TestSettings(Settings::AggregationStrategy::Submission method, int n_ti
     }
     return s;
 }
+std::string ReplaceReturns(const std::string& s) {
+    std::string r = s;
+    for(int i=0;i<r.length();++i) {
+        if(r[i]=='\n') r[i] = ',';
+        if(r[i]=='\r') r[i] = ' ';
+    }
+    return r;
+}
+std::string PrettyPrintTuningForkLogEvent(const TuningForkLogEvent& evt) {
+    std::stringstream eventStr;
+    eventStr << "TuningForkLogEvent {\n";
+    if(evt.has_fidelityparams()) {
+        FidelityParams p;
+        p.ParseFromArray(evt.fidelityparams().c_str(), evt.fidelityparams().length());
+        eventStr << "  fidelityparams : " << ReplaceReturns(p.DebugString()) << "\n";
+    }
+    for(int i=0; i<evt.histograms_size(); ++i) {
+        auto& h = evt.histograms(i);
+        Annotation ann;
+        ann.ParseFromArray(h.annotation().c_str(), h.annotation().length());
+        bool first = true;
+        eventStr << "  histogram {\n";
+        eventStr << "    instrument_id : " << h.instrument_id() << "\n";
+        eventStr << "    annotation : " << ReplaceReturns(ann.DebugString()) << "\n    counts : ";
+        eventStr << "[";
+        for(int j=0; j<h.counts_size(); ++j) {
+            if (first)
+                first = false;
+            else
+                eventStr << ",";
+            eventStr << h.counts(j);
+        }
+        eventStr << "]\n  }\n";
+    }
+    eventStr << "}";
+    return eventStr.str();
+}
 tf::DebugBackend dbgBackend;
 class LogcatBackend : public tf::Backend {
 public:
     ~LogcatBackend() override {}
     bool GetFidelityParams(tf::ProtobufSerialization &fidelity_params, size_t timeout_ms) override {
         FidelityParams p;
-        p.SetExtension(lod, LOD_1);
+        p.set_lod(com::google::tuningfork::LOD_1);
         fidelity_params = tf::Serialize(p);
         return true;
     }
     bool Process(const tf::ProtobufSerialization &tuningfork_log_event) override {
         TuningForkLogEvent evt;
         tf::Deserialize(tuningfork_log_event, evt);
-        std::string m = evt.DebugString();
-        __android_log_print(ANDROID_LOG_INFO, "TuningFork", "Event (size=%zu) :\n %s",
-                            tuningfork_log_event.size(), m.c_str());
+        __android_log_print(ANDROID_LOG_INFO, "TuningFork", "%s",
+                            PrettyPrintTuningForkLogEvent(evt).c_str());
         return dbgBackend.Process(tuningfork_log_event);
     }
 };
-LogcatBackend myBackend;
+LogcatBackend debugBackend;
 tuningfork::ClearcutBackend ccBackend;
 
-static int sLevel = Level_MIN;
+static int sLevel = proto_tf::Level_MIN;
 void SetAnnotations() {
     __android_log_print(ANDROID_LOG_DEBUG, "TuningFork", "Setting level to %d", sLevel);
-    if(Level_IsValid(sLevel)) {
+    if(proto_tf::Level_IsValid(sLevel)) {
         Annotation a;
-        a.SetExtension(level, (Level)sLevel);
-        a.SetExtension(level2, (Level)sLevel);
+        a.set_level((proto_tf::Level)sLevel);
+        a.set_level2((proto_tf::Level)sLevel);
         tf::SetCurrentAnnotation(tf::Serialize(a));
     }
 }
 
-} // namespace {
+} // anonymous namespace
 
 extern "C" {
 
@@ -108,12 +142,11 @@ Java_com_google_tuningfork_TFTestActivity_nInit(JNIEnv *env, jobject activity) {
                               });
 
     bool isClearcutInited =  ccBackend.Init(env, activity);
-
     // Clearcut will not be inited if gms is not available
     if(isClearcutInited)
         tf::Init(tf::Serialize(s),&ccBackend);
     else
-        tf::Init(tf::Serialize(s), &myBackend);
+        tf::Init(tf::Serialize(s), &debugBackend);
 
     tf::ProtobufSerialization defaultParams;
     tf::ProtobufSerialization params;
@@ -138,7 +171,7 @@ Java_com_google_tuningfork_TFTestActivity_nOnChoreographer(JNIEnv */*env*/, jobj
     ++tick_count;
     if(tick_count>=600) {
         ++sLevel;
-        if(sLevel>Level_MAX) sLevel = Level_MIN;
+        if(sLevel>proto_tf::Level_MAX) sLevel = proto_tf::Level_MIN;
         SetAnnotations();
         tick_count = 0;
     }

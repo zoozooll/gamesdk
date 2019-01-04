@@ -1,6 +1,4 @@
-syntax = "proto2";
-
-import "tuningfork.proto";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
@@ -10,9 +8,9 @@ enum LoadingState {
 }
 // This is the base annotation for a game engine like Unity.
 // The user should extend with their own annotations.
-extend Annotation {
-  optional LoadingState loading_state = 1;
-  optional int32 level = 2;
+message Annotation {
+  LoadingState loading_state = 1;
+  int32 level = 2;
 }
 
 enum QualitySettings {
@@ -24,6 +22,6 @@ enum QualitySettings {
   FANTASTIC = 5;
 }
 
-extend FidelityParams {
-  optional QualitySettings qualitySettings = 1;
+message FidelityParams {
+  QualitySettings qualitySettings = 1;
 }

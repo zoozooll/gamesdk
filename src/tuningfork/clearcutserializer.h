@@ -25,8 +25,6 @@
 
 namespace tuningfork {
 
-typedef com_google_tuningfork_FidelityParams FidelityParams;
-typedef com_google_tuningfork_Annotation Annotation;
 typedef logs_proto_tuningfork_TuningForkLogEvent TuningForkLogEvent;
 
 typedef logs_proto_tuningfork_TuningForkHistogram ClearcutHistogram;
@@ -45,21 +43,12 @@ public:
     // Fill in the experiment ID
     static void FillExperimentID(const std::string& experiment_id, TuningForkLogEvent& evt);
 
-
-        // Callbacks needed by nanopb
+    // Callbacks needed by nanopb
     static bool writeCountArray(pb_ostream_t *stream, const pb_field_t *field, void *const *arg);
-    static bool writeAnnotation(pb_ostream_t* stream, const pb_extension_t *extension);
+    static bool writeAnnotation(pb_ostream_t* stream, const pb_field_t *field, void *const *arg);
     static bool writeHistograms(pb_ostream_t* stream, const pb_field_t *field, void *const *arg);
-    static bool writeFidelityParams(pb_ostream_t* stream, const pb_extension_t *extension);
+    static bool writeFidelityParams(pb_ostream_t* stream, const pb_field_t *field, void *const *arg);
     static bool writeExperimentId(pb_ostream_t *stream, const pb_field_t *field, void *const *arg);
-
-    // Used by annotation serializer
-    static pb_extension_t ext_;
-    static pb_extension_type_t ext_type_;
-    // Used by fidelity params serializer
-    static pb_extension_t ext2_;
-    static pb_extension_type_t ext2_type_;
-
 };
 
-} //namespace tuningfork {
+} //namespace tuningfork
