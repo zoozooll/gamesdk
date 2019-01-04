@@ -83,9 +83,13 @@ def cmake(projectFolder, cmakeFolder, arch, ndkVersion) {
   }
 }
 
-def buildGameSDK(arch, ndkVersion) {
-  def cmakeFolder = project.property('tempFolder') + '/' + arch + '/.cmake'
+def build(projectName, arch, ndkVersion) {
+  def cmakeFolder = project.property('tempFolder') + '/' + projectName +'/' + arch + '/.cmake'
   def buildFolder = project.property('buildFolder') + '/libs/' + arch
+
+  def out = services.get(StyledTextOutputFactory).create("ouput")
+  out.style(Style.Identifier).println("\n========= Building " + projectName + " [" + arch + "]");
+  println "cmake folder: $cmakeFolder";
 
   mkdir cmakeFolder
   mkdir buildFolder
@@ -94,7 +98,7 @@ def buildGameSDK(arch, ndkVersion) {
     commandLine "$cmake", '--version'
   }
 
-  cmake("$projectDir/src/swappy/", cmakeFolder, arch, ndkVersion)
+  cmake("$projectDir/src/" + projectName + "/", cmakeFolder, arch, ndkVersion)
 
   exec {
     workingDir cmakeFolder
@@ -102,14 +106,21 @@ def buildGameSDK(arch, ndkVersion) {
     commandLine "make"
   }
 
+  out.style(Style.ProgressStatus).println("\nCopying libraries to " + buildFolder);
+
   copy {
-    from file(cmakeFolder + "/libswappy_static.a")
-    into file(buildFolder + "/libswappy_static.a")
+    from file(cmakeFolder + "/lib" + projectName + "_static.a")
+    into file(buildFolder + "/lib")
   }
   copy {
-    from file(cmakeFolder + "/libswappy.so")
-    into file(buildFolder + "/libswappy.so")
+    from file(cmakeFolder + "/lib" + projectName + ".so")
+    into file(buildFolder + "/lib")
   }
+}
+
+def buildGameSDK(arch, ndkVersion) {
+  build("swappy", arch, ndkVersion);
+  build("swappyVk", arch, ndkVersion);
 }
 
 task clean(type: Delete) {

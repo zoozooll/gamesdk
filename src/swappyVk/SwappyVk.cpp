@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-#include "SwappyVk.h"
+#include <swappyVk/SwappyVk.h>
+
 #include <map>
 #include <unistd.h>
 
 #include <dlfcn.h>
 #include <cstdlib>
+
+#include <inttypes.h>
 
 #ifdef ANDROID
 #include <mutex>
@@ -338,7 +341,8 @@ public:
         // TEMP CODE: LOG REFRESH DURATION AND RATE:
         double refreshRate = mRefreshDur;
         refreshRate = 1.0 / (refreshRate / 1000000000.0);
-        ALOGD("Returning refresh duration of %llu nsec (approx %f Hz)", mRefreshDur, refreshRate);
+        
+        ALOGD("Returning refresh duration of %" PRIu64 " nsec (approx %f Hz)", mRefreshDur, refreshRate);
 
         *pRefreshDuration = mRefreshDur;
         return true;
@@ -761,7 +765,7 @@ public:
 
         double refreshRate = mRefreshDur;
         refreshRate = 1.0 / (refreshRate / 1000000000.0);
-        ALOGI("Returning refresh duration of %llu nsec (approx %f Hz)", mRefreshDur, refreshRate);
+        ALOGI("Returning refresh duration of %" PRIu64 " nsec (approx %f Hz)", mRefreshDur, refreshRate);
         return true;
     }
 
