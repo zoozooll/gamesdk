@@ -4,7 +4,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99  -Werror -DVK_USE_PLATFORM_ANDROID_
 
 # ============== Games SDK
 
-include_directories( ../../../includes ) # Games SDK Public Includes
+include_directories( ../../../include ) # Games SDK Public Includes
 include_directories( ../../../src ) # Games SDK Internal Includes
 
 add_subdirectory(../../../src/swappyVk ./swappyVk-output)   # SwappyVk Library
