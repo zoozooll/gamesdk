@@ -9,7 +9,7 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections" )
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections" )
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-s" )
 
-include_directories( ../../includes )
+include_directories( ../../include )
 include_directories( ${ANDROID_NDK}/sources/third_party/vulkan/src/common )
 
 message( STATUS "Building swappyVk_static to ${CMAKE_CURRENT_BINARY_DIR}/build" )
