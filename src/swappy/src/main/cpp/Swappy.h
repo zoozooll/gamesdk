@@ -104,7 +104,7 @@ private:
     void waitOneFrame();
 
     // Waits for the next frame, considering both Choreographer and the prior frame's completion
-    void waitForNextFrame(EGLDisplay display);
+    bool waitForNextFrame(EGLDisplay display);
 
     // Destroys the previous sync fence (if any) and creates a new one for this frame
     void resetSyncFence(EGLDisplay display);
