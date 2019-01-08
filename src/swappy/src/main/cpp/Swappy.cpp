@@ -216,7 +216,9 @@ void Swappy::destroyInstance() {
 
 template<typename Tracers, typename Func> void addToTracers(Tracers& tracers, Func func, void *userData) {
     if (func != nullptr) {
-        tracers.push_back(std::bind(func, userData));
+        tracers.push_back([func, userData](auto... params) {
+            func(userData, params...);
+        });
     }
 }
 
@@ -229,9 +231,9 @@ void Swappy::addTracerCallbacks(SwappyTracer tracer) {
     addToTracers(mInjectedTracers.swapIntervalChanged, tracer.swapIntervalChanged, tracer.userData);
 }
 
-template<typename T> void executeTracers(T& tracers) {
+template<typename T, typename ...Args> void executeTracers(T& tracers, Args... args) {
     for (const auto& tracer : tracers) {
-        tracer();
+        tracer(std::forward<Args>(args)...);
     }
 }
 
@@ -240,7 +242,8 @@ void Swappy::preSwapBuffersCallbacks() {
 }
 
 void Swappy::postSwapBuffersCallbacks() {
-    executeTracers(mInjectedTracers.postSwapBuffers);
+    executeTracers(mInjectedTracers.postSwapBuffers,
+                   (long) mPresentationTime.time_since_epoch().count());
 }
 
 void Swappy::preWaitCallbacks() {
@@ -252,7 +255,9 @@ void Swappy::postWaitCallbacks() {
 }
 
 void Swappy::startFrameCallbacks() {
-    executeTracers(mInjectedTracers.startFrame);
+    executeTracers(mInjectedTracers.startFrame,
+                   mCurrentFrame,
+                   (long) mCurrentFrameTimestamp.time_since_epoch().count());
 }
 
 void Swappy::swapIntervalChangedCallbacks() {
@@ -330,12 +335,13 @@ std::chrono::nanoseconds Swappy::wakeClient() {
 void Swappy::startFrame() {
     TRACE_CALL();
 
-    startFrameCallbacks();
-
     const auto [currentFrame, currentFrameTimestamp] = [this] {
         std::unique_lock<std::mutex> lock(mWaitingMutex);
         return std::make_tuple(mCurrentFrame, mCurrentFrameTimestamp);
     }();
+
+    startFrameCallbacks();
+
     mTargetFrame = currentFrame + mAutoSwapInterval;
 
     // We compute the target time as now
