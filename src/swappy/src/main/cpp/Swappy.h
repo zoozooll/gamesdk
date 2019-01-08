@@ -147,15 +147,16 @@ private:
     bool mUsingExternalChoreographer = false;
     std::unique_ptr<ChoreographerThread> mChoreographerThread;
 
-    typedef std::function<void ()> Tracer;
+    template <typename ...T>
+    using Tracer = std::function<void (T...)>;
 
     struct SwappyTracerCallbacks {
-        std::list<Tracer> preWait;
-        std::list<Tracer> postWait;
-        std::list<Tracer> preSwapBuffers;
-        std::list<Tracer> postSwapBuffers;
-        std::list<Tracer> startFrame;
-        std::list<Tracer> swapIntervalChanged;
+        std::list<Tracer<>> preWait;
+        std::list<Tracer<>> postWait;
+        std::list<Tracer<>> preSwapBuffers;
+        std::list<Tracer<long>> postSwapBuffers;
+        std::list<Tracer<int32_t, long>> startFrame;
+        std::list<Tracer<>> swapIntervalChanged;
     };
 
     SwappyTracerCallbacks mInjectedTracers;
