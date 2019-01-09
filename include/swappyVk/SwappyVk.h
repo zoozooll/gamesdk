@@ -81,11 +81,13 @@ void swappyVkDetermineDeviceExtensions(
  *
  * Parameters:
  *
- *  (IN)  queue            - A device queue.
+ *  (IN)  device            - The VkDevice associated with the queue
+ *  (IN)  queue             - A device queue.
  *  (IN)  queueFamilyIndex  - The queue family index used to create the VkQueue.
  *
  */
 void SwappyVkSetQueueFamiliyIndex(
+        VkDevice    device,
         VkQueue     queue,
         uint32_t    queueFamilyIndex);
 
@@ -175,6 +177,21 @@ void swappyVkSetSwapInterval(
 VkResult swappyVkQueuePresent(
         VkQueue                 queue,
         const VkPresentInfoKHR* pPresentInfo);
+
+
+/**
+ * Destroy SwappyVk instance associated to the swapchain
+ *
+ * This API is expected to be called before calling to vkDestroySwapchainKHR()
+ * so Swappy could cleanup its internal state.
+ *
+ * Parameters:
+ *
+ *  (IN)  device     - The VkDevice associated with SwappyVk
+ */
+void SwappyVkDestroySwapchain(
+        VkDevice                device,
+        VkSwapchainKHR          swapchain);
 
 #ifdef __cplusplus
 }  // extern "C"
