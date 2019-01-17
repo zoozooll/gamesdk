@@ -214,6 +214,8 @@ void Renderer::draw(ThreadState *threadState) {
         return;
     }
 
+    Swappy_recordFrameStart(threadState->display, threadState->surface);
+
     calculateFps();
 
     float deltaSeconds = threadState->swapIntervalNS / 1e9f;

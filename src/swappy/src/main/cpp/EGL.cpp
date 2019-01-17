@@ -16,6 +16,8 @@
 
 #include "EGL.h"
 
+#include <vector>
+
 #define LOG_TAG "Swappy::EGL"
 
 #include "Log.h"
@@ -53,11 +55,42 @@ std::unique_ptr<EGL> EGL::create(std::chrono::nanoseconds refreshPeriod) {
         return nullptr;
     }
 
+    auto eglGetError = reinterpret_cast<eglGetError_type>(
+            eglGetProcAddress("eglGetError"));
+    if (eglGetError == nullptr) {
+        ALOGE("Failed to load eglGetError");
+        return nullptr;
+    }
+
+    auto eglSurfaceAttrib = reinterpret_cast<eglSurfaceAttrib_type>(
+            eglGetProcAddress("eglSurfaceAttrib"));
+    if (eglSurfaceAttrib == nullptr) {
+        ALOGE("Failed to load eglSurfaceAttrib");
+        return nullptr;
+    }
+
+    // stats may not be supported on all versions
+    auto eglGetNextFrameIdANDROID = reinterpret_cast<eglGetNextFrameIdANDROID_type>(
+            eglGetProcAddress("eglGetNextFrameIdANDROID"));
+    if (eglGetNextFrameIdANDROID == nullptr) {
+        ALOGI("Failed to load eglGetNextFrameIdANDROID");
+    }
+
+    auto eglGetFrameTimestampsANDROID = reinterpret_cast<eglGetFrameTimestampsANDROID_type>(
+            eglGetProcAddress("eglGetFrameTimestampsANDROID"));
+    if (eglGetFrameTimestampsANDROID == nullptr) {
+        ALOGI("Failed to load eglGetFrameTimestampsANDROID");
+    }
+
     auto egl = std::make_unique<EGL>(refreshPeriod, ConstructorTag{});
     egl->eglPresentationTimeANDROID = eglPresentationTimeANDROID;
     egl->eglCreateSyncKHR = eglCreateSyncKHR;
     egl->eglDestroySyncKHR = eglDestroySyncKHR;
     egl->eglGetSyncAttribKHR = eglGetSyncAttribKHR;
+    egl->eglGetError = eglGetError;
+    egl->eglSurfaceAttrib = eglSurfaceAttrib;
+    egl->eglGetNextFrameIdANDROID = eglGetNextFrameIdANDROID;
+    egl->eglGetFrameTimestampsANDROID = eglGetFrameTimestampsANDROID;
     return egl;
 }
 
@@ -104,6 +137,70 @@ bool EGL::setPresentationTime(EGLDisplay display,
                               std::chrono::steady_clock::time_point time) {
     eglPresentationTimeANDROID(display, surface, time.time_since_epoch().count());
     return EGL_TRUE;
+}
+
+bool EGL::statsSupported() {
+    return (eglGetNextFrameIdANDROID != nullptr && eglGetFrameTimestampsANDROID != nullptr);
+}
+
+std::optional<EGLuint64KHR> EGL::getNextFrameId(EGLDisplay dpy, EGLSurface surface) {
+    if (eglGetNextFrameIdANDROID == nullptr) {
+        ALOGE("stats are not supported on this platform");
+        return std::nullopt;
+    }
+
+    EGLuint64KHR frameId;
+    EGLBoolean result = eglGetNextFrameIdANDROID(dpy, surface, &frameId);
+    if (result == EGL_FALSE) {
+        ALOGE("Failed to get next frame ID");
+        return std::nullopt;
+    }
+
+    return std::make_optional(frameId);
+}
+
+std::unique_ptr<EGL::FrameTimestamps> EGL::getFrameTimestamps(EGLDisplay dpy,
+                                                              EGLSurface surface,
+                                                              EGLuint64KHR frameId) {
+    if (eglGetFrameTimestampsANDROID == nullptr) {
+        ALOGE("stats are not supported on this platform");
+        return nullptr;
+    }
+
+    const std::vector<EGLint> timestamps = {
+            EGL_REQUESTED_PRESENT_TIME_ANDROID,
+            EGL_RENDERING_COMPLETE_TIME_ANDROID,
+            EGL_COMPOSITION_LATCH_TIME_ANDROID,
+            EGL_DISPLAY_PRESENT_TIME_ANDROID,
+    };
+
+    std::vector<EGLnsecsANDROID> values(timestamps.size());
+
+    EGLBoolean result = eglGetFrameTimestampsANDROID(dpy, surface, frameId,
+           timestamps.size(), timestamps.data(), values.data());
+    if (result == EGL_FALSE) {
+        EGLint reason = eglGetError();
+        if (reason == EGL_BAD_SURFACE) {
+            eglSurfaceAttrib(dpy, surface, EGL_TIMESTAMPS_ANDROID, EGL_TRUE);
+        } else {
+            ALOGE("Failed to get timestamps for frame %llu", (unsigned long long) frameId);
+        }
+        return nullptr;
+    }
+
+    // try again if we got some pending stats
+    for (auto i : values) {
+        if (i == EGL_TIMESTAMP_PENDING_ANDROID) return nullptr;
+    }
+
+    std::unique_ptr<EGL::FrameTimestamps> frameTimestamps =
+            std::make_unique<EGL::FrameTimestamps>();
+    frameTimestamps->requested = values[0];
+    frameTimestamps->renderingCompleted = values[1];
+    frameTimestamps->compositionLatched = values[2];
+    frameTimestamps->presented = values[3];
+
+    return frameTimestamps;
 }
 
 } // namespace swappy

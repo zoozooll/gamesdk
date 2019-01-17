@@ -134,6 +134,67 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
         }
     }
 
+    private void buildSwappyStatsGrid() {
+        GridLayout infoGrid = findViewById(R.id.swappy_stats_grid);
+
+        // Add the header row
+        GridLayout.Spec headerRowSpec = GridLayout.spec(0);
+        for (int column = 0; column < mSwappyGrid[0].length; ++column) {
+            AppCompatTextView cell = new AppCompatTextView(getApplicationContext());
+            GridLayout.Spec colSpec = GridLayout.spec(column, 1.0f);
+            cell.setLayoutParams(new GridLayout.LayoutParams(headerRowSpec, colSpec));
+            configureGridCell(cell);
+
+            if (column == 0) {
+                cell.setText("");
+            } else {
+                cell.setText(String.format(Locale.US, "%d", column - 1));
+            }
+            infoGrid.addView(cell);
+            mSwappyGrid[0][column] = cell;
+        }
+
+        // Add the data rows
+        for (int row = 1; row < mSwappyGrid.length; ++row) {
+            GridLayout.Spec rowSpec = GridLayout.spec(row);
+
+            for (int column = 0; column < mSwappyGrid[row].length; ++column) {
+                AppCompatTextView cell = new AppCompatTextView(getApplicationContext());
+                GridLayout.Spec colSpec = GridLayout.spec(column, 1.0f);
+                cell.setLayoutParams(new GridLayout.LayoutParams(rowSpec, colSpec));
+                cell.setTextAppearance(getApplicationContext(), R.style.InfoTextSmall);
+                configureGridCell(cell);
+
+                if (column == 0) {
+                    switch (row) {
+                        case 1:
+                            cell.setText(R.string.idle_frames);
+                            break;
+                        case 2:
+                            cell.setText(R.string.late_frames);
+                            break;
+                        case 3:
+                            cell.setText(R.string.offset_frames);
+                            break;
+                        case 4:
+                            cell.setText(R.string.latency_frames);
+                            break;
+                    }
+                } else {
+                    cell.setText("0%");
+                }
+                infoGrid.addView(cell);
+                mSwappyGrid[row][column] = cell;
+            }
+        }
+
+        for (TextView[] row : mSwappyGrid) {
+            for (TextView column : row) {
+                column.setWidth(infoGrid.getWidth() / infoGrid.getColumnCount());
+            }
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -158,6 +219,7 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
         mInfoOverlay.setBackgroundColor(0x80000000);
 
         buildChoreographerInfoGrid();
+        buildSwappyStatsGrid();
 
         TextView appOffsetView = findViewById(R.id.app_offset);
         appOffsetView.setText(String.format(Locale.US, "App Offset: %.1f ms", appVsyncOffsetNanos / (float) ONE_MS_IN_NS));
@@ -273,6 +335,15 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
         mChoreographerInfoGrid[row][bin + 1].setText(String.valueOf(value));
     }
 
+    private void updateSwappyStatsBin(int row, int bin, int value) {
+        if (value == mLastSwappyStatsValues[row - 1][bin]) {
+            return;
+        }
+
+        mLastSwappyStatsValues[row - 1][bin] = value;
+        mSwappyGrid[row][bin + 1].setText(String.valueOf(value) + "%");
+    }
+
     private void dumpBins() {
         Trace.beginSection("dumpBins");
 
@@ -306,6 +377,16 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
             updateChoregrapherInfoBin(3, bin, mArrivalBinsLastMinute[bin]);
             updateChoregrapherInfoBin(4, bin, mTimestampBinsLastMinute[bin]);
         }
+        Trace.endSection();
+
+        Trace.beginSection("updateSwappyStatsGrid");
+        for (int stat = 0; stat < 4; ++stat) {
+            for (int bin = 0; bin < SWAPPY_STATS_BIN_COUNT; ++bin) {
+                updateSwappyStatsBin(stat +1, bin, nGetSwappyStats(stat, bin));
+            }
+        }
+        TextView appOffsetView = findViewById(R.id.swappy_stats);
+        appOffsetView.setText(String.format(Locale.US, "SwappyStats: %d Total Frames", nGetSwappyStats(-1, 0)));
         Trace.endSection();
 
         Trace.beginSection("clearSecondBins");
@@ -375,12 +456,16 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
     public native void nSetWorkload(int load);
     public native void nSetAutoSwapInterval(boolean enabled);
     public native float nGetAverageFps();
+    public native int nGetSwappyStats(int stat, int bin);
 
     private MenuItem mInfoOverlayButton;
 
     private LinearLayout mInfoOverlay;
     private final TextView[][] mChoreographerInfoGrid = new TextView[5][7];
     private final int[][] mLastChoreographerInfoValues = new int[4][6];
+
+    private final TextView[][] mSwappyGrid = new TextView[5][7];
+    private final int[][] mLastSwappyStatsValues = new int[4][6];
 
     private boolean mIsRunning;
     private boolean mInfoOverlayEnabled = false;
@@ -389,6 +474,7 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
     private final Handler mUIThreadHandler = new Handler(Looper.getMainLooper());
 
     private static final int CHOREOGRAPHER_INFO_BIN_COUNT = 6;
+    private static final int SWAPPY_STATS_BIN_COUNT = 6;
     private long mLastDumpTime;
     private long mLastArrivalTime;
     private long mLastFrameTimestamp;
