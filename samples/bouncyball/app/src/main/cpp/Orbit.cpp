@@ -16,6 +16,7 @@
 
 #define LOG_TAG "Orbit"
 
+#include <cmath>
 #include <string>
 
 #include <jni.h>
@@ -120,6 +121,51 @@ JNIEXPORT void JNICALL
 Java_com_prefabulated_bouncyball_OrbitActivity_nSetWorkload(JNIEnv * /* env */, jobject /* this */,
                                                             jint load) {
     Renderer::getInstance()->setWorkload(load);
+}
+
+JNIEXPORT int JNICALL
+Java_com_prefabulated_bouncyball_OrbitActivity_nGetSwappyStats(JNIEnv * /* env */,
+                                                               jobject /* this */,
+                                                               jint stat,
+                                                               jint bin) {
+    static bool enabled = false;
+    if (!enabled) {
+        Swappy_enableStats(true);
+        enabled = true;
+    }
+
+    // stats are read one by one, query once per stat
+    static Swappy_Stats stats;
+    static int stat_idx = -1;
+
+    if (stat_idx != stat) {
+        Swappy_getStats(&stats);
+        stat_idx = stat;
+    }
+
+    int value = 0;
+
+    if (stats.totalFrames) {
+        switch (stat) {
+            case 0:
+                value = stats.idleFrames[bin];
+                break;
+            case 1:
+                value = stats.lateFrames[bin];
+                break;
+            case 2:
+                value = stats.offsetFromPreviousFrame[bin];
+                break;
+            case 3:
+                value = stats.latencyFrames[bin];
+                break;
+            default:
+                return stats.totalFrames;
+        }
+        value = std::round(value * 100.0f / stats.totalFrames);
+    }
+
+    return value;
 }
 
 } // extern "C"
