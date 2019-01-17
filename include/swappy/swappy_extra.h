@@ -55,6 +55,11 @@ void Swappy_injectTracer(const SwappyTracer *t);
 // dynamically, so the swap interval may change.
 void Swappy_setAutoSwapInterval(bool enabled);
 
+// Toggle auto-pipeline mode on/off
+// By default, if auto-swap interval is on, auto-pipelining is on and Swappy will try to reduce
+// latency by scheduling cpu and gpu work in the same pipeline stage, if it fits.
+void Swappy_setAutoPipelineMode(bool enabled);
+
 // Toggle statistics collection on/off
 // By default, stats collection is off and there is no overhead related to stats.
 // An app can turn on stats collection by calling Swappy_setStatsMode(true).
