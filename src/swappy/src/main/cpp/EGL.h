@@ -17,6 +17,7 @@
 #pragma once
 
 #include <mutex>
+#include <optional>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -31,6 +32,13 @@ class EGL {
     };
 
   public:
+    struct FrameTimestamps {
+        EGLnsecsANDROID requested;
+        EGLnsecsANDROID renderingCompleted;
+        EGLnsecsANDROID compositionLatched;
+        EGLnsecsANDROID presented;
+    };
+
     explicit EGL(std::chrono::nanoseconds refreshPeriod, ConstructorTag)
         : mRefreshPeriod(refreshPeriod) {}
 
@@ -41,6 +49,14 @@ class EGL {
     bool setPresentationTime(EGLDisplay display,
                              EGLSurface surface,
                              std::chrono::steady_clock::time_point time);
+
+    // for stats
+    bool statsSupported();
+    std::optional<EGLuint64KHR> getNextFrameId(EGLDisplay dpy,
+                                               EGLSurface surface);
+    std::unique_ptr<FrameTimestamps> getFrameTimestamps(EGLDisplay dpy,
+                                                        EGLSurface surface,
+                                                        EGLuint64KHR frameId);
 
   private:
     const std::chrono::nanoseconds mRefreshPeriod;
@@ -53,6 +69,16 @@ class EGL {
     eglDestroySyncKHR_type eglDestroySyncKHR = nullptr;
     using eglGetSyncAttribKHR_type = EGLBoolean (*)(EGLDisplay, EGLSyncKHR, EGLint, EGLint *);
     eglGetSyncAttribKHR_type eglGetSyncAttribKHR = nullptr;
+
+    using eglGetError_type = EGLint (*)(void);
+    eglGetError_type eglGetError = nullptr;
+    using eglSurfaceAttrib_type = EGLBoolean (*)(EGLDisplay, EGLSurface, EGLint, EGLint);
+    eglSurfaceAttrib_type eglSurfaceAttrib = nullptr;
+    using eglGetNextFrameIdANDROID_type = EGLBoolean (*)(EGLDisplay, EGLSurface, EGLuint64KHR *);
+    eglGetNextFrameIdANDROID_type eglGetNextFrameIdANDROID = nullptr;
+    using eglGetFrameTimestampsANDROID_type =  EGLBoolean (*)(EGLDisplay, EGLSurface,
+            EGLuint64KHR, EGLint, const EGLint *, EGLnsecsANDROID *);
+    eglGetFrameTimestampsANDROID_type eglGetFrameTimestampsANDROID = nullptr;
 
     std::mutex mSyncFenceMutex;
     EGLSyncKHR mSyncFence = EGL_NO_SYNC_KHR;
