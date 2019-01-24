@@ -147,20 +147,20 @@ bool EGL::statsSupported() {
     return (eglGetNextFrameIdANDROID != nullptr && eglGetFrameTimestampsANDROID != nullptr);
 }
 
-std::optional<EGLuint64KHR> EGL::getNextFrameId(EGLDisplay dpy, EGLSurface surface) {
+std::pair<bool,EGLuint64KHR> EGL::getNextFrameId(EGLDisplay dpy, EGLSurface surface) {
     if (eglGetNextFrameIdANDROID == nullptr) {
         ALOGE("stats are not supported on this platform");
-        return std::nullopt;
+        return {false, 0};
     }
 
     EGLuint64KHR frameId;
     EGLBoolean result = eglGetNextFrameIdANDROID(dpy, surface, &frameId);
     if (result == EGL_FALSE) {
         ALOGE("Failed to get next frame ID");
-        return std::nullopt;
+        return {false, 0};
     }
 
-    return std::make_optional(frameId);
+    return {true, frameId};
 }
 
 std::unique_ptr<EGL::FrameTimestamps> EGL::getFrameTimestamps(EGLDisplay dpy,
@@ -208,7 +208,7 @@ std::unique_ptr<EGL::FrameTimestamps> EGL::getFrameTimestamps(EGLDisplay dpy,
 }
 
 EGL::FenceWaiter::FenceWaiter(): mFenceWaiter(&FenceWaiter::threadMain, this) {
-    std::unique_lock lock(mFenceWaiterLock);
+    std::unique_lock<std::mutex> lock(mFenceWaiterLock);
 
     eglClientWaitSyncKHR = reinterpret_cast<eglClientWaitSyncKHR_type>(
             eglGetProcAddress("eglClientWaitSyncKHR"));
@@ -218,7 +218,7 @@ EGL::FenceWaiter::FenceWaiter(): mFenceWaiter(&FenceWaiter::threadMain, this) {
 
 EGL::FenceWaiter::~FenceWaiter() {
     {
-        std::lock_guard lock(mFenceWaiterLock);
+        std::lock_guard<std::mutex> lock(mFenceWaiterLock);
         mFenceWaiterRunning = false;
         mFenceWaiterCondition.notify_all();
     }
@@ -226,14 +226,14 @@ EGL::FenceWaiter::~FenceWaiter() {
 }
 
 void EGL::FenceWaiter::waitForIdle() {
-    std::lock_guard lock(mFenceWaiterLock);
+    std::lock_guard<std::mutex> lock(mFenceWaiterLock);
     mFenceWaiterCondition.wait(mFenceWaiterLock, [this]() REQUIRES(mFenceWaiterLock) {
                                          return !mFenceWaiterPending;
                                       });
 }
 
 void EGL::FenceWaiter::onFenceCreation(EGLDisplay display, EGLSyncKHR syncFence) {
-    std::lock_guard lock(mFenceWaiterLock);
+    std::lock_guard<std::mutex> lock(mFenceWaiterLock);
     mDisplay = display;
     mSyncFence = syncFence;
     mFenceWaiterPending = true;
@@ -241,7 +241,7 @@ void EGL::FenceWaiter::onFenceCreation(EGLDisplay display, EGLSyncKHR syncFence)
 }
 
 void EGL::FenceWaiter::threadMain() {
-    std::lock_guard lock(mFenceWaiterLock);
+    std::lock_guard<std::mutex> lock(mFenceWaiterLock);
     while (mFenceWaiterRunning) {
         // wait for new fence object
         mFenceWaiterCondition.wait(mFenceWaiterLock,
