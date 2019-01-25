@@ -19,6 +19,8 @@
 
 #include <thread>
 #include <vector>
+#include <mutex>
+#include <condition_variable>
 
 namespace swappy {
 

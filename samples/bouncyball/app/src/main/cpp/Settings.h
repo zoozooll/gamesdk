@@ -33,7 +33,7 @@ private:
     struct ConstructorTag {
     };
 public:
-    explicit Settings(ConstructorTag) {};
+    explicit Settings(ConstructorTag) :  mHotPocket(false) {}
 
     static Settings *getInstance();
 
@@ -57,7 +57,7 @@ private:
     mutable std::mutex mMutex;
     std::vector<Listener> mListeners GUARDED_BY(mMutex);
 
-    std::atomic<bool> mHotPocket = false;
+    std::atomic<bool> mHotPocket;
 };
 
 } // namespace samples

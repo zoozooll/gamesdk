@@ -83,7 +83,8 @@ CpuInfo::CpuInfo() {
             Cpu core;
             core.id = mCpus.size();
 
-            auto core_path = std::string("/sys/devices/system/cpu/cpu") + std::to_string(core.id);
+            auto core_path = std::string("/sys/devices/system/cpu/cpu")
+                             + std::to_string(core.id);
 
             auto package_id = ReadFile(core_path + "/topology/physical_package_id");
             auto frequency = ReadFile(core_path + "/cpufreq/cpuinfo_max_freq");

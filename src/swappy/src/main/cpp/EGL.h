@@ -21,6 +21,7 @@
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <memory>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -58,8 +59,8 @@ class EGL {
 
     // for stats
     bool statsSupported();
-    std::optional<EGLuint64KHR> getNextFrameId(EGLDisplay dpy,
-                                               EGLSurface surface);
+    std::pair<bool,EGLuint64KHR> getNextFrameId(EGLDisplay dpy,
+                                                EGLSurface surface);
     std::unique_ptr<FrameTimestamps> getFrameTimestamps(EGLDisplay dpy,
                                                         EGLSurface surface,
                                                         EGLuint64KHR frameId);

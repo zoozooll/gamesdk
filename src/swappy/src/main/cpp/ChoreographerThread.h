@@ -17,11 +17,10 @@
 
 #pragma once
 
-#include <android/choreographer.h>
-#include <android/looper.h>
 #include "Thread.h"
 
 #include <thread>
+#include <mutex>
 
 namespace swappy {
 
