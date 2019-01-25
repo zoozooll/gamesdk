@@ -21,16 +21,25 @@
 // Enable thread safety attributes only with clang.
 // The attributes can be safely erased when compiling with other compilers.
 #if defined(__clang__) && (!defined(SWIG))
-#define THREAD_ANNOTATION_ATTRIBUTE__(x)   __attribute__((x))
+    #define THREAD_ANNOTATION_ATTRIBUTE__(x)   __attribute__((x))
 #else
-#define THREAD_ANNOTATION_ATTRIBUTE__(x)   // no-op
+    #define THREAD_ANNOTATION_ATTRIBUTE__(x)   // no-op
 #endif
 
-#define GUARDED_BY(x) \
-  THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
+#if !defined GAMESDK_THREAD_CHECKS
+    #define GAMESDK_THREAD_CHECKS 1
+#endif
 
-#define REQUIRES(...) \
-  THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
+#if GAMESDK_THREAD_CHECKS
+    #define GUARDED_BY(x)                           \
+        THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
+
+    #define REQUIRES(...) \
+        THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
+#else
+    #define GUARDED_BY(x)
+    #define REQUIRES(...)
+#endif
 
 namespace swappy {
 
