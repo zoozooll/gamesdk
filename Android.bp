@@ -20,7 +20,7 @@ cc_defaults {
     "-Wno-unused-private-field",
     "-Wno-unused-lambda-capture",
   ],
-  cpp_std: "c++17",
+  cpp_std: "c++14",
   compile_multilib: "both",
   target: {
     android: {
