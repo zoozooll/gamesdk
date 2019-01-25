@@ -29,6 +29,9 @@
 
 namespace swappy {
 
+// NB This is only needed for C++14
+constexpr std::chrono::nanoseconds FrameStatistics::LOG_EVERY_N_NS;
+
 void FrameStatistics::updateFrames(EGLnsecsANDROID start, EGLnsecsANDROID end, uint64_t stat[]) {
     const uint64_t deltaTimeNano = end - start;
 
@@ -70,9 +73,9 @@ void FrameStatistics::capture(EGLDisplay dpy, EGLSurface surface) {
     const TimePoint frameStartTime = std::chrono::steady_clock::now();
 
     // first get the next frame id
-    std::optional<EGLuint64KHR> nextFrameId = mEgl->getNextFrameId(dpy, surface);
-    if (nextFrameId) {
-        mPendingFrames.push_back({dpy, surface, nextFrameId.value(), frameStartTime});
+    std::pair<bool,EGLuint64KHR> nextFrameId = mEgl->getNextFrameId(dpy, surface);
+    if (nextFrameId.first) {
+        mPendingFrames.push_back({dpy, surface, nextFrameId.second, frameStartTime});
     }
 
     if (mPendingFrames.empty()) {
@@ -82,7 +85,7 @@ void FrameStatistics::capture(EGLDisplay dpy, EGLSurface surface) {
 
     EGLFrame frame = mPendingFrames.front();
     // make sure we don't lag behind the stats too much
-    if (nextFrameId && nextFrameId.value() - frame.id > MAX_FRAME_LAG) {
+    if (nextFrameId.first && nextFrameId.second - frame.id > MAX_FRAME_LAG) {
         while (mPendingFrames.size() > 1)
             mPendingFrames.erase(mPendingFrames.begin());
         mPrevFrameTime = 0;
@@ -98,7 +101,7 @@ void FrameStatistics::capture(EGLDisplay dpy, EGLSurface surface) {
 
     mPendingFrames.erase(mPendingFrames.begin());
 
-    std::lock_guard lock(mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     mStats.totalFrames++;
     updateIdleFrames(*frameStats);
     updateLateFrames(*frameStats);
@@ -151,7 +154,7 @@ void FrameStatistics::logFrames() {
 }
 
 Swappy_Stats FrameStatistics::getStats() {
-    std::lock_guard lock(mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     return mStats;
 }
 

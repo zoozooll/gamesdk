@@ -21,6 +21,8 @@
 #include <mutex>
 #include <list>
 #include <vector>
+#include <atomic>
+#include <condition_variable>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -184,13 +186,13 @@ private:
 
     int32_t nanoToSwapInterval(std::chrono::nanoseconds);
 
-    std::atomic<std::chrono::nanoseconds> mSwapDuration = std::chrono::nanoseconds(0);
+    std::atomic<std::chrono::nanoseconds> mSwapDuration;
 
     static std::mutex sInstanceMutex;
     static std::unique_ptr<Swappy> sInstance;
 
-    std::atomic<int32_t> mSwapInterval = 0;
-    std::atomic<int32_t> mAutoSwapInterval = 0;
+    std::atomic<int32_t> mSwapInterval;
+    std::atomic<int32_t> mAutoSwapInterval;
     int mAutoSwapIntervalThreshold = 0;
 
     std::mutex mWaitingMutex;

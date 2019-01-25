@@ -108,18 +108,18 @@ ChoreographerFilter::ChoreographerFilter(std::chrono::nanoseconds refreshPeriod,
       mDoWork(doWork) {
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 
-    std::lock_guard lock(mThreadPoolMutex);
+    std::lock_guard<std::mutex> lock(mThreadPoolMutex);
     mUseAffinity = Settings::getInstance()->getUseAffinity();
     launchThreadsLocked();
 }
 
 ChoreographerFilter::~ChoreographerFilter() {
-    std::lock_guard lock(mThreadPoolMutex);
+    std::lock_guard<std::mutex> lock(mThreadPoolMutex);
     terminateThreadsLocked();
 }
 
 void ChoreographerFilter::onChoreographer() {
-    std::unique_lock lock(mMutex);
+    std::unique_lock<std::mutex> lock(mMutex);
     mLastTimestamp = std::chrono::steady_clock::now();
     ++mSequenceNumber;
     mCondition.notify_all();
@@ -127,7 +127,7 @@ void ChoreographerFilter::onChoreographer() {
 
 void ChoreographerFilter::launchThreadsLocked() {
     {
-        std::lock_guard lock(mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         mIsRunning = true;
     }
 
@@ -139,7 +139,7 @@ void ChoreographerFilter::launchThreadsLocked() {
 
 void ChoreographerFilter::terminateThreadsLocked() {
     {
-        std::lock_guard lock(mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         mIsRunning = false;
         mCondition.notify_all();
     }
@@ -152,7 +152,7 @@ void ChoreographerFilter::terminateThreadsLocked() {
 
 void ChoreographerFilter::onSettingsChanged() {
     const bool useAffinity = Settings::getInstance()->getUseAffinity();
-    std::lock_guard lock(mThreadPoolMutex);
+    std::lock_guard<std::mutex> lock(mThreadPoolMutex);
     if (useAffinity == mUseAffinity) {
         return;
     }
@@ -165,15 +165,18 @@ void ChoreographerFilter::onSettingsChanged() {
 void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
     Timer timer(mRefreshPeriod, mAppToSfDelay);
 
-    if (int cpu = getNumCpus() - 1 - thread; cpu >= 0) {
-        setAffinity(cpu);
+    {
+        int cpu = getNumCpus() - 1 - thread;
+        if (cpu >= 0) {
+            setAffinity(cpu);
+        }
     }
 
     std::string threadName = "Filter";
     threadName += std::to_string(thread);
     pthread_setname_np(pthread_self(), threadName.c_str());
 
-    std::unique_lock lock(mMutex);
+    std::unique_lock<std::mutex> lock(mMutex);
     while (mIsRunning) {
         auto timestamp = mLastTimestamp;
         auto workDuration = mWorkDuration;
@@ -193,7 +196,7 @@ void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
 
         timer.sleep(-workDuration);
         {
-            std::unique_lock workLock(mWorkMutex);
+            std::unique_lock<std::mutex> workLock(mWorkMutex);
             const auto now = std::chrono::steady_clock::now();
             if (now - mLastWorkRun > mRefreshPeriod / 2) {
                 // Assume we got here first and there's work to do

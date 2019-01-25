@@ -43,6 +43,10 @@ using std::chrono::nanoseconds;
 std::mutex Swappy::sInstanceMutex;
 std::unique_ptr<Swappy> Swappy::sInstance;
 
+// NB These are only needed for C++14
+constexpr std::chrono::nanoseconds Swappy::FrameDuration::MAX_DURATION;
+constexpr std::chrono::nanoseconds Swappy::FRAME_HYSTERESIS;
+
 void Swappy::init(JNIEnv *env, jobject jactivity) {
     jclass activityClass = env->FindClass("android/app/NativeActivity");
     jclass windowManagerClass = env->FindClass("android/view/WindowManager");
@@ -201,7 +205,7 @@ uint64_t Swappy::getSwapIntervalNS() {
         return -1;
     }
 
-    std::lock_guard lock(swappy->mFrameDurationsMutex);
+    std::lock_guard<std::mutex> lock(swappy->mFrameDurationsMutex);
     return swappy->mAutoSwapInterval.load() * swappy->mRefreshPeriod.count();
 };
 
@@ -349,7 +353,7 @@ void Swappy::swapIntervalChangedCallbacks() {
 EGL *Swappy::getEgl() {
     static thread_local EGL *egl = nullptr;
     if (!egl) {
-        std::lock_guard lock(mEglMutex);
+        std::lock_guard<std::mutex> lock(mEglMutex);
         egl = mEgl.get();
     }
     return egl;
@@ -369,14 +373,17 @@ Swappy::Swappy(JavaVM *vm,
       mChoreographerThread(ChoreographerThread::createChoreographerThread(
               ChoreographerThread::Type::Swappy,
               vm,
-              [this]{ handleChoreographer(); }))
+              [this]{ handleChoreographer(); })),
+      mSwapDuration(std::chrono::nanoseconds(0)),
+      mSwapInterval(1),
+      mAutoSwapInterval(1)
 {
 
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 
     ALOGI("Initialized Swappy with refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld",
           refreshPeriod.count(), appOffset.count(), sfOffset.count());
-    std::lock_guard lock(mEglMutex);
+    std::lock_guard<std::mutex> lock(mEglMutex);
     mEgl = EGL::create(refreshPeriod);
     if (!mEgl) {
         ALOGE("Failed to load EGL functions");
@@ -418,10 +425,13 @@ std::chrono::nanoseconds Swappy::wakeClient() {
 void Swappy::startFrame() {
     TRACE_CALL();
 
-    const auto [currentFrame, currentFrameTimestamp] = [this] {
+    int32_t currentFrame;
+    std::chrono::steady_clock::time_point currentFrameTimestamp;
+    {
         std::unique_lock<std::mutex> lock(mWaitingMutex);
-        return std::make_tuple(mCurrentFrame, mCurrentFrameTimestamp);
-    }();
+        currentFrame = mCurrentFrame;
+        currentFrameTimestamp = mCurrentFrameTimestamp;
+    }
 
     startFrameCallbacks();
 
@@ -580,9 +590,11 @@ bool Swappy::updateSwapInterval() {
     // are exactly at the edge.
     lowerBound -= FRAME_HYSTERESIS;
 
-    const auto [framesPerRefresh, framesPerRefreshRemainder] =
-            std::div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
-                                                                          mRefreshPeriod.count());
+    auto div_result = std::div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
+                               mRefreshPeriod.count());
+    auto framesPerRefresh = div_result.quot;
+    auto framesPerRefreshRemainder = div_result.rem;
+
     const int32_t newSwapInterval = framesPerRefresh + (framesPerRefreshRemainder ? 1 : 0);
 
     ALOGV("mPipelineMode = %d", mPipelineMode);
