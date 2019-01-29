@@ -83,12 +83,12 @@ def cmake(projectFolder, cmakeFolder, arch, ndkVersion) {
   }
 }
 
-def build(projectName, arch, ndkVersion) {
-  def cmakeFolder = project.property('tempFolder') + '/' + projectName +'/' + arch + '/.cmake'
-  def buildFolder = project.property('buildFolder') + '/libs/' + arch
+def buildNative(arch, ndkVersion) {
+  def cmakeFolder = project.property('tempFolder') + '/' + arch + '/.cmake'
+  def buildFolder = project.property('buildFolder') + '/lib/' + arch
 
   def out = services.get(StyledTextOutputFactory).create("ouput")
-  out.style(Style.Identifier).println("\n========= Building " + projectName + " [" + arch + "]");
+  out.style(Style.Identifier).println("\n========= Building native [" + arch + "]");
   println "cmake folder: $cmakeFolder";
 
   mkdir cmakeFolder
@@ -98,29 +98,28 @@ def build(projectName, arch, ndkVersion) {
     commandLine "$cmake", '--version'
   }
 
-  cmake("$projectDir/src/" + projectName + "/", cmakeFolder, arch, ndkVersion)
+  cmake("$projectDir/src/", cmakeFolder, arch, ndkVersion)
 
   exec {
     workingDir cmakeFolder
 
-    commandLine "make"
+    commandLine "make", "-j"
   }
 
   out.style(Style.ProgressStatus).println("\nCopying libraries to " + buildFolder);
 
   copy {
-    from file(cmakeFolder + "/lib" + projectName + "_static.a")
-    into file(buildFolder + "/lib")
+    from file(cmakeFolder)
+    include "*/lib*_static.a"
+    into file(buildFolder)
+    includeEmptyDirs = false
   }
   copy {
-    from file(cmakeFolder + "/lib" + projectName + ".so")
-    into file(buildFolder + "/lib")
+    from file(cmakeFolder)
+    include "*/lib*.so"
+    into file(buildFolder)
+    includeEmptyDirs = false
   }
-}
-
-def buildGameSDK(arch, ndkVersion) {
-  build("swappy", arch, ndkVersion);
-  build("swappyVk", arch, ndkVersion);
 }
 
 task clean(type: Delete) {
@@ -130,18 +129,22 @@ task clean(type: Delete) {
 
 task buildGameSDKJavaLibs() {
   def buildFolder = project.property('buildFolder') + '/aar'
-  def outputFolder = 'src/swappy/build/outputs/aar'
+  def outputFolder = 'src/extras/build/outputs/aar'
+  dependsOn ':extras:assembleRelease'
 
-  dependsOn ':swappy:assembleRelease'
+  doFirst {
+    delete buildFolder
+    mkdir buildFolder
+  }
   doLast {
     copy {
-      from file(outputFolder + "/swappy-release.aar")
-      into file(buildFolder + "/swappy-release.aar")
+      from file(outputFolder + "/extras-release.aar")
+      into file(buildFolder + "/extras-release.aar")
     }
   }
 }
 
-task build(dependsOn: 'buildGameSDKJavaLibs') {
+task build(dependsOn: buildGameSDKJavaLibs) {
   def includeFolder = project.property('buildFolder') + '/include'
   doFirst {
     delete includeFolder
@@ -149,10 +152,10 @@ task build(dependsOn: 'buildGameSDKJavaLibs') {
   }
 
   def ndkVersion = project.property('androidNDKVersion')
-  buildGameSDK("armeabi-v7a", ndkVersion)
-  buildGameSDK("arm64-v8a", ndkVersion)
 
   doLast {
+    buildNative("armeabi-v7a", ndkVersion)
+    buildNative("arm64-v8a", ndkVersion)
     copy {
       from "$projectDir/include"
       into includeFolder

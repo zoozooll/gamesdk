@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "frameworks/opt/gamesdk/include/device_info/device_info.pb.h"
+#include "lite/device_info.pb.h"
 
 namespace androidgamesdk_deviceinfo {
 // returns number of errors

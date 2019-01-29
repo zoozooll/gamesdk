@@ -9,7 +9,7 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections" )
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections" )
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-s" )
 
-set ( SOURCE_LOCATION src/main/cpp)
+set ( SOURCE_LOCATION .)
 
 include_directories( ../../include )
 include_directories( ../common )

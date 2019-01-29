@@ -778,3 +778,22 @@ int createProto(::ProtoInfoWithErrors& proto) {
   return numErrors;
 }
 }  // namespace androidgamesdk_deviceinfo
+
+#include <jni.h>
+
+extern "C" {
+JNIEXPORT jbyteArray JNICALL
+Java_com_google_androidgamesdk_DeviceInfoJni_getProtoSerialized(
+                                        JNIEnv *env, jobject) {
+  androidgamesdk_deviceinfo::InfoWithErrors proto;
+  androidgamesdk_deviceinfo::createProto(proto);
+
+  size_t bufferSize = proto.ByteSize();
+  void* buffer = malloc(bufferSize);
+  proto.SerializeToArray(buffer, bufferSize);
+  jbyteArray result = env->NewByteArray(bufferSize);
+  env->SetByteArrayRegion(result, 0, bufferSize, static_cast<jbyte*>(buffer));
+  free(buffer);
+  return result;
+}
+}  // extern "C"
