@@ -28,6 +28,7 @@
 #include "ChoreographerThread.h"
 #include "EGL.h"
 #include "FrameStatistics.h"
+#include "SystemProperties.h"
 
 // uncomment below line to enable ALOGV messages
 //#define SWAPPY_DEBUG
@@ -143,7 +144,11 @@ bool Swappy::swap(EGLDisplay display, EGLSurface surface) {
         return EGL_FALSE;
     }
 
-    return swappy->swapInternal(display, surface);
+    if (swappy->enabled()) {
+        return swappy->swapInternal(display, surface);
+    } else {
+        return eglSwapBuffers(display, surface) == EGL_TRUE;
+    }
 }
 
 bool Swappy::swapInternal(EGLDisplay display, EGLSurface surface) {
@@ -244,6 +249,10 @@ void Swappy::enableStats(bool enabled) {
     if (!swappy) {
         ALOGE("Failed to get Swappy instance in enableStats");
             return;
+    }
+
+    if (!swappy->enabled()) {
+        return;
     }
 
     if (!swappy->getEgl()->statsSupported()) {
@@ -367,22 +376,30 @@ Swappy::Swappy(JavaVM *vm,
     : mRefreshPeriod(refreshPeriod),
       mFrameStatistics(nullptr),
       mSfOffset(sfOffset),
-      mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
-                                                                 sfOffset - appOffset,
-                                                                 [this]() { return wakeClient(); })),
-      mChoreographerThread(ChoreographerThread::createChoreographerThread(
-              ChoreographerThread::Type::Swappy,
-              vm,
-              [this]{ handleChoreographer(); })),
       mSwapDuration(std::chrono::nanoseconds(0)),
       mSwapInterval(1),
       mAutoSwapInterval(1)
 {
+    mDisableSwappy = getSystemPropViaGetAsBool("swappy.disable", false);
+    if (!enabled()) {
+        ALOGI("Swappy is disabled");
+        return;
+    }
+
+    mChoreographerFilter = std::make_unique<ChoreographerFilter>(refreshPeriod,
+                                                               sfOffset - appOffset,
+                                                               [this]() { return wakeClient(); });
+
+    mChoreographerThread = ChoreographerThread::createChoreographerThread(
+                    ChoreographerThread::Type::Swappy,
+                    vm,
+                    [this]{ handleChoreographer(); });
 
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 
     ALOGI("Initialized Swappy with refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld",
           refreshPeriod.count(), appOffset.count(), sfOffset.count());
+
     std::lock_guard<std::mutex> lock(mEglMutex);
     mEgl = EGL::create(refreshPeriod);
     if (!mEgl) {
