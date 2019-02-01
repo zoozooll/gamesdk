@@ -16,6 +16,8 @@
 
 #define LOG_TAG "ChoreographerThread"
 
+#include <android/choreographer.h>
+#include <android/looper.h>
 #include <jni.h>
 
 #include "ChoreographerThread.h"
@@ -123,7 +125,7 @@ void NDKChoreographerThread::looperThread()
 {
     int outFd, outEvents;
     void *outData;
-    std::lock_guard lock(mWaitingMutex);
+    std::lock_guard<std::mutex> lock(mWaitingMutex);
 
     mLooper = ALooper_prepare(0);
     if (!mLooper) {
@@ -299,7 +301,7 @@ void ChoreographerThread::postFrameCallbacks()
     // This method is called before calling to swap buffers
     // It registers to get MAX_CALLBACKS_BEFORE_IDLE frame callbacks before going idle
     // so if app goes to idle the thread will not get further frame callbacks
-    std::lock_guard lock(mWaitingMutex);
+    std::lock_guard<std::mutex> lock(mWaitingMutex);
     if (mCallbacksBeforeIdle == 0) {
         scheduleNextFrameCallback();
     }
@@ -311,7 +313,7 @@ void ChoreographerThread::onChoreographer()
     TRACE_CALL();
 
     {
-        std::lock_guard lock(mWaitingMutex);
+        std::lock_guard<std::mutex> lock(mWaitingMutex);
         mCallbacksBeforeIdle--;
 
         if (mCallbacksBeforeIdle > 0) {

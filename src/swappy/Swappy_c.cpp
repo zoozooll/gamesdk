@@ -74,4 +74,20 @@ void Swappy_setAutoSwapInterval(bool enabled) {
     Swappy::setAutoSwapInterval(enabled);
 }
 
+void Swappy_setAutoPipelineMode(bool enabled) {
+    Swappy::setAutoPipelineMode(enabled);
+}
+
+void Swappy_enableStats(bool enabled) {
+    Swappy::enableStats(enabled);
+}
+
+void Swappy_recordFrameStart(EGLDisplay display, EGLSurface surface) {
+    Swappy::recordFrameStart(display, surface);
+}
+
+void Swappy_getStats(Swappy_Stats *stats) {
+    Swappy::getStats(stats);
+}
+
 } // extern "C" {

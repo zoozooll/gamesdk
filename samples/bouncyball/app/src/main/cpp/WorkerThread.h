@@ -41,12 +41,12 @@ public:
     }
 
     ~WorkerThread() {
-        std::lock_guard threadLock(mThreadMutex);
+        std::lock_guard<std::mutex> threadLock(mThreadMutex);
         terminateThread();
     }
 
     void run(Work work) {
-        std::lock_guard workLock(mWorkMutex);
+        std::lock_guard<std::mutex> workLock(mWorkMutex);
         mWorkQueue.emplace(std::move(work));
         mWorkCondition.notify_all();
     }
@@ -57,7 +57,7 @@ public:
 
 private:
     void launchThread() {
-        std::lock_guard threadLock(mThreadMutex);
+        std::lock_guard<std::mutex> threadLock(mThreadMutex);
         if (mThread.joinable()) {
             terminateThread();
         }
@@ -66,7 +66,7 @@ private:
 
     void terminateThread() REQUIRES(mThreadMutex) {
         {
-            std::lock_guard workLock(mWorkMutex);
+            std::lock_guard<std::mutex> workLock(mWorkMutex);
             mIsActive = false;
             mWorkCondition.notify_all();
         }
@@ -85,7 +85,7 @@ private:
 
         ThreadState threadState;
 
-        std::lock_guard lock(mWorkMutex);
+        std::lock_guard<std::mutex> lock(mWorkMutex);
         while (mIsActive) {
             mWorkCondition.wait(mWorkMutex,
                                 [this]() REQUIRES(mWorkMutex) {

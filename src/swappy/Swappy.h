@@ -21,6 +21,8 @@
 #include <mutex>
 #include <list>
 #include <vector>
+#include <atomic>
+#include <condition_variable>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -37,9 +39,12 @@ namespace swappy {
 class ChoreographerFilter;
 class ChoreographerThread;
 class EGL;
+class FrameStatistics;
 
 using EGLDisplay = void *;
 using EGLSurface = void *;
+
+using namespace std::chrono_literals;
 
 class Swappy {
   private:
@@ -72,12 +77,64 @@ class Swappy {
 
     static void setAutoSwapInterval(bool enabled);
 
+    static void setAutoPipelineMode(bool enabled);
+
     static void overrideAutoSwapInterval(uint64_t swap_ns);
 
+    static void enableStats(bool enabled);
+    static void recordFrameStart(EGLDisplay display, EGLSurface surface);
+    static void getStats(Swappy_Stats *stats);
     static void destroyInstance();
 
 private:
+    class FrameDuration {
+    public:
+        FrameDuration() = default;
+
+        FrameDuration(std::chrono::nanoseconds cpuTime, std::chrono::nanoseconds gpuTime) :
+            mCpuTime(cpuTime), mGpuTime(gpuTime) {
+            mCpuTime = std::min(mCpuTime, MAX_DURATION);
+            mGpuTime = std::min(mGpuTime, MAX_DURATION);
+        }
+
+        std::chrono::nanoseconds getCpuTime() const { return mCpuTime; }
+        std::chrono::nanoseconds getGpuTime() const { return mGpuTime; }
+        std::chrono::nanoseconds getTime(bool pipeline) const {
+            if (pipeline) {
+                return std::max(mCpuTime, mGpuTime);
+            }
+
+            return mCpuTime + mGpuTime;
+        }
+
+        FrameDuration& operator+=(const FrameDuration& other) {
+            mCpuTime += other.mCpuTime;
+            mGpuTime += other.mGpuTime;
+            return *this;
+        }
+
+        FrameDuration& operator-=(const FrameDuration& other) {
+            mCpuTime -= other.mCpuTime;
+            mGpuTime -= other.mGpuTime;
+            return *this;
+        }
+
+        friend FrameDuration operator/(FrameDuration lhs, int rhs) {
+            lhs.mCpuTime /= rhs;
+            lhs.mGpuTime /= rhs;
+            return lhs;
+        }
+    private:
+        std::chrono::nanoseconds mCpuTime = std::chrono::nanoseconds(0);
+        std::chrono::nanoseconds mGpuTime = std::chrono::nanoseconds(0);
+
+        static constexpr std::chrono::nanoseconds MAX_DURATION =
+                std::chrono::milliseconds(100);
+    };
+
     static Swappy *getInstance();
+
+    bool enabled() const { return !mDisableSwappy; }
 
     EGL *getEgl();
 
@@ -115,19 +172,31 @@ private:
 
     void updateSwapDuration(std::chrono::nanoseconds duration);
 
-    void recordFrameTime(int frames);
+    void addFrameDuration(FrameDuration duration);
 
     bool updateSwapInterval();
 
+    void swapFaster(const FrameDuration& averageFrameTime,
+                    const std::chrono::nanoseconds& upperBound,
+                    const std::chrono::nanoseconds& lowerBound,
+                    const int32_t& newSwapInterval) REQUIRES(mFrameDurationsMutex);
+
+    void swapSlower(const FrameDuration& averageFrameTime,
+                      const std::chrono::nanoseconds& upperBound,
+                      const std::chrono::nanoseconds& lowerBound,
+                      const int32_t& newSwapInterval) REQUIRES(mFrameDurationsMutex);
+
+    bool mDisableSwappy = false;
+
     int32_t nanoToSwapInterval(std::chrono::nanoseconds);
 
-    std::atomic<std::chrono::nanoseconds> mSwapDuration = std::chrono::nanoseconds(0);
+    std::atomic<std::chrono::nanoseconds> mSwapDuration;
 
     static std::mutex sInstanceMutex;
     static std::unique_ptr<Swappy> sInstance;
 
-    std::atomic<int32_t> mSwapInterval = 0;
-    std::atomic<int32_t> mAutoSwapInterval = 0;
+    std::atomic<int32_t> mSwapInterval;
+    std::atomic<int32_t> mAutoSwapInterval;
     int mAutoSwapIntervalThreshold = 0;
 
     std::mutex mWaitingMutex;
@@ -136,10 +205,11 @@ private:
     int32_t mCurrentFrame = 0;
 
     std::mutex mEglMutex;
-    std::unique_ptr<EGL> mEgl;
+    std::shared_ptr<EGL> mEgl;
 
     int32_t mTargetFrame = 0;
     std::chrono::steady_clock::time_point mPresentationTime = std::chrono::steady_clock::now();
+    bool mPipelineMode = false;
 
     const std::chrono::nanoseconds mRefreshPeriod;
     std::unique_ptr<ChoreographerFilter> mChoreographerFilter;
@@ -162,12 +232,17 @@ private:
     SwappyTracerCallbacks mInjectedTracers;
 
     std::mutex mFrameDurationsMutex;
-    std::vector<int> mFrameDurations GUARDED_BY(mFrameDurationsMutex);
-    int mFrameDurationsSum GUARDED_BY(mFrameDurationsMutex) = 0;
-    int mFrameDurationSamples GUARDED_BY(mFrameDurationsMutex);
+    std::vector<FrameDuration> mFrameDurations GUARDED_BY(mFrameDurationsMutex);
+    FrameDuration mFrameDurationsSum GUARDED_BY(mFrameDurationsMutex);
+    static constexpr int mFrameDurationSamples = 10;
     bool mAutoSwapIntervalEnabled GUARDED_BY(mFrameDurationsMutex) = true;
-    static constexpr float FRAME_AVERAGE_HYSTERESIS = 0.1;
+    bool mPipelineModeAutoMode GUARDED_BY(mFrameDurationsMutex) = true;
+    static constexpr std::chrono::nanoseconds FRAME_HYSTERESIS = 3ms;
     std::chrono::steady_clock::time_point mSwapTime;
+    std::chrono::steady_clock::time_point mStartFrameTime;
+    std::unique_ptr<FrameStatistics> mFrameStatistics;
+
+    const std::chrono::nanoseconds mSfOffset;
 };
 
 } //namespace swappy

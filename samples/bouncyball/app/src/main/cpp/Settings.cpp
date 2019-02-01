@@ -31,7 +31,7 @@ Settings *Settings::getInstance() {
 }
 
 void Settings::addListener(Listener listener) {
-    std::lock_guard lock(mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     mListeners.emplace_back(std::move(listener));
 }
 
@@ -43,7 +43,7 @@ void Settings::setPreference(std::string key, std::string value) {
     } else if (key == "use_affinity") {
         Swappy_setUseAffinity(value == "true");
     } else if (key == "hot_pocket") {
-        std::lock_guard lock(mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         mHotPocket = (value == "true");
     } else {
         ALOGI("Can't find matching preference for %s", key.c_str());
@@ -74,7 +74,7 @@ void Settings::notifyListeners() {
     // Grab a local copy of the listeners
     std::vector<Listener> listeners;
     {
-        std::lock_guard lock(mMutex);
+        std::lock_guard<std::mutex> lock(mMutex);
         listeners = mListeners;
     }
 

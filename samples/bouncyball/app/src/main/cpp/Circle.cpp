@@ -71,9 +71,9 @@ GLuint loadShader(GLenum shaderType, const char *pSource) {
         GLint infoLength = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLength);
         if (infoLength > 0) {
-            std::string info(infoLength, '\0');
+            std::vector<char> info(infoLength, '\0');
             glGetShaderInfoLog(shader, infoLength, NULL, info.data());
-            ALOGE("Could not compile shader %d:\n%s\n", shaderType, info.c_str());
+            ALOGE("Could not compile shader %d:\n%s\n", shaderType, info.data());
             glDeleteShader(shader);
             shader = 0;
         }
@@ -109,9 +109,9 @@ GLuint createProgram(const char *pVertexSource, const char *pFragmentSource) {
         GLint infoLength = 0;
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLength);
         if (infoLength > 0) {
-            std::string info(infoLength, '\0');
+            std::vector<char> info(infoLength, '\0');
             glGetProgramInfoLog(program, infoLength, NULL, info.data());
-            ALOGE("Could not link program:\n%s\n", info.c_str());
+            ALOGE("Could not link program:\n%s\n", info.data());
         }
         glDeleteProgram(program);
         program = 0;
