@@ -4,10 +4,14 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99  -Werror -DVK_USE_PLATFORM_ANDROID_
 
 # ============== Games SDK
 
-include_directories( ../../../include ) # Games SDK Public Includes
-include_directories( ../../../src ) # Games SDK Internal Includes
+# This will use the in-source version of swappyVk
+#include_directories( ../../../include ) # Games SDK Public Includes
+#include_directories( ../../../src ) # Games SDK Internal Includes
+#add_subdirectory(../../../src/swappyVk ./swappyVk-output)   # SwappyVk Library
 
-add_subdirectory(../../../src/swappyVk ./swappyVk-output)   # SwappyVk Library
+# This will use swappy from a packaged version
+include("../../../samples/gamesdk.cmake")
+add_gamesdk_target()
 
 # ============== cube
 
@@ -65,13 +69,12 @@ target_include_directories(native-lib
                            ${SHADERC_SRC}/third_party/spirv-tools/include/spirv-tools
                            src/main/cpp/include
                            src/main/cpp/common
-			   ../../../src/swappyVk
                            ${ANDROID_NDK}/sources/android/native_app_glue)
 
 
 target_link_libraries( native-lib
 
-                       swappyVk
+                       gamesdk
                        android
                        log
                        )

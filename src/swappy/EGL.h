@@ -19,9 +19,9 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
-#include <optional>
 #include <thread>
 #include <memory>
+#include <atomic>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>

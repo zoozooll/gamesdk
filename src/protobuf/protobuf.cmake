@@ -4,12 +4,12 @@ cmake_minimum_required(VERSION 3.4.1)
 #  and use the same version of protoc below.
 # If autogen.sh complains about gmock, comment out the check for it
 if( NOT DEFINED PROTOBUF_SRC_DIR)
-  set( PROTOBUF_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../external/protobuf/src")
+  set( PROTOBUF_SRC_DIR "${EXTERNAL_ROOT}/protobuf/src")
 endif()
 # To use this default, you'll need to run 'protoc-gen-nanopb'
 #  in external/nanopb-c/generator
 if( NOT DEFINED PROTOBUF_NANO_SRC_DIR)
-  set( PROTOBUF_NANO_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../external/nanopb-c")
+  set( PROTOBUF_NANO_SRC_DIR "${EXTERNAL_ROOT}/nanopb-c")
 endif()
 if( DEFINED ENV{PROTOBUF_INSTALL_DIR})
   set( PROTOBUF_INSTALL_DIR $ENV{PROTOBUF_INSTALL_DIR})
@@ -22,15 +22,11 @@ else()
   set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_INSTALL_DIR}/include )
 endif()
 
-#message(STATUS "PROTOC_EXE=${PROTOC_EXE}")
-
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS -Os -fPIC" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGOOGLE_PROTOBUF_NO_RTTI -DHAVE_PTHREAD")
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections" )
-#The following are needed for some of the protobuf code to compile
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-tautological-constant-compare -Wno-enum-compare-switch")
 
 function(set_link_options libname versionscript)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Release")

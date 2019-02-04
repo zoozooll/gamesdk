@@ -2,14 +2,19 @@ cmake_minimum_required(VERSION 3.4.1)
 
 # If you have protobuf installed from a different directory, set it here. The source version
 #  must match the protoc version.
-#set(PROTOBUF_SRC_DIR ~/3rdParty/protobuf-3.0.2/src)
+set(PROTOBUF_SRC_DIR ~/3rdParty/protobuf-3.0.2/src)
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS -Os -fPIC" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGOOGLE_PROTOBUF_NO_RTTI -DHAVE_PTHREAD")
 
-set( BUILD_PROTOBUF_FULL_AND_LITE "True")
-add_subdirectory(../../../../src/tuningfork ./tuningfork_output)
+#set( BUILD_PROTOBUF_FULL_AND_LITE "True")
+#add_subdirectory(../../../../src/tuningfork ./tuningfork_output)
+
+# This will use tuningfork from a packaged version
+include("../../../gamesdk.cmake")
+add_gamesdk_target()
+include("../../../../src/protobuf/protobuf.cmake")
 
 protobuf_generate_nano_c( ${CMAKE_CURRENT_SOURCE_DIR}/src/main/proto src/main/proto/tuningfork_extensions.proto)
 protobuf_generate_full_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/src/main/proto src/main/proto/tuningfork_extensions.proto)
@@ -19,6 +24,11 @@ include_directories(${PROTO_GENS_DIR})
 include_directories(${PROTOBUF_SRC_DIR})
 include_directories(${PROTOBUF_NANO_SRC_DIR})
 include_directories(../../../../src)
+
+add_library( protobuf-static
+        STATIC ${PROTOBUF_LITE_SRCS} ${PROTOBUF_SRCS}
+        )
+target_compile_options(protobuf-static PUBLIC "-Wno-tautological-constant-compare" "-Wno-enum-compare-switch")
 
 add_library( tuningfork_test
              SHARED
@@ -31,7 +41,7 @@ add_library( tuningfork_test
 
 # Note that we use the FULL version of protobuf in the tests, so we can get debug strings
 target_link_libraries( tuningfork_test
-        tuningfork-static
+        gamesdk
         protobuf-static
         log
 )
