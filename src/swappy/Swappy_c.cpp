@@ -90,4 +90,8 @@ void Swappy_getStats(Swappy_Stats *stats) {
     Swappy::getStats(stats);
 }
 
+bool Swappy_isEnabled() {
+    return Swappy::isEnabled();
+}
+
 } // extern "C" {
