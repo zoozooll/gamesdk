@@ -173,7 +173,7 @@ void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
     }
 
     std::string threadName = "Filter";
-    threadName += std::to_string(thread);
+    threadName += swappy::to_string(thread);
     pthread_setname_np(pthread_self(), threadName.c_str());
 
     std::unique_lock<std::mutex> lock(mMutex);

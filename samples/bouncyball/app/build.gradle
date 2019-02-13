@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+def GAMESDK_ROOT = '../../../..'
+
 android {
     compileSdkVersion 28
     defaultConfig {
@@ -11,7 +13,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags ""
+                arguments "-DGAMESDK_ROOT=$GAMESDK_ROOT"
             }
         }
     }
@@ -55,6 +57,4 @@ dependencies {
     implementation 'androidx.preference:preference:1.0.0-rc01'
     implementation project(':extras')
     testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'com.androidx.test:runner:1.0.2'
-    androidTestImplementation 'com.androidx.test.espresso:espresso-core:3.1.1'
 }

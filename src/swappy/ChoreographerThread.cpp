@@ -24,6 +24,10 @@
 #include "Thread.h"
 #include "CpuInfo.h"
 
+#include <condition_variable>
+#include <cstring>
+#include <cstdlib>
+
 #include <sched.h>
 #include <pthread.h>
 #include <unistd.h>

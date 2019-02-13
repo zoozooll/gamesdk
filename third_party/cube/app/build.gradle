@@ -14,6 +14,8 @@
 
 apply plugin: 'com.android.application'
 
+def GAMESDK_ROOT = '../../../..'
+
 def ndkDir
 if (project.rootProject.file('local.properties').exists()) {
     Properties properties = new Properties()
@@ -45,8 +47,11 @@ android {
         }
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_PLATFORM=android-24', '-DANDROID_TOOLCHAIN=clang',
-                          "-DANDROID_STL=${stlType}", '-DSAMPLE_NAME=' + project.getName()
+                arguments "-DANDROID_PLATFORM=android-24"
+                arguments "-DANDROID_TOOLCHAIN=clang"
+                arguments "-DANDROID_STL=${stlType}"
+                arguments "-DSAMPLE_NAME=" + project.getName()
+                arguments "-DGAMESDK_ROOT=$GAMESDK_ROOT"
             }
         }
     }
@@ -55,7 +60,6 @@ android {
             path 'CMakeLists.txt'
         }
     }
-    
     buildTypes {
         release {
             minifyEnabled false
@@ -63,8 +67,6 @@ android {
                     'proguard-rules.pro'
         }
     }
-    
-    
 }
 
 dependencies {

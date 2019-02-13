@@ -398,8 +398,7 @@ Swappy::Swappy(JavaVM *vm,
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 
     ALOGI("Initialized Swappy with refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld",
-          refreshPeriod.count(), appOffset.count(), sfOffset.count());
-
+          (long long)refreshPeriod.count(), (long long)appOffset.count(), (long long)sfOffset.count());
     std::lock_guard<std::mutex> lock(mEglMutex);
     mEgl = EGL::create(refreshPeriod);
     if (!mEgl) {
@@ -413,7 +412,7 @@ Swappy::Swappy(JavaVM *vm,
 
 void Swappy::onSettingsChanged() {
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
-    int32_t newSwapInterval = std::round(float(Settings::getInstance()->getSwapIntervalNS()) /
+    int32_t newSwapInterval = ::round(float(Settings::getInstance()->getSwapIntervalNS()) /
                                float(mRefreshPeriod.count()));
     if (mSwapInterval != newSwapInterval || mAutoSwapInterval != newSwapInterval) {
         mSwapInterval = newSwapInterval;
@@ -607,7 +606,7 @@ bool Swappy::updateSwapInterval() {
     // are exactly at the edge.
     lowerBound -= FRAME_HYSTERESIS;
 
-    auto div_result = std::div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
+    auto div_result = ::div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
                                mRefreshPeriod.count());
     auto framesPerRefresh = div_result.quot;
     auto framesPerRefreshRemainder = div_result.rem;

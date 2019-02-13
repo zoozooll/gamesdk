@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 include("../protobuf/protobuf.cmake")
-set( MODPB64_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../external/modp_b64")
+set( MODPB64_DIR "${EXTERNAL_ROOT}/modp_b64")
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections,-s")
@@ -38,9 +38,9 @@ set( TUNINGFORK_SRCS
   ${PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c
   ${PROTO_GENS_DIR}/nano/eng_tuningfork.pb.c)
 
-add_library( tuningfork-static
+add_library( tuningfork_static
   STATIC ${TUNINGFORK_SRCS} ${PROTOBUF_NANO_SRCS})
-set_target_properties( tuningfork-static PROPERTIES
+set_target_properties( tuningfork_static PROPERTIES
   COMPILE_OPTIONS "-DPROTOBUF_NANO" )
 
 add_library( tuningfork

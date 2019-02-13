@@ -123,31 +123,31 @@ void FrameStatistics::logFrames() {
     ALOGI("total frames: %" PRIu64, mStats.totalFrames);
     message += "Buckets:                    ";
     for (int i = 0; i < MAX_FRAME_BUCKETS; i++)
-        message += "\t[" + std::to_string(i) + "]";
+        message += "\t[" + swappy::to_string(i) + "]";
     ALOGI("%s", message.c_str());
 
     message = "";
     message += "idle frames:                ";
     for (int i = 0; i < MAX_FRAME_BUCKETS; i++)
-        message += "\t " + std::to_string(mStats.idleFrames[i]);
+        message += "\t " + swappy::to_string(mStats.idleFrames[i]);
     ALOGI("%s", message.c_str());
 
     message = "";
     message += "late frames:                ";
     for (int i = 0; i < MAX_FRAME_BUCKETS; i++)
-        message += "\t " + std::to_string(mStats.lateFrames[i]);
+        message += "\t " + swappy::to_string(mStats.lateFrames[i]);
     ALOGI("%s", message.c_str());
 
     message = "";
     message += "offset from previous frame: ";
     for (int i = 0; i < MAX_FRAME_BUCKETS; i++)
-        message += "\t " + std::to_string(mStats.offsetFromPreviousFrame[i]);
+        message += "\t " + swappy::to_string(mStats.offsetFromPreviousFrame[i]);
     ALOGI("%s", message.c_str());
 
     message = "";
     message += "frame latency:              ";
     for (int i = 0; i < MAX_FRAME_BUCKETS; i++)
-        message += "\t " + std::to_string(mStats.latencyFrames[i]);
+        message += "\t " + swappy::to_string(mStats.latencyFrames[i]);
     ALOGI("%s", message.c_str());
 
     previousLogTime = std::chrono::steady_clock::now();

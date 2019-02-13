@@ -15,6 +15,8 @@
 #include "tuningfork/tuningfork.h"
 #include "tuningfork_internal.h"
 
+#include <cstdlib>
+
 namespace {
 tuningfork::ProtobufSerialization ToProtobufSerialization(const CProtobufSerialization& cpbs) {
   return tuningfork::ProtobufSerialization(cpbs.bytes, cpbs.bytes + cpbs.size);
