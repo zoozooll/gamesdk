@@ -159,11 +159,13 @@ void NDKChoreographerThread::looperThread()
         }
     }
 
+#if __ANDROID_API__ >= 21
     const auto tid = pthread_gettid_np(pthread_self());
 
     ALOGI("Setting '%s' thread [%d-0x%x] affinity mask to 0x%x.",
           name, tid, tid, to_mask(cpu_set));
     sched_setaffinity(tid, sizeof(cpu_set), &cpu_set);
+#endif
 
     pthread_setname_np(pthread_self(), name);
 
