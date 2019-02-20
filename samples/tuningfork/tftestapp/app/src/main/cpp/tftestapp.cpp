@@ -90,6 +90,9 @@ std::string PrettyPrintTuningForkLogEvent(const TuningForkLogEvent& evt) {
         }
         eventStr << "]\n  }\n";
     }
+    if(evt.has_experiment_id()) {
+        eventStr << "  experiment_id : " << evt.experiment_id() << "\n";
+    }
     eventStr << "}";
     return eventStr.str();
 }
@@ -97,12 +100,6 @@ tf::DebugBackend dbgBackend;
 class LogcatBackend : public tf::Backend {
 public:
     ~LogcatBackend() override {}
-    bool GetFidelityParams(tf::ProtobufSerialization &fidelity_params, size_t timeout_ms) override {
-        FidelityParams p;
-        p.set_lod(com::google::tuningfork::LOD_1);
-        fidelity_params = tf::Serialize(p);
-        return true;
-    }
     bool Process(const tf::ProtobufSerialization &tuningfork_log_event) override {
         TuningForkLogEvent evt;
         tf::Deserialize(tuningfork_log_event, evt);
@@ -111,8 +108,40 @@ public:
         return dbgBackend.Process(tuningfork_log_event);
     }
 };
+
+class PrettyProtoPrint : public tf::ProtoPrint {
+public:
+    ~PrettyProtoPrint() override  {}
+    void Print(const tf::ProtobufSerialization &tuningfork_log_event) override  {
+        TuningForkLogEvent evt;
+        tf::Deserialize(tuningfork_log_event, evt);
+        __android_log_print(ANDROID_LOG_INFO, "TuningFork.Clearcut logcat: ", "%s",
+                            PrettyPrintTuningForkLogEvent(evt).c_str());
+    }
+};
+
+class FidelityParamsLoader : public tf::ParamsLoader {
+public :
+    ~FidelityParamsLoader() override {}
+
+    bool GetFidelityParams(tf::ProtobufSerialization &fidelity_params, size_t timeout_ms) override {
+        FidelityParams p;
+        p.set_lod(com::google::tuningfork::LOD_1);
+        fidelity_params = tf::Serialize(p);
+        return true;
+    }
+};
+
+
+
+tf::ProtoPrint protoPrint;
+tf::ClearcutBackend ccBackend;
+tf::ParamsLoader paramsLoader;
+
+PrettyProtoPrint prettyPrint;
 LogcatBackend debugBackend;
-tuningfork::ClearcutBackend ccBackend;
+FidelityParamsLoader debugLoader;
+
 
 static int sLevel = proto_tf::Level_MIN;
 void SetAnnotations() {
@@ -141,12 +170,14 @@ Java_com_google_tuningfork_TFTestActivity_nInit(JNIEnv *env, jobject activity) {
                                   //   2 more for out-of-bounds ticks, too)
                               });
 
-    bool isClearcutInited =  ccBackend.Init(env, activity);
+    bool isClearcutInited = ccBackend.Init(env, activity, &prettyPrint);
+   // tf::Init(tf::Serialize(s), env, activity);
+
     // Clearcut will not be inited if gms is not available
     if(isClearcutInited)
-        tf::Init(tf::Serialize(s),&ccBackend);
+        tf::Init(tf::Serialize(s),&ccBackend, &debugLoader);
     else
-        tf::Init(tf::Serialize(s), &debugBackend);
+        tf::Init(tf::Serialize(s), &debugBackend, &debugLoader);
 
     tf::ProtobufSerialization defaultParams;
     tf::ProtobufSerialization params;

@@ -25,10 +25,9 @@ namespace tuningfork {
 class ClearcutBackend : public Backend {
 public:
     // Return false if google play services are not available
-    bool Init(JNIEnv* env, jobject activity);
+    bool Init(JNIEnv* env, jobject activity, ProtoPrint *proto_print);
 
     ~ClearcutBackend() override;
-    bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) override;
     bool Process(const ProtobufSerialization &tuningfork_log_event) override;
 
 private:
@@ -39,6 +38,7 @@ private:
     jobject clearcut_logger_;
     jmethodID new_event_;
     jmethodID log_method_;
+    ProtoPrint* proto_print_;
 
     bool IsGooglePlayServiceAvailable(JNIEnv* env, jobject context);
     bool InitWithClearcut(JNIEnv* env, jobject activity, bool anonymousLogging);

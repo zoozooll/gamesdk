@@ -25,6 +25,7 @@
 #include <chrono>
 #include <vector>
 #include <android/log.h>
+#include <jni.h>
 
 namespace tuningfork {
 
@@ -66,16 +67,30 @@ struct Settings {
 class Backend {
 public:
     virtual ~Backend() {};
-    virtual bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) = 0;
     virtual bool Process(const ProtobufSerialization &tuningfork_log_event) = 0;
+};
+
+class ParamsLoader {
+public:
+    virtual ~ParamsLoader() {};
+    virtual bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) {
+        fidelity_params.clear();
+        return true;
+    }
+};
+
+class ProtoPrint {
+public:
+    virtual ~ProtoPrint() {};
+    virtual void Print(const ProtobufSerialization &tuningfork_log_event);
 };
 
 class DebugBackend : public Backend {
 public:
     ~DebugBackend() override;
-    bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) override;
     bool Process(const ProtobufSerialization &tuningfork_log_event) override;
 };
+
 
 // You can provide your own time source rather than steady_clock by inheriting this and passing
 //   it to init.
@@ -85,11 +100,14 @@ public:
 };
 
 // init must be called before any other functions
-//  If no backend is passed, a debug version is used which returns empty fidelity params
-//   and outputs histograms in protobuf text format to logcat.
-//  If no timeProvider is passed, std::chrono::steady_clock is used.
-void Init(const ProtobufSerialization &settings, Backend *backend = 0,
+// If no backend is passed, a debug version is used which returns empty fidelity params
+// and outputs histograms in protobuf text format to logcat.
+// If no timeProvider is passed, std::chrono::steady_clock is used.
+void Init(const ProtobufSerialization &settings, Backend *backend = 0, ParamsLoader *loader = 0,
           ITimeProvider *time_provider = 0);
+
+// Init must be called before any other functions
+void Init(const ProtobufSerialization &settings, JNIEnv* env, jobject activity);
 
 // Blocking call to get fidelity parameters from the server.
 // Returns true if parameters could be downloaded within the timeout, false otherwise.
