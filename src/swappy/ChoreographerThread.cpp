@@ -16,7 +16,6 @@
 
 #define LOG_TAG "ChoreographerThread"
 
-#include <android/choreographer.h>
 #include <android/looper.h>
 #include <jni.h>
 
@@ -32,6 +31,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include "ChoreographerShim.h"
 #include "Log.h"
 #include "Trace.h"
 
