@@ -34,9 +34,9 @@
 #include <pthread.h>
 #include <list>
 #include <android/looper.h>
-#include <android/choreographer.h>
 #include <android/log.h>
 #include "Trace.h"
+#include "ChoreographerShim.h"
 
 #define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, "SwappyVk", __VA_ARGS__)
 #define ALOGW(...) __android_log_print(ANDROID_LOG_WARN, "SwappyVk", __VA_ARGS__)
