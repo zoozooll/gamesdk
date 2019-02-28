@@ -6,7 +6,7 @@ import static org.gradle.internal.logging.text.StyledTextOutput.Style;
 import org.gradle.internal.os.OperatingSystem;
 import org.gradle.api.Project;
 
-defaultTasks 'clean', 'archiveZip'
+defaultTasks 'cleanPath', 'archiveZip'
 
 task get_protoc_version(type: Exec) {
     commandLine "protoc"
@@ -105,8 +105,14 @@ class LocalToolchain extends Toolchain {
         project_ = project
         androidVersion_ = androidVersion
         sdkPath_ = System.getenv("ANDROID_HOME")
+        if(sdkPath_ == null) {
+            Properties properties = new Properties()
+            properties.load(project.rootProject.file('local.properties').newDataInputStream())
+            sdkPath_ = properties.getProperty('sdk.dir')
+        }
         if(sdkPath_ == null)
-            throw new GradleException('Must set ANDROID_HOME')
+            throw new GradleException('Must set ANDROID_HOME or sdk.dir in local.properties')
+
         ndkPath_ = System.getenv("ANDROID_NDK")
         if(ndkPath_ == null) {
             ndkPath_ = Paths.get(sdkPath_,'ndk-bundle').toString()
@@ -232,7 +238,7 @@ def buildNativeModules(arch, androidVersion, ndkVersion, stl, threadChecks,
                               stl, threadChecks, buildtf)
 }
 
-task clean(type: Delete) {
+task cleanPath(type: Delete) {
     delete getOutPath()
     delete getPackagePath()
     delete getTempPath()
@@ -388,6 +394,18 @@ task localBuild(type: BuildTask) {
     ext.nativeBuild = { tf -> localNativeBuild(tf) }
 }
 
+// Build using local SDK, no tuning fork
+task localTfBuild(type: BuildTask) {
+    dependsOn ':extras:assembleRelease'
+    ext.packageName = 'localtf'
+    ext.flattenLibs = false
+    ext.withTuningFork = true;
+    ext.withSharedLibs = true
+    ext.withStaticLibs = true;
+    ext.withFullBuildKey = false;
+    ext.nativeBuild = { tf -> localNativeBuild(tf) }
+}
+
 tasks.withType(BuildTask) {
     doLast {
         nativeBuild(withTuningFork).each {
@@ -432,4 +450,5 @@ def addZipTask(name, buildTask, zipName, rootName = "gamesdk") {
 addZipTask("swappyUnityZip", swappyUnityBuild, "builds")
 addZipTask("unityZip", unityBuild, "builds")
 addZipTask("archiveZip", localBuild, "gamesdk")
+addZipTask("archiveTfZip", localTfBuild, "gamesdk")
 addZipTask("gamesdkZip", sdkBuild, "gamesdk")

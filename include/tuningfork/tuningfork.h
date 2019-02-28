@@ -16,6 +16,7 @@
 #define TUNINGFORK_TUNINGFORK_C_H
 
 #include <stdint.h>
+#include <jni.h>
 
 // These are reserved instrumentation keys
 enum {
@@ -43,7 +44,7 @@ extern "C" {
 //  If no backend is passed, a debug version is used which returns empty fidelity params
 //   and outputs histograms in protobuf text format to logcat.
 //  If no timeProvider is passed, std::chrono::steady_clock is used.
-void TuningFork_init(const CProtobufSerialization *settings);
+void TuningFork_init(const CProtobufSerialization *settings, JNIEnv* env, jobject activity);
 
 // Blocking call to get fidelity parameters from the server.
 // Returns true if parameters could be downloaded within the timeout, false otherwise.

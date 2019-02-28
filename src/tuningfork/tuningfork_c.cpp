@@ -14,6 +14,7 @@
 
 #include "tuningfork/tuningfork.h"
 #include "tuningfork_internal.h"
+#include <jni.h>
 
 #include <cstdlib>
 
@@ -35,9 +36,9 @@ extern "C" {
 //  If no backend is passed, a debug version is used which returns empty fidelity params
 //   and outputs histograms in protobuf text format to logcat.
 //  If no timeProvider is passed, std::chrono::steady_clock is used.
-void TuningFork_init(const CProtobufSerialization *settings) {
+void TuningFork_init(const CProtobufSerialization *settings, JNIEnv* env, jobject activity) {
   if(settings)
-    tuningfork::Init(ToProtobufSerialization(*settings));
+      tuningfork::Init(ToProtobufSerialization(*settings), env, activity);
 }
 
 // Blocking call to get fidelity parameters from the server.
