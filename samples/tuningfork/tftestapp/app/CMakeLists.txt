@@ -12,6 +12,7 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGOOGLE_PROTOBUF_NO_RTTI -DHAVE_PTHREA
 #add_subdirectory(../../../../src/tuningfork ./tuningfork_output)
 
 # This will use tuningfork from a packaged version
+set( GAMESDK_BUILD_TUNINGFORK ON)
 include("../../../gamesdk.cmake")
 add_gamesdk_target()
 include("../../../../src/protobuf/protobuf.cmake")

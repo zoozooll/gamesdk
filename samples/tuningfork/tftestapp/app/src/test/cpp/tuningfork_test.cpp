@@ -59,6 +59,16 @@ public:
     std::shared_ptr<std::mutex> mutex;
 };
 
+class TestParamsLoader : public ParamsLoader {
+public:
+    ~TestParamsLoader() override {}
+
+    bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) override {
+        fidelity_params.clear();
+        return true;
+    }
+};
+
 // Increment time with a known tick size
 class TestTimeProvider : public ITimeProvider {
 public:
@@ -77,6 +87,7 @@ public:
 std::shared_ptr<std::condition_variable> cv = std::make_shared<std::condition_variable>();
 std::shared_ptr<std::mutex> rmutex = std::make_shared<std::mutex>();
 TestBackend testBackend(cv, rmutex);
+TestParamsLoader testLoader;
 TestTimeProvider timeProvider;
 
 struct HistogramSettings {
@@ -106,7 +117,7 @@ Settings TestSettings(Settings::AggregationStrategy::Submission method, int n_ti
 std::string TestEndToEnd() {
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     auto settings = TestSettings(Settings::AggregationStrategy::TICK_BASED, NTICKS - 1, 1, {});
-    tuningfork::Init(Serialize(settings), &testBackend, &timeProvider);
+    tuningfork::Init(Serialize(settings), &testBackend, &testLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSCPU);
@@ -119,7 +130,7 @@ std::string TestEndToEndWithAnnotation() {
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     // {3} is the number of values in the Level enum in tuningfork_extensions.proto
     auto settings = TestSettings(Settings::AggregationStrategy::TICK_BASED, NTICKS - 1, 2, {3});
-    tuningfork::Init(Serialize(settings), &testBackend, &timeProvider);
+    tuningfork::Init(Serialize(settings), &testBackend, &testLoader, &timeProvider);
     Annotation ann;
     ann.set_level(com::google::tuningfork::LEVEL_1);
     tuningfork::SetCurrentAnnotation(Serialize(ann));
@@ -135,7 +146,7 @@ std::string TestEndToEndTimeBased() {
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     TestTimeProvider timeProvider(std::chrono::milliseconds(100)); // Tick in 100ms intervals
     auto settings = TestSettings(Settings::AggregationStrategy::TIME_BASED, 10100, 1, {});
-    tuningfork::Init(Serialize(settings), &testBackend, &timeProvider);
+    tuningfork::Init(Serialize(settings), &testBackend, &testLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSCPU);
@@ -149,7 +160,7 @@ std::string TestEndToEndWithStaticHistogram() {
     TestTimeProvider timeProvider(std::chrono::milliseconds(100)); // Tick in 100ms intervals
     auto settings = TestSettings(Settings::AggregationStrategy::TIME_BASED,
                                  10100, 1, {}, {{98, 102, 10}});
-    tuningfork::Init(Serialize(settings), &testBackend, &timeProvider);
+    tuningfork::Init(Serialize(settings), &testBackend, &testLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSCPU);

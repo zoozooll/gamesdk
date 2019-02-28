@@ -20,6 +20,12 @@
 #include "clearcutserializer.h"
 #include "uploadthread.h"
 
+#include "protobuf_util.h"
+#include "tuningfork_internal.h"
+#include <android/log.h>
+#include <jni.h>
+#include "modp_b64.h"
+
 namespace tuningfork {
 
 ClearcutBackend::~ClearcutBackend() {}
@@ -28,6 +34,12 @@ const std::string ClearcutBackend::LOG_SOURCE = "TUNING_FORK";
 const char* ClearcutBackend::LOG_TAG = "TuningFork.Clearcut";
 
 bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
+
+    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Process log");
+
+    if(proto_print_ != nullptr)
+        proto_print_->Print(evt_ser);
+
     JNIEnv* env;
     //Attach thread
     int envStatus  = vm_->GetEnv((void**)&env, JNI_VERSION_1_6);
@@ -75,7 +87,10 @@ bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
     return !hasException;
 }
 
-bool ClearcutBackend::Init(JNIEnv *env, jobject activity) {
+bool ClearcutBackend::Init(JNIEnv *env, jobject activity, ProtoPrint* proto_print) {
+    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", "Start clearcut initialization...");
+
+    proto_print_ = proto_print;
     env->GetJavaVM(&vm_);
     if(vm_ == nullptr) {
         __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", "JavaVM is null...");
@@ -95,10 +110,6 @@ bool ClearcutBackend::Init(JNIEnv *env, jobject activity) {
         return false;
     }
 
-}
-
-bool ClearcutBackend::GetFidelityParams(ProtobufSerialization &fp_ser, size_t timeout_ms) {
-    return true;
 }
 
 bool ClearcutBackend::IsGooglePlayServiceAvailable(JNIEnv* env, jobject context) {
@@ -233,5 +244,34 @@ bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject activity, bool anony
 
     __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Clearcut is succesfully found.");
     return true;
+}
+
+void ProtoPrint::Print(const ProtobufSerialization &evt_ser) {
+    if (evt_ser.size() == 0) return;
+    auto encode_len = modp_b64_encode_len(evt_ser.size());
+    std::vector<char> dest_buf(encode_len);
+    // This fills the dest buffer with a null-terminated string. It returns the length of
+    //  the string, not including the null char
+    auto n_encoded = modp_b64_encode(&dest_buf[0], reinterpret_cast<const char*>(&evt_ser[0]),
+                                     evt_ser.size());
+    if (n_encoded == -1 || encode_len != n_encoded+1) {
+        __android_log_print(ANDROID_LOG_WARN, "TuningFork Print", "Could not b64 encode protobuf");
+        return;
+    }
+    std::string s(&dest_buf[0], n_encoded);
+    // Split the serialization into <128-byte chunks to avoid logcat line
+    //  truncation.
+    constexpr size_t maxStrLen = 128;
+    int n = (s.size() + maxStrLen - 1) / maxStrLen; // Round up
+    for (int i = 0, j = 0; i < n; ++i) {
+        std::stringstream str;
+        str << "(TCL" << (i + 1) << "/" << n << ")";
+        int m = std::min(s.size() - j, maxStrLen);
+        str << s.substr(j, m);
+        j += m;
+        __android_log_print(ANDROID_LOG_INFO, "TuningFork Print", "%s",
+                            str.str().c_str());
+    }
+    return;
 }
 }

@@ -50,13 +50,6 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
     return true;
 }
 
-bool DebugBackend::GetFidelityParams(ProtobufSerialization &fp_ser,
-                                     size_t timeout_ms) {
-    // TODO: put some dummy params here for testing
-    fp_ser.clear();
-    return true;
-};
-
 std::unique_ptr<DebugBackend> s_debug_backend = std::make_unique<DebugBackend>();
 
 UploadThread::UploadThread(Backend *backend) : backend_(backend),
