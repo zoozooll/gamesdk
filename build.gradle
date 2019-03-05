@@ -8,27 +8,44 @@ import org.gradle.api.Project;
 
 defaultTasks 'cleanPath', 'archiveZip'
 
-task get_protoc_version(type: Exec) {
-    commandLine "protoc"
-    args = ["--version"]
-    standardOutput = new ByteArrayOutputStream()
-    ext.output = {
-        return standardOutput.toString().trim()
-    }
+def protobufInstallDir() {
+    return new File("/tmp/protobuf-3.0.0").getCanonicalPath()
 }
 
-task check_protoc_version(dependsOn: get_protoc_version) {
+task buildprotoc {
+    def protodir = "third_party/protobuf-3.0.0"
+    def outdir = protobufInstallDir()
+    outputs.files("$outdir/bin/protoc")
     doLast {
-        def version_needed = "3.0.0"
-        def is_protoc_version_correct = tasks.get_protoc_version.output().endsWith(version_needed)
-        def version_error_msg = "Make sure you have protoc installed and its version is exactly " + version_needed
-        assert is_protoc_version_correct : version_error_msg
+	exec {
+	    workingDir = protodir
+	    commandLine = ["./autogen.sh"]
+	}
+	exec {
+	    workingDir = protodir
+	    commandLine = ["./configure","--prefix=$outdir"]
+	}
+	exec {
+	    workingDir = protodir
+	    commandLine = ["make","-j"]
+	}
+	exec {
+	    workingDir = protodir
+	    commandLine = ["make","install"]
+	}
     }
 }
 
-task make_proto(type: Exec) {
-    workingDir getExternalPath() + '/nanopb-c/generator/proto'
-    commandLine 'make'
+task prepare_proto {
+    dependsOn buildprotoc
+    def protocBinDir = protobufInstallDir() + "/bin"
+    doLast {
+	exec {
+	    workingDir getExternalPath() + '/nanopb-c/generator/proto'
+	    environment 'PATH', "$protocBinDir:${environment.PATH}"
+	    commandLine 'make'
+	}
+    }
 }
 
 buildscript {
@@ -181,6 +198,7 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
     def androidVersion = toolchain.getAndroidVersion()
     def ninjaPath = toolchain.getNinjaPath()
     def buildtfval = buildTuningFork ? "ON" : "OFF"
+    def protocBinDir = protobufInstallDir() + "/bin"
     mkdir workingFolder
     mkdir outputFolder
 
@@ -203,12 +221,14 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
                    "-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=$outputFolder",
                    "-DGAMESDK_BUILD_TUNINGFORK=$buildtfval",
                    "-DEXTERNAL_ROOT=$externalPath",
+		   "-DPROTOBUF_INSTALL_DIR=${protobufInstallDir()}",
                    threadFlags]
     if (useNinja()) {
         cmdLine += ["-DCMAKE_MAKE_PROGRAM=" + "$ninjaPath",
                     "-GNinja"]
     }
     exec {
+	environment "PATH", "$protocBinDir:${environment.PATH}"
         workingDir workingFolder
         commandLine cmdLine
     }
@@ -360,7 +380,7 @@ task swappyUnityBuild(type: BuildTask) {
 
 // Full build including tuning fork for unity, shared libraries only
 task unityBuild(type: BuildTask) {
-    dependsOn ':extras:assembleRelease', 'check_protoc_version', 'make_proto'
+    dependsOn ':extras:assembleRelease', prepare_proto
     ext.packageName = 'unity'
     ext.flattenLibs = true
     ext.withTuningFork = true
@@ -372,7 +392,7 @@ task unityBuild(type: BuildTask) {
 
 // Build everything
 task sdkBuild(type: BuildTask) {
-    dependsOn ':extras:assembleRelease', 'check_protoc_version', 'make_proto'
+    dependsOn ':extras:assembleRelease', prepare_proto
     ext.packageName = 'gamesdk'
     ext.flattenLibs = false
     ext.withTuningFork = true
@@ -394,9 +414,9 @@ task localBuild(type: BuildTask) {
     ext.nativeBuild = { tf -> localNativeBuild(tf) }
 }
 
-// Build using local SDK, no tuning fork
+// Build using local SDK, with tuning fork
 task localTfBuild(type: BuildTask) {
-    dependsOn ':extras:assembleRelease'
+    dependsOn ':extras:assembleRelease', prepare_proto
     ext.packageName = 'localtf'
     ext.flattenLibs = false
     ext.withTuningFork = true;
