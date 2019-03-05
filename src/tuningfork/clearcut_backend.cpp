@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,27 +17,28 @@
 #include <sstream>
 #include <string>
 #include <iostream>
+#include <jni.h>
+
+#include "modp_b64.h"
+
+#define LOG_TAG "TuningFork.Clearcut"
+#include "Log.h"
 
 #include "clearcut_backend.h"
 #include "clearcutserializer.h"
 #include "uploadthread.h"
-
 #include "protobuf_util.h"
 #include "tuningfork_internal.h"
-#include <android/log.h>
-#include <jni.h>
-#include "modp_b64.h"
 
 namespace tuningfork {
 
-ClearcutBackend::~ClearcutBackend() {}
+static char s_clearcut_log_source[] = "TUNING_FORK";
 
-const std::string ClearcutBackend::LOG_SOURCE = "TUNING_FORK";
-const char* ClearcutBackend::LOG_TAG = "TuningFork.Clearcut";
+ClearcutBackend::~ClearcutBackend() {}
 
 bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
 
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Process log");
+    ALOGI("Process log");
 
     if(proto_print_ != nullptr)
         proto_print_->Print(evt_ser);
@@ -48,23 +51,18 @@ bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
         case JNI_OK:
             break;
         case JNI_EVERSION:
-            __android_log_print(
-                    ANDROID_LOG_WARN,
-                    LOG_TAG, "JNI Version is not supported, status : %d", envStatus);
+            ALOGW("JNI Version is not supported, status : %d", envStatus);
             return false;
         case JNI_EDETACHED: {
             int attachStatus = vm_->AttachCurrentThread(&env, (void *) NULL);
             if (attachStatus != JNI_OK) {
-                __android_log_print(
-                        ANDROID_LOG_WARN,
-                        LOG_TAG,
-                        "Thread is not attached, status : %d", attachStatus);
+                ALOGW("Thread is not attached, status : %d", attachStatus);
                 return false;
             }
         }
             break;
         default:
-            __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "JNIEnv is not OK, status : %d", envStatus);
+            ALOGW("JNIEnv is not OK, status : %d", envStatus);
             return false;
     }
 
@@ -80,33 +78,26 @@ bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
 
     // Detach thread.
     vm_->DetachCurrentThread();
-    __android_log_print(
-            ANDROID_LOG_INFO,
-            LOG_TAG,
-            "Message was sent to clearcut");
+    ALOGI("Message was sent to clearcut");
     return !hasException;
 }
 
 bool ClearcutBackend::Init(JNIEnv *env, jobject activity, ProtoPrint* proto_print) {
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s", "Start clearcut initialization...");
+    ALOGI("%s", "Start clearcut initialization...");
 
     proto_print_ = proto_print;
     env->GetJavaVM(&vm_);
     if(vm_ == nullptr) {
-        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "%s", "JavaVM is null...");
+        ALOGE("%s", "JavaVM is null...");
         return false;
     }
 
     try {
         bool inited = InitWithClearcut(env, activity, false);
-        __android_log_print(
-            ANDROID_LOG_INFO,
-            LOG_TAG,
-            "Clearcut status: %s available",
-            inited ? "" : "not");
+        ALOGI("Clearcut status: %s available", inited ? "" : "not");
         return  inited;
     } catch (const std::exception& e) {
-        __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Clearcut status: not available");
+        ALOGI("Clearcut status: not available");
         return false;
     }
 
@@ -139,7 +130,7 @@ bool ClearcutBackend::IsGooglePlayServiceAvailable(JNIEnv* env, jobject context)
 
     int result = reinterpret_cast<int>(jresult);
 
-     __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Google Play Services status : %d", result);
+    ALOGI("Google Play Services status : %d", result);
 
     if(result == 0) {
          jfieldID  versionField =
@@ -149,11 +140,7 @@ bool ClearcutBackend::IsGooglePlayServiceAvailable(JNIEnv* env, jobject context)
         jint versionCode = env->GetStaticIntField(availabilityClass, versionField);
         if(CheckException(env)) return false;
 
-        __android_log_print(
-            ANDROID_LOG_INFO,
-            LOG_TAG,
-            "Google Play Services version : %d",
-            versionCode);
+        ALOGI("Google Play Services version : %d", versionCode);
     }
 
     return result == 0;
@@ -169,7 +156,7 @@ bool ClearcutBackend::CheckException(JNIEnv *env) {
 }
 
 bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject activity, bool anonymousLogging) {
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Start searching for clearcut...");
+    ALOGI("Start searching for clearcut...");
 
     // Get Application Context
     jclass activityClass = env->GetObjectClass(activity);
@@ -184,9 +171,7 @@ bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject activity, bool anony
     //Check if Google Play Services are available
     bool available = IsGooglePlayServiceAvailable(env, context);
     if (!available) {
-        __android_log_print(
-                ANDROID_LOG_WARN, LOG_TAG,
-                "Google Play Service is not available");
+        ALOGW("Google Play Service is not available");
         return false;
     }
 
@@ -226,7 +211,7 @@ bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject activity, bool anony
     if (CheckException(env)) return false;
 
     //Create logger type
-    jstring ccName = env->NewStringUTF(LOG_SOURCE.c_str());
+    jstring ccName = env->NewStringUTF(s_clearcut_log_source);
     if (CheckException(env)) return false;
 
     //Create logger instance
@@ -242,7 +227,7 @@ bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject activity, bool anony
     clearcut_logger_ = reinterpret_cast<jobject>(env->NewGlobalRef(localClearcutLogger));
     if (CheckException(env)) return false;
 
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Clearcut is succesfully found.");
+    ALOGI("Clearcut is succesfully found.");
     return true;
 }
 
@@ -255,7 +240,7 @@ void ProtoPrint::Print(const ProtobufSerialization &evt_ser) {
     auto n_encoded = modp_b64_encode(&dest_buf[0], reinterpret_cast<const char*>(&evt_ser[0]),
                                      evt_ser.size());
     if (n_encoded == -1 || encode_len != n_encoded+1) {
-        __android_log_print(ANDROID_LOG_WARN, "TuningFork Print", "Could not b64 encode protobuf");
+        ALOGW("Could not b64 encode protobuf");
         return;
     }
     std::string s(&dest_buf[0], n_encoded);
@@ -269,8 +254,7 @@ void ProtoPrint::Print(const ProtobufSerialization &evt_ser) {
         int m = std::min(s.size() - j, maxStrLen);
         str << s.substr(j, m);
         j += m;
-        __android_log_print(ANDROID_LOG_INFO, "TuningFork Print", "%s",
-                            str.str().c_str());
+        ALOGI("%s", str.str().c_str());
     }
     return;
 }

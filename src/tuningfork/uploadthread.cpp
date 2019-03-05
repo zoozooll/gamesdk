@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,6 +19,9 @@
 #include "clearcutserializer.h"
 #include "modp_b64.h"
 
+#define LOG_TAG "TuningFork"
+#include "Log.h"
+
 namespace tuningfork {
 
 DebugBackend::~DebugBackend() {}
@@ -30,7 +35,7 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
     auto n_encoded = modp_b64_encode(&dest_buf[0], reinterpret_cast<const char*>(&evt_ser[0]),
         evt_ser.size());
     if (n_encoded == -1 || encode_len != n_encoded+1) {
-        __android_log_print(ANDROID_LOG_WARN, "TuningFork", "Could not b64 encode protobuf");
+        ALOGW("Could not b64 encode protobuf");
         return false;
     }
     std::string s(&dest_buf[0], n_encoded);
@@ -44,8 +49,7 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
         int m = std::min(s.size() - j, maxStrLen);
         str << s.substr(j, m);
         j += m;
-        __android_log_print(ANDROID_LOG_INFO, "TuningFork", "%s",
-                            str.str().c_str());
+        ALOGI("%s", str.str().c_str());
     }
     return true;
 }
@@ -65,8 +69,7 @@ UploadThread::~UploadThread() {
 
 void UploadThread::Start() {
     if (thread_) {
-        __android_log_print(ANDROID_LOG_WARN, "TuningFork",
-                            "Can't start an already running thread");
+        ALOGW("Can't start an already running thread");
         return;
     }
     do_quit_ = false;
@@ -76,8 +79,7 @@ void UploadThread::Start() {
 
 void UploadThread::Stop() {
     if (!thread_->joinable()) {
-        __android_log_print(ANDROID_LOG_WARN, "TuningFork",
-                            "Can't stop a thread that's not started");
+        ALOGW("Can't stop a thread that's not started");
         return;
     }
     do_quit_ = true;
