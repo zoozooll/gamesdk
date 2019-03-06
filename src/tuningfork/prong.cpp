@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,7 +16,8 @@
 
 #include "prong.h"
 
-#include <android/log.h>
+#define LOG_TAG "TuningFork"
+#include "Log.h"
 
 #include <string>
 #include <sstream>
@@ -40,9 +43,8 @@ ProngCache::ProngCache(size_t size, int max_num_instrumentation_keys,
 
 Prong *ProngCache::Get(uint64_t compound_id) {
     if (compound_id >= prongs_.size()) {
-        __android_log_print(ANDROID_LOG_WARN, "TuningFork",
-                            "You have overrun the number of histograms (are your "
-                                "Settings correct?)");
+        ALOGW("You have overrun the number of histograms (are your "
+              "Settings correct?)");
         return nullptr;
     }
     return prongs_[compound_id].get();

@@ -33,6 +33,7 @@ set( TUNINGFORK_SRCS
   tuningfork_c.cpp
   clearcutserializer.cpp
   protobuf_util.cpp
+  annotation_util.cpp
   ${MODPB64_DIR}/modp_b64.cc
   ${PROTO_GENS_DIR}/nano/tuningfork.pb.c
   ${PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c

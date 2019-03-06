@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -31,9 +33,6 @@ public:
     bool Process(const ProtobufSerialization &tuningfork_log_event) override;
 
 private:
-    static const std::string LOG_SOURCE;
-    static const char* LOG_TAG;
-
     JavaVM* vm_;
     jobject clearcut_logger_;
     jmethodID new_event_;
