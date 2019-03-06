@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -50,8 +52,10 @@ void TuningFork_init(const CProtobufSerialization *settings, JNIEnv* env, jobjec
 // Returns true if parameters could be downloaded within the timeout, false otherwise.
 // Note that once fidelity parameters are downloaded, any timing information is recorded
 //  as being associated with those parameters.
-// If you subsequently call GetFidelityParameters, any data that is already collected will be
-// submitted to the backend.
+// If you subsequently call GetFidelityParameters and a new set of parameters is downloaded,
+// any data that is already collected will be submitted to the backend.
+// Ownership of 'params' is transferred to the caller, so they must call params->dealloc
+// when they are done with it.
 bool TuningFork_getFidelityParameters(const CProtobufSerialization *defaultParams,
                              CProtobufSerialization *params, size_t timeout_ms);
 

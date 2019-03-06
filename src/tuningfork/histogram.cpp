@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,11 +19,10 @@
 #include <sstream>
 #include <cmath>
 
-#include <android/log.h>
+#define LOG_TAG "TuningFork"
+#include "Log.h"
 
 #include "clearcutserializer.h"
-
-#define LOG_ERROR(MSG) __android_log_print(ANDROID_LOG_ERROR, "TuningFork", MSG )
 
 namespace tuningfork {
 
@@ -34,7 +35,7 @@ Histogram::Histogram(float start_ms, float end_ms, int num_buckets_between)
     if (auto_range_)
         samples_.reserve(num_buckets_);
     else if (bucket_dt_ms_ <= 0)
-        LOG_ERROR("Histogram end needs to be larger than histogram begin");
+        ALOGE("Histogram end needs to be larger than histogram begin");
 }
 
 Histogram::Histogram(const Settings::Histogram &hs)

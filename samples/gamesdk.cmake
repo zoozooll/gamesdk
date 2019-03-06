@@ -2,9 +2,13 @@ function(add_gamesdk_target)
 
     set(GAMESDK_PACKAGE_ROOT "${GAMESDK_ROOT}/package/gamesdk")
     set(GAMESDK_GEN_TASK sdkBuild)
-    set(NDK_VERSION ${ANDROID_NDK_REVISION})
-    string(REGEX REPLACE "^([^.]+).*" "\\1" NDK_VERSION ${ANDROID_NDK_REVISION} )
-    set(GAMESDK_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/${GAMESDK_PACKAGE_ROOT}/libs/${ANDROID_ABI}_r${NDK_VERSION}_${ANDROID_STL}")
+    if (NOT DEFINED GAMESDK_NDK_VERSION)
+      string(REGEX REPLACE "^([^.]+).*" "\\1" GAMESDK_NDK_VERSION ${ANDROID_NDK_REVISION} )
+    endif()
+    if (NOT DEFINED GAMESDK_SDK_VERSION)
+      string(REGEX REPLACE "^android-([^.]+)" "\\1" GAMESDK_SDK_VERSION ${ANDROID_PLATFORM} )
+    endif()
+    set(GAMESDK_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/${GAMESDK_PACKAGE_ROOT}/libs/${ANDROID_ABI}_SDK${GAMESDK_SDK_VERSION}_NDKr${GAMESDK_NDK_VERSION}_${ANDROID_STL}")
 
     include_directories( "${GAMESDK_PACKAGE_ROOT}/include" ) # Games SDK Public Includes
     get_filename_component(DEP_LIB "${GAMESDK_LIB_ROOT}/libgamesdk.a" REALPATH)
