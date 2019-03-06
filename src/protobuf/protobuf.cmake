@@ -1,26 +1,15 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-# Note that you will need to install protobuf from this directory for this default to work,
-#  and use the same version of protoc below.
-# If autogen.sh complains about gmock, comment out the check for it
-if( NOT DEFINED PROTOBUF_SRC_DIR)
-  set( PROTOBUF_SRC_DIR "${EXTERNAL_ROOT}/protobuf/src")
-endif()
-# To use this default, you'll need to run 'protoc-gen-nanopb'
-#  in external/nanopb-c/generator
+# You need to set PROTOBUF_INSTALL_DIR before including this script.
+# It needs to match where the build of the source in third_party/protobuf-3.0.0/src was installed.
+# See the main gamesdk build.gradle file for where it is typically set.
+set( PROTOBUF_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/protobuf-3.0.0/src")
+
 if( NOT DEFINED PROTOBUF_NANO_SRC_DIR)
   set( PROTOBUF_NANO_SRC_DIR "${EXTERNAL_ROOT}/nanopb-c")
 endif()
-if( DEFINED ENV{PROTOBUF_INSTALL_DIR})
-  set( PROTOBUF_INSTALL_DIR $ENV{PROTOBUF_INSTALL_DIR})
-endif()
-if( NOT DEFINED PROTOBUF_INSTALL_DIR)
-  set(PROTOC_EXE protoc)
-  set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_SRC_DIR} )
-else()
-  set(PROTOC_EXE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
-  set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_INSTALL_DIR}/include )
-endif()
+set(PROTOC_EXE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
+set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_INSTALL_DIR}/include )
 
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS -Os -fPIC" )
