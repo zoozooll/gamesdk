@@ -76,8 +76,6 @@ AnnotationId DecodeAnnotationSerialization(const SerializedAnnotation &ser,
         uint64_t value = GetBase128IntegerFromByteStream(ser, i);
         if (value == kStreamError)
             return kAnnotationError;
-        // NB: Enums are base zero but we reserve 0 in the annotation for a missing enum
-        value += 1;
         // Check the range of the value
         if (value == 0 || value >= radix_mult[key])
             return kAnnotationError;
@@ -102,7 +100,7 @@ int SerializeAnnotationId(uint64_t id, SerializedAnnotation& ser,
     if (value > 0) {
       int key = (i + 1) << 3;
       ser.push_back(key);
-      WriteBase128IntToStream(value - 1, ser); // NB convert back to 0-based enum
+      WriteBase128IntToStream(value, ser);
     }
     x = r.quot;
   }
