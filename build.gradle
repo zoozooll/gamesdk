@@ -335,7 +335,8 @@ def sdkNativeBuild(withTuningFork = true) {
 }
 
 def localNativeBuild(withTuningFork = false) {
-    def kLocalMinSdk = "26"
+    def kLocalMinSdk = project.hasProperty("GAMESDK_ANDROID_SDK_VERSION") ?
+		project.GAMESDK_ANDROID_SDK_VERSION : "26"
     def stl = "c++_static"
     def toolchain = new LocalToolchain(project, kLocalMinSdk)
     def threadChecks = true

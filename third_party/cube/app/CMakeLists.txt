@@ -4,15 +4,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99  -Werror -DVK_USE_PLATFORM_ANDROID_
 
 # ============== Games SDK
 
-# This will use the in-source version of swappyVk
-#include_directories( ../../../include ) # Games SDK Public Includes
-#include_directories( ../../../src ) # Games SDK Internal Includes
-#add_subdirectory(../../../src/swappyVk ./swappyVk-output)   # SwappyVk Library
-
 # This will use swappy from a packaged version
-set(GAMESDK_SDK_VERSION "28") # Latest version from prebuilts
 include("../../../samples/gamesdk.cmake")
-add_gamesdk_target()
+add_gamesdk_target("package/local" "localBuild")
 
 # ============== cube
 

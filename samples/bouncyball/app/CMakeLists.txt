@@ -4,14 +4,9 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety -D _
 
 # ============== Games SDK
 
-# This will include and build swappy from the gamesdk
-#add_subdirectory(../../../src/swappy ./swappy-output)   # Swappy Library
-#include_directories( "../../../include" ) # Games SDK Public Includes
-
-# This will use swappy from a packaged version
-set(GAMESDK_SDK_VERSION "28") # Latest version from prebuilts
+# This builds and uses swappy as a static library from a gamesdk package
 include("../../gamesdk.cmake")
-add_gamesdk_target()
+add_gamesdk_target("package/local" "localBuild")
 
 include_directories( ../../common/include ) # Samples Includes
 

@@ -14,8 +14,6 @@
 
 apply plugin: 'com.android.application'
 
-def GAMESDK_ROOT = '../../../..'
-
 def ndkDir
 if (project.rootProject.file('local.properties').exists()) {
     Properties properties = new Properties()
@@ -51,7 +49,6 @@ android {
                 arguments "-DANDROID_TOOLCHAIN=clang"
                 arguments "-DANDROID_STL=${stlType}"
                 arguments "-DSAMPLE_NAME=" + project.getName()
-                arguments "-DGAMESDK_ROOT=$GAMESDK_ROOT"
             }
         }
     }
