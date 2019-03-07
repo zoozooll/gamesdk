@@ -7,12 +7,8 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTAT
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGOOGLE_PROTOBUF_NO_RTTI -DHAVE_PTHREAD")
 
-#set( BUILD_PROTOBUF_FULL_AND_LITE "True")
-#add_subdirectory(../../../../src/tuningfork ./tuningfork_output)
-
-# This will use tuningfork from a packaged version
+# This builds and uses tuningfork as a static library from a gamesdk package
 set( GAMESDK_BUILD_TUNINGFORK ON)
-set(GAMESDK_SDK_VERSION "28") # Latest version from prebuilts
 include("../../../gamesdk.cmake")
 add_gamesdk_target()
 include("../../../../src/protobuf/protobuf.cmake")
