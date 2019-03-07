@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.4.1)
 
 # If you have protobuf installed from a different directory, set it here. The source version
 #  must match the protoc version.
-set(PROTOBUF_SRC_DIR ~/3rdParty/protobuf-3.0.2/src)
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS -Os -fPIC" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti" )

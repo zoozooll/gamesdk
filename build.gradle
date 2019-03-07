@@ -9,37 +9,19 @@ import org.gradle.api.Project;
 defaultTasks 'cleanPath', 'archiveZip'
 
 def protobufInstallDir() {
-    return new File("/tmp/protobuf-3.0.0").getCanonicalPath()
-}
-
-task buildprotoc {
-    def protodir = "third_party/protobuf-3.0.0"
-    def outdir = protobufInstallDir()
-    outputs.files("$outdir/bin/protoc")
-    doLast {
-	exec {
-	    workingDir = protodir
-	    commandLine = ["./autogen.sh"]
-	}
-	exec {
-	    workingDir = protodir
-	    commandLine = ["./configure","--prefix=$outdir"]
-	}
-	exec {
-	    workingDir = protodir
-	    commandLine = ["make","-j"]
-	}
-	exec {
-	    workingDir = protodir
-	    commandLine = ["make","install"]
-	}
-    }
+    return new File("./third_party/protobuf-3.0.0/install/linux-x86").getCanonicalPath()
 }
 
 task prepare_proto {
-    dependsOn buildprotoc
     def protocBinDir = protobufInstallDir() + "/bin"
     doLast {
+	// Install python-protobuf
+	exec {
+	    workingDir "./third_party/protobuf-3.0.0/python"
+	    environment 'PATH', "$protocBinDir:${environment.PATH}"
+	    commandLine "python", "setup.py", "install", "--user"
+	}
+	// Generate nano-pb requirements
 	exec {
 	    workingDir getExternalPath() + '/nanopb-c/generator/proto'
 	    environment 'PATH', "$protocBinDir:${environment.PATH}"
@@ -221,7 +203,6 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
                    "-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=$outputFolder",
                    "-DGAMESDK_BUILD_TUNINGFORK=$buildtfval",
                    "-DEXTERNAL_ROOT=$externalPath",
-		   "-DPROTOBUF_INSTALL_DIR=${protobufInstallDir()}",
                    threadFlags]
     if (useNinja()) {
         cmdLine += ["-DCMAKE_MAKE_PROGRAM=" + "$ninjaPath",

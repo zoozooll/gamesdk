@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-# You need to set PROTOBUF_INSTALL_DIR before including this script.
-# It needs to match where the build of the source in third_party/protobuf-3.0.0/src was installed.
-# See the main gamesdk build.gradle file for where it is typically set.
-set( PROTOBUF_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/protobuf-3.0.0/src")
-
+set( PROTOBUF_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-3.0.0/install/linux-x86")
+set( PROTOBUF_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-3.0.0/src")
 if( NOT DEFINED PROTOBUF_NANO_SRC_DIR)
   set( PROTOBUF_NANO_SRC_DIR "${EXTERNAL_ROOT}/nanopb-c")
 endif()
 set(PROTOC_EXE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
-set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_INSTALL_DIR}/include )
+set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_SRC_DIR} )
 
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS -Os -fPIC" )
