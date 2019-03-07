@@ -149,7 +149,7 @@ void SetAnnotations() {
     if(proto_tf::Level_IsValid(sLevel)) {
         Annotation a;
         a.set_level((proto_tf::Level)sLevel);
-        a.set_level2((proto_tf::Level)sLevel);
+        a.set_next_level((proto_tf::Level)sLevel);
         tf::SetCurrentAnnotation(tf::Serialize(a));
     }
 }
