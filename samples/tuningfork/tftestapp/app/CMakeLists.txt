@@ -13,14 +13,15 @@ include("../../../gamesdk.cmake")
 add_gamesdk_target()
 include("../../../../src/protobuf/protobuf.cmake")
 
-protobuf_generate_nano_c( ${CMAKE_CURRENT_SOURCE_DIR}/src/main/proto src/main/proto/tuningfork_extensions.proto)
-protobuf_generate_full_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/src/main/proto src/main/proto/tuningfork_extensions.proto)
+protobuf_generate_full_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/src/main/proto src/main/proto/dev_tuningfork.proto)
 protobuf_generate_full_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/src/main/proto src/main/proto/tuningfork.proto)
 protobuf_generate_full_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/src/main/proto src/main/proto/tuningfork_clearcut_log.proto)
 include_directories(${PROTO_GENS_DIR})
 include_directories(${PROTOBUF_SRC_DIR})
 include_directories(${PROTOBUF_NANO_SRC_DIR})
 include_directories(../../../../src)
+include_directories(../../../common/include)
+include_directories(../../../../include)
 
 add_library( protobuf-static
         STATIC ${PROTOBUF_LITE_SRCS} ${PROTOBUF_SRCS}
@@ -32,7 +33,7 @@ add_library( tuningfork_test
              src/test/cpp/nativetests.cpp
              src/test/cpp/histogram_test.cpp
              src/test/cpp/tuningfork_test.cpp
-             ${PROTO_GENS_DIR}/full/tuningfork_extensions.pb.cc
+             ${PROTO_GENS_DIR}/full/dev_tuningfork.pb.cc
              ${PROTO_GENS_DIR}/full/tuningfork.pb.cc
              ${PROTO_GENS_DIR}/full/tuningfork_clearcut_log.pb.cc)
 
@@ -40,13 +41,19 @@ add_library( tuningfork_test
 target_link_libraries( tuningfork_test
         gamesdk
         protobuf-static
+        android
+        EGL
+        GLESv2
         log
+
 )
 set_target_properties( tuningfork_test PROPERTIES COMPILE_OPTIONS "-DPROTOBUF_FULL" )
 
 add_library( native-lib
              SHARED
-             src/main/cpp/tftestapp.cpp)
+             src/main/cpp/tftestapp.cpp
+             src/main/cpp/Renderer.cpp
+             src/main/cpp/Scene.cpp)
 
 target_link_libraries( native-lib
 		       tuningfork_test)

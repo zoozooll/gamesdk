@@ -27,7 +27,7 @@
 #include "clearcut_backend.h"
 #include "clearcutserializer.h"
 #include "uploadthread.h"
-#include "protobuf_util.h"
+#include "tuningfork/protobuf_nano_util.h"
 #include "tuningfork_internal.h"
 
 namespace tuningfork {

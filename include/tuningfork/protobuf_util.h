@@ -16,23 +16,14 @@
 
 #pragma once
 
+#include "tuningfork/tuningfork.h"
+
 #include <vector>
 #include <cstdint>
-
-#ifdef PROTOBUF_NANO
-#include <pb.h>
-#endif
+#include <cstdlib>
 
 namespace tuningfork {
 
-#ifdef PROTOBUF_NANO
-struct VectorStream {
-    std::vector<uint8_t>* vec;
-    size_t it;
-    static bool Read(pb_istream_t *stream, uint8_t *buf, size_t count);
-    static bool Write(pb_ostream_t *stream, const uint8_t *buf, size_t count);
-};
-#else
 template <typename T>
 bool Deserialize(const std::vector<uint8_t> &ser, T &pb) {
     return pb.ParseFromArray(ser.data(), ser.size());
@@ -48,6 +39,14 @@ std::vector<uint8_t> Serialize(const T &pb) {
     pb.SerializeToArray(ser.data(), ser.size());
     return ser;
 }
-#endif
+template <typename T>
+CProtobufSerialization CSerialize(const T &pb) {
+    CProtobufSerialization cser;
+    cser.bytes = (uint8_t*)::malloc(pb.ByteSize());
+    cser.size = pb.ByteSize();
+    cser.dealloc = ::free;
+    pb.SerializeToArray(cser.bytes, cser.size);
+    return cser;
+}
 
 } // namespace tuningfork {

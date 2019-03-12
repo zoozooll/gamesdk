@@ -32,7 +32,7 @@
 #include "prong.h"
 #include "uploadthread.h"
 #include "clearcutserializer.h"
-#include "protobuf_util.h"
+#include "tuningfork/protobuf_nano_util.h"
 #include "clearcut_backend.h"
 #include "annotation_util.h"
 
@@ -81,10 +81,6 @@ public:
 
 std::unique_ptr<MonoTimeProvider> s_mono_time_provider = std::make_unique<MonoTimeProvider>();
 
-std::vector<Settings::Histogram> defaultHistogramSettings = {
-    {0/*ikey*/, 0/*min*/, 0/*max*/, 10/*n_buckets*/}
-};
-
 class TuningForkImpl {
 private:
     Settings settings_;
@@ -127,18 +123,10 @@ public:
         else
             max_num_prongs_ = max_ikeys * annotation_radix_mult_.back();
         auto serializeId = [this](uint64_t id) { return SerializeAnnotationId(id); };
-        const std::vector<Settings::Histogram>* hists;
-        if(settings.histograms.size()==0) {
-            ALOGI("Warning: no histograms passed. Using default auto-sizing histograms");
-            hists = &defaultHistogramSettings;
-        }
-        else {
-            hists = &settings_.histograms;
-        }
         prong_caches_[0] = std::make_unique<ProngCache>(max_num_prongs_, max_ikeys,
-                                                        *hists, serializeId);
+                                                        settings_.histograms, serializeId);
         prong_caches_[1] = std::make_unique<ProngCache>(max_num_prongs_, max_ikeys,
-                                                        *hists, serializeId);
+                                                        settings_.histograms, serializeId);
         current_prong_cache_ = prong_caches_[0].get();
         live_traces_.resize(max_num_prongs_);
         for (auto &t: live_traces_) t = TimePoint::min();
@@ -168,6 +156,8 @@ public:
     TraceHandle StartTrace(InstrumentationKey key);
 
     void EndTrace(TraceHandle);
+
+    void SetUploadCallback(void(*cbk)(const CProtobufSerialization*));
 
 private:
     Prong *TickNanos(uint64_t compound_id, TimePoint t);
@@ -298,6 +288,13 @@ uint64_t SetCurrentAnnotation(const ProtobufSerialization &ann) {
         return s_impl->SetCurrentAnnotation(ann);
 }
 
+void SetUploadCallback(void(*cbk)(const CProtobufSerialization*)) {
+    if (!s_impl)
+        ALOGE("Failed to get TuningFork instance");
+    else
+        s_impl->SetUploadCallback(cbk);
+}
+
 // Return the set annotation id or -1 if it could not be set
 uint64_t TuningForkImpl::SetCurrentAnnotation(const ProtobufSerialization &annotation) {
     current_annotation_ = annotation;
@@ -329,13 +326,17 @@ SerializedAnnotation TuningForkImpl::SerializeAnnotationId(AnnotationId id) {
 
 bool TuningForkImpl::GetFidelityParameters(const ProtobufSerialization& defaultParams,
                                            ProtobufSerialization &params_ser, size_t timeout_ms) {
-    auto result = loader_->GetFidelityParams(params_ser, timeout_ms);
-    if (result) {
-        upload_thread_.SetCurrentFidelityParams(params_ser);
-    } else {
-        upload_thread_.SetCurrentFidelityParams(defaultParams);
+    if(loader_) {
+        auto result = loader_->GetFidelityParams(params_ser, timeout_ms);
+        if (result) {
+            upload_thread_.SetCurrentFidelityParams(params_ser);
+        } else {
+            upload_thread_.SetCurrentFidelityParams(defaultParams);
+        }
+        return result;
     }
-    return result;
+    else
+        return false;
 }
 
 TraceHandle TuningForkImpl::StartTrace(InstrumentationKey key) {
@@ -392,6 +393,11 @@ Prong *TuningForkImpl::TraceNanos(uint64_t compound_id, Duration dt) {
     return h;
 }
 
+void TuningForkImpl::SetUploadCallback(void(*cbk)(const CProtobufSerialization*)) {
+    upload_thread_.SetUploadCallback(cbk);
+}
+
+
 bool TuningForkImpl::ShouldSubmit(TimePoint t_ns, Prong *prong) {
     auto method = settings_.aggregation_strategy.method;
     auto count = settings_.aggregation_strategy.intervalms_or_count;
@@ -424,11 +430,12 @@ void TuningForkImpl::CheckForSubmit(TimePoint t_ns, Prong *prong) {
 void TuningForkImpl::InitHistogramSettings() {
     Settings::Histogram default_histogram;
     default_histogram.instrument_key = -1;
-    default_histogram.bucket_min = 0;
-    default_histogram.bucket_max = 0;
+    default_histogram.bucket_min = 10;
+    default_histogram.bucket_max = 40;
     default_histogram.n_buckets = Histogram::kDefaultNumBuckets;
     for(int i=0; i<settings_.aggregation_strategy.max_instrumentation_keys; ++i) {
         if(settings_.histograms.size()<=i) {
+            ALOGW("Couldn't get histogram for key %d. Using default histogram", i);
             settings_.histograms.push_back(default_histogram);
             settings_.histograms.back().instrument_key = i;
         }

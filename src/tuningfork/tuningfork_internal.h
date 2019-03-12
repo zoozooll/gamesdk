@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#ifndef TUNINGFORK_TUNINGFORK_H
-#define TUNINGFORK_TUNINGFORK_H
+#pragma once
+
+#include "tuningfork/tuningfork.h"
 
 #ifdef PROTOBUF_NANO
 #include "pb_encode.h"
@@ -29,12 +30,6 @@
 #include <jni.h>
 
 namespace tuningfork {
-
-// These are reserved instrumentation keys
-enum {
-    TFTICK_SYSCPU = 0,
-    TFTICK_SYSGPU = 1
-};
 
 typedef std::vector<uint8_t> ProtobufSerialization;
 
@@ -75,8 +70,7 @@ class ParamsLoader {
 public:
     virtual ~ParamsLoader() {};
     virtual bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) {
-        fidelity_params.clear();
-        return true;
+        return false;
     }
 };
 
@@ -136,6 +130,6 @@ TraceHandle StartTrace(InstrumentationKey key);
 // Record a trace with the key and annotation set using startTrace
 void EndTrace(TraceHandle h);
 
-} // namespace tuningfork {
+void SetUploadCallback(void(*cbk)(const CProtobufSerialization*));
 
-#endif
+} // namespace tuningfork {

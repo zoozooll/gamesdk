@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef TUNINGFORK_TUNINGFORK_C_H
-#define TUNINGFORK_TUNINGFORK_C_H
+#pragma once
 
 #include <stdint.h>
 #include <jni.h>
@@ -27,16 +26,16 @@ enum {
 };
 
 typedef struct {
-  uint8_t* bytes;
-  size_t size;
-  void (*dealloc)(void*);
+    uint8_t* bytes;
+    size_t size;
+    void (*dealloc)(void*);
 } CProtobufSerialization;
 
 // The instrumentation key identifies a tick point within a frame or a trace segment
-typedef uint16_t InstrumentationKey;
-typedef uint64_t TraceHandle;
-typedef uint64_t TimePoint;
-typedef uint64_t Duration;
+typedef uint16_t TFInstrumentKey;
+typedef uint64_t TFTraceHandle;
+typedef uint64_t TFTimePoint;
+typedef uint64_t TFDuration;
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,19 +64,17 @@ int TuningFork_setCurrentAnnotation(const CProtobufSerialization *annotation);
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation
-void TuningFork_frameTick(InstrumentationKey id);
+void TuningFork_frameTick(TFInstrumentKey id);
 
 // Record a frame tick using an external time, rather than system time
-void TuningFork_frameDeltaTimeNanos(InstrumentationKey id, Duration dt);
+void TuningFork_frameDeltaTimeNanos(TFInstrumentKey id, TFDuration dt);
 
 // Start a trace segment
-TraceHandle TuningFork_startTrace(InstrumentationKey key);
+TFTraceHandle TuningFork_startTrace(TFInstrumentKey key);
 
 // Record a trace with the key and annotation set using startTrace
-void TuningFork_endTrace(TraceHandle h);
+void TuningFork_endTrace(TFTraceHandle h);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

@@ -16,7 +16,7 @@
 
 #include "clearcutserializer.h"
 
-#include "protobuf_util.h"
+#include "tuningfork/protobuf_nano_util.h"
 #include "nano/tuningfork_clearcut_log.pb.h"
 
 namespace tuningfork {
