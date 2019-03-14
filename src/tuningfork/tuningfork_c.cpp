@@ -27,6 +27,7 @@ tuningfork::ProtobufSerialization ToProtobufSerialization(const CProtobufSeriali
 void ToCProtobufSerialization(const tuningfork::ProtobufSerialization& pbs,
                               CProtobufSerialization* cpbs) {
   cpbs->bytes = (uint8_t*)::malloc(pbs.size());
+  memcpy(cpbs->bytes, pbs.data(), pbs.size());
   cpbs->size = pbs.size();
   cpbs->dealloc = ::free;
 }
@@ -75,22 +76,22 @@ int TuningFork_setCurrentAnnotation(const CProtobufSerialization *annotation) {
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation
-void TuningFork_frameTick(InstrumentationKey id) {
+void TuningFork_frameTick(TFInstrumentKey id) {
   tuningfork::FrameTick(id);
 }
 
 // Record a frame tick using an external time, rather than system time
-void TuningFork_frameDeltaTimeNanos(InstrumentationKey id, Duration dt) {
+void TuningFork_frameDeltaTimeNanos(TFInstrumentKey id, TFDuration dt) {
   tuningfork::FrameDeltaTimeNanos(id, std::chrono::nanoseconds(dt));
 }
 
 // Start a trace segment
-TraceHandle TuningFork_startTrace(InstrumentationKey key) {
+TFTraceHandle TuningFork_startTrace(TFInstrumentKey key) {
   return tuningfork::StartTrace(key);
 }
 
 // Record a trace with the key and annotation set using startTrace
-void TuningFork_endTrace(TraceHandle h) {
+void TuningFork_endTrace(TFTraceHandle h) {
   tuningfork::EndTrace(h);
 }
 

@@ -36,3 +36,10 @@ dependencies {
 
     testImplementation 'junit:junit:4.12'
 }
+
+task buildTuningForkBinFiles(type: Exec) {
+    exec {
+        workingDir 'src/main/assets/tuningfork'
+        commandLine 'make'
+    }
+}

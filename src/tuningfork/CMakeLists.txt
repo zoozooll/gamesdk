@@ -34,6 +34,7 @@ set( TUNINGFORK_SRCS
   clearcutserializer.cpp
   protobuf_util.cpp
   annotation_util.cpp
+  tuningfork_extra.cpp
   ${MODPB64_DIR}/modp_b64.cc
   ${PROTO_GENS_DIR}/nano/tuningfork.pb.c
   ${PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c
@@ -48,5 +49,6 @@ add_library( tuningfork
   SHARED ${TUNINGFORK_SRCS} ${PROTOBUF_NANO_SRCS})
 set_target_properties( tuningfork PROPERTIES COMPILE_OPTIONS "-DPROTOBUF_NANO" )
 target_link_libraries( tuningfork
+  android
   log)
 extra_tf_link_options( tuningfork )

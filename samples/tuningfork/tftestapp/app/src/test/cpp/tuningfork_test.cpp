@@ -19,7 +19,7 @@
 
 #include "full/tuningfork.pb.h"
 #include "full/tuningfork_clearcut_log.pb.h"
-#include "full/tuningfork_extensions.pb.h"
+#include "full/dev_tuningfork.pb.h"
 
 #include <vector>
 #include <mutex>

@@ -27,6 +27,7 @@ namespace tuningfork {
 
 class UploadThread {
 private:
+    typedef void (*UploadCallback)(const CProtobufSerialization*);
     std::unique_ptr<std::thread> thread_;
     std::mutex mutex_;
     std::condition_variable cv_;
@@ -34,6 +35,7 @@ private:
     const ProngCache *ready_;
     Backend *backend_;
     ProtobufSerialization current_fidelity_params_;
+    UploadCallback upload_callback_;
 public:
     UploadThread(Backend *backend);
 
@@ -50,6 +52,10 @@ public:
 
     void SetCurrentFidelityParams(const ProtobufSerialization &fp) {
         current_fidelity_params_ = fp;
+    }
+
+    void SetUploadCallback(UploadCallback upload_callback) {
+        upload_callback_ = upload_callback;
     }
 
     friend class ClearcutSerializer;

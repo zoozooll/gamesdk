@@ -18,34 +18,71 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Choreographer;
+import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import com.google.android.gms.common.GoogleApiAvailability;
 
-public class TFTestActivity extends AppCompatActivity implements Choreographer.FrameCallback {
+public class TFTestActivity extends AppCompatActivity implements Choreographer.FrameCallback, SurfaceHolder.Callback {
 
-
-    // Used to load the 'native-lib' library on application startup.
     static {
         System.loadLibrary("native-lib");
     }
+    public native void initTuningFork();
+    public static native void resize(Surface surface, int width, int height);
+    public static native void clearSurface();
+    public static native void onChoreographer(long t);
+    public static native void start();
+    public static native void stop();
+
+    private SurfaceView view;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // gLView = new TFTestGLSurfaceView(this);
+        view = new SurfaceView(this);
+        setContentView(view);
+        view.getHolder().addCallback(this);
+
         CheckGMS();
-        nInit();
+        initTuningFork();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        start();
         Choreographer.getInstance().postFrameCallback(this);
+    }
+    @Override
+    protected void onStop() {
+        super.onStop();
+        stop();
     }
 
     @Override
     public void doFrame(long t) {
 
-        nOnChoreographer(t);
+        onChoreographer(t);
         Choreographer.getInstance().postFrameCallback(this);
+        android.content.res.AssetManager a = getAssets();
+    }
+
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+        // Do nothing here, waiting for surfaceChanged instead
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        Surface surface = holder.getSurface();
+        resize(surface, width, height);
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        clearSurface();
     }
 
     private void CheckGMS() {
@@ -57,8 +94,5 @@ public class TFTestActivity extends AppCompatActivity implements Choreographer.F
         Log.i("Tuningfork Clearcut", "CheckGMS status: " + status);
         Log.i("TUningfork Clearcut", "CheckGMS version: " + version);
     }
-
-    public native void nInit();
-    public native void nOnChoreographer(long frameTimeNanos);
 
 }

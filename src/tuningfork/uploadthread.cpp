@@ -57,7 +57,8 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
 std::unique_ptr<DebugBackend> s_debug_backend = std::make_unique<DebugBackend>();
 
 UploadThread::UploadThread(Backend *backend) : backend_(backend),
-                                               current_fidelity_params_(0) {
+                                               current_fidelity_params_(0),
+                                               upload_callback_(nullptr) {
     if (backend_ == nullptr)
         backend_ = s_debug_backend.get();
     Start();
@@ -93,6 +94,10 @@ void UploadThread::Run() {
         if (ready_) {
             ProtobufSerialization evt_ser;
             ClearcutSerializer::SerializeEvent(*ready_, current_fidelity_params_, evt_ser);
+            if(upload_callback_) {
+                CProtobufSerialization cser = { evt_ser.data(), evt_ser.size(), nullptr};
+                upload_callback_(&cser);
+            }
             backend_->Process(evt_ser);
             ready_ = nullptr;
         }
