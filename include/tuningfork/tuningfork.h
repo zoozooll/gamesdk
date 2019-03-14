@@ -42,9 +42,6 @@ extern "C" {
 #endif
 
 // init must be called before any other functions
-//  If no backend is passed, a debug version is used which returns empty fidelity params
-//   and outputs histograms in protobuf text format to logcat.
-//  If no timeProvider is passed, std::chrono::steady_clock is used.
 void TuningFork_init(const CProtobufSerialization *settings, JNIEnv* env, jobject activity);
 
 // Blocking call to get fidelity parameters from the server.

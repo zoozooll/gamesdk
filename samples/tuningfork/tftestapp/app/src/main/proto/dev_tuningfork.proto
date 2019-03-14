@@ -2,6 +2,14 @@ syntax = "proto3";
 
 package com.google.tuningfork;
 
+enum InstrumentKey {
+  CPU = 0;
+  GPU = 1;
+  SWAPPY_WAIT = 2;
+  SWAPPY_SWAP = 3;
+  CHOREOGRAPHER = 4;
+}
+
 enum Level {
   // 0 is not a valid value
   LEVEL_INVALID = 0;

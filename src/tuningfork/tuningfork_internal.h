@@ -17,6 +17,7 @@
 #pragma once
 
 #include "tuningfork/tuningfork.h"
+#include "tuningfork/tuningfork_extra.h"
 
 #ifdef PROTOBUF_NANO
 #include "pb_encode.h"
@@ -130,6 +131,6 @@ TraceHandle StartTrace(InstrumentationKey key);
 // Record a trace with the key and annotation set using startTrace
 void EndTrace(TraceHandle h);
 
-void SetUploadCallback(void(*cbk)(const CProtobufSerialization*));
+void SetUploadCallback(ProtoCallback cbk);
 
 } // namespace tuningfork {

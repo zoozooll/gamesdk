@@ -289,10 +289,11 @@ uint64_t SetCurrentAnnotation(const ProtobufSerialization &ann) {
 }
 
 void SetUploadCallback(void(*cbk)(const CProtobufSerialization*)) {
-    if (!s_impl)
+    if (!s_impl) {
         ALOGE("Failed to get TuningFork instance");
-    else
+    } else {
         s_impl->SetUploadCallback(cbk);
+    }
 }
 
 // Return the set annotation id or -1 if it could not be set
