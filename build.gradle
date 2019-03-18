@@ -12,22 +12,27 @@ def protobufInstallDir() {
     return new File("./third_party/protobuf-3.0.0/install/linux-x86").getCanonicalPath()
 }
 
-task prepare_proto {
+task prepare_proto_before {
     def protocBinDir = protobufInstallDir() + "/bin"
     doLast {
-	// Install python-protobuf
-	exec {
-	    workingDir "./third_party/protobuf-3.0.0/python"
-	    environment 'PATH', "$protocBinDir:${environment.PATH}"
-	    commandLine "python", "setup.py", "install", "--user"
-	}
-	// Generate nano-pb requirements
-	exec {
-	    workingDir getExternalPath() + '/nanopb-c/generator/proto'
-	    environment 'PATH', "$protocBinDir:${environment.PATH}"
-	    commandLine 'make'
-	}
+    // Install python-protobuf
+    exec {
+        workingDir "./third_party/protobuf-3.0.0/python"
+        environment 'PATH', "$protocBinDir:${environment.PATH}"
+        commandLine "python", "setup.py", "install", "--user"
     }
+    // Generate nano-pb requirements
+    exec {
+        workingDir getExternalPath() + '/nanopb-c/generator/proto'
+        environment 'PATH', "$protocBinDir:${environment.PATH}"
+        commandLine 'make'
+    }
+    }
+}
+
+task prepare_proto(type: Exec, dependsOn: prepare_proto_before) {
+    commandLine "python"
+    args = ["-c", "import google.protobuf as pb; print('python protobuf version is: ' + pb.__version__)"]
 }
 
 buildscript {
@@ -209,7 +214,7 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
                     "-GNinja"]
     }
     exec {
-	environment "PATH", "$protocBinDir:${environment.PATH}"
+    environment "PATH", "$protocBinDir:${environment.PATH}"
         workingDir workingFolder
         commandLine cmdLine
     }
@@ -336,7 +341,7 @@ def sdkNativeBuild(withTuningFork = true) {
 
 def localNativeBuild(withTuningFork = false) {
     def kLocalMinSdk = project.hasProperty("GAMESDK_ANDROID_SDK_VERSION") ?
-		project.GAMESDK_ANDROID_SDK_VERSION : "26"
+        project.GAMESDK_ANDROID_SDK_VERSION : "26"
     def stl = "c++_static"
     def toolchain = new LocalToolchain(project, kLocalMinSdk)
     def threadChecks = true
