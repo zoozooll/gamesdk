@@ -12,18 +12,9 @@
  * limitations under the License.
  */
 
-#ifndef TUNINGFORK_TUNINGFORK_TEST_H
-#define TUNINGFORK_TUNINGFORK_TEST_H
+#include "gtest/gtest.h"
 
-#include <string>
-
-namespace tuningfork_test {
-
-std::string TestEndToEnd();
-std::string TestEndToEndWithAnnotation();
-std::string TestEndToEndTimeBased();
-std::string TestEndToEndWithStaticHistogram();
-
+int main(int argc, char * argv[]) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
-
-#endif //TUNINGFORK_TUNINGFORK_TEST_H

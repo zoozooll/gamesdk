@@ -12,21 +12,25 @@ def protobufInstallDir() {
     return new File("./third_party/protobuf-3.0.0/install/linux-x86").getCanonicalPath()
 }
 
+def joinPath(String first, String... more) {
+    return Paths.get(first, more).toString()
+}
+
 task prepare_proto_before {
     def protocBinDir = protobufInstallDir() + "/bin"
     doLast {
-    // Install python-protobuf
-    exec {
-        workingDir "./third_party/protobuf-3.0.0/python"
-        environment 'PATH', "$protocBinDir:${environment.PATH}"
-        commandLine "python", "setup.py", "install", "--user"
-    }
-    // Generate nano-pb requirements
-    exec {
-        workingDir getExternalPath() + '/nanopb-c/generator/proto'
-        environment 'PATH', "$protocBinDir:${environment.PATH}"
-        commandLine 'make'
-    }
+        // Install python-protobuf
+        exec {
+            workingDir "./third_party/protobuf-3.0.0/python"
+            environment 'PATH', "$protocBinDir:${environment.PATH}"
+            commandLine "python", "setup.py", "install", "--user"
+        }
+        // Generate nano-pb requirements
+        exec {
+            workingDir getExternalPath() + '/nanopb-c/generator/proto'
+            environment 'PATH', "$protocBinDir:${environment.PATH}"
+            commandLine 'make'
+        }
     }
 }
 
@@ -105,6 +109,7 @@ class LocalToolchain extends Toolchain {
     String ndkPath_;
     String cmakePath_;
     String ninjaPath_;
+    String adbPath_;
     LocalToolchain(Project project, String androidVersion) {
         project_ = project
         androidVersion_ = androidVersion
@@ -119,13 +124,14 @@ class LocalToolchain extends Toolchain {
 
         ndkPath_ = System.getenv("ANDROID_NDK")
         if(ndkPath_ == null) {
-            ndkPath_ = Paths.get(sdkPath_,'ndk-bundle').toString()
+            ndkPath_ = project_.joinPath(sdkPath_, 'ndk-bundle')
             if (!project_.file(ndkPath_).exists())
                 throw new GradleException('No NDK found in SDK: must set ANDROID_NDK')
         }
         ndkVersion_ = getNdkVersionFromPropertiesFile()
         cmakePath_ = findCMakeTool("CMAKE", "cmake")
         ninjaPath_ = findCMakeTool("NINJA", "ninja")
+        adbPath_ = project_.joinPath(sdkPath_, 'platform-tools', 'adb')
     }
     String getAndroidNDKPath() {
         return ndkPath_;
@@ -136,13 +142,16 @@ class LocalToolchain extends Toolchain {
     String getNinjaPath() {
         return ninjaPath_;
     }
+    String getAdbPath() {
+        return adbPath_;
+    }
     String findCMakeTool(String envVar, String name) {
         def tool = System.getenv(envVar);
         if (tool) {
             return tool;
         }
         def osname = OperatingSystem.current().isWindows() ? name + '.exe' : name
-        def tools = project_.fileTree( dir: Paths.get(sdkPath_, 'cmake').toString(), include: ['**/bin/'+osname] )
+        def tools = project_.fileTree( dir: project_.joinPath(sdkPath_, 'cmake'), include: ['**/bin/'+osname] )
         if (tools==null || tools.size() == 0) {
             throw new GradleException('No ' + osname + ' found in ' + sdkPath_ + '/cmake')
         }
@@ -214,17 +223,17 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
                     "-GNinja"]
     }
     exec {
-    environment "PATH", "$protocBinDir:${environment.PATH}"
+        environment "PATH", "$protocBinDir:${environment.PATH}"
         workingDir workingFolder
         commandLine cmdLine
     }
 }
 
-def buildNativeModules(arch, toolchain, stl, threadChecks, buildtf) {
+def buildNativeModules(arch, Toolchain toolchain, stl, threadChecks, buildtf, subdir = "src") {
     def buildKey = toolchain.getBuildKey(arch, stl)
-    def workingFolder = getTempPath() + '/' + buildKey + '/.cmake'
-    def outputFolder = getOutPath() + '/' + buildKey
-    def cmakeProjectLocation = "$projectDir/src/"
+    def workingFolder = joinPath(getTempPath(), buildKey, '.cmake')
+    def outputFolder = joinPath(getOutPath(), buildKey)
+    def cmakeProjectLocation = joinPath("$projectDir", subdir)
 
     cmake(cmakeProjectLocation, workingFolder, outputFolder, arch, toolchain,
           stl, threadChecks, buildtf)
@@ -266,10 +275,10 @@ def sdkCopy(buildInfo, outFolder, all = true, staticToo = false,
             useFullBuildKey = false, flattenLibDirs = false, shared = true) {
     def arch = buildInfo.arch
     def buildKey = buildInfo.buildKey
-    def cmakeFolder = getTempPath() + '/' + buildKey + '/.cmake'
-    def buildFolder = getPackagePath() + '/' + outFolder
-    def libBuildFolder = buildFolder + '/libs/' +
-        (useFullBuildKey ? buildKey : arch ) + '/lib'
+    def cmakeFolder = joinPath(getTempPath(), buildKey, '.cmake')
+    def buildFolder = joinPath(getPackagePath(), outFolder)
+    def libBuildFolder = joinPath(buildFolder, 'libs',
+                                  useFullBuildKey ? buildKey : arch, 'lib')
 
     if (shared) {
         copy {
@@ -285,8 +294,8 @@ def sdkCopy(buildInfo, outFolder, all = true, staticToo = false,
         }
     }
     if (staticToo) {
-        def staticsFolder = getOutPath() + '/' + buildKey
-        def staticLibsBuildFolder = buildFolder + '/libs/' + buildKey
+        def staticsFolder = joinPath(getOutPath(), buildKey)
+        def staticLibsBuildFolder = joinPath(buildFolder, 'libs', buildKey)
         def staticLibs = ['libswappy_static.a',
                           'libswappyVk_static.a']
         if (all)
@@ -303,9 +312,9 @@ def sdkCopy(buildInfo, outFolder, all = true, staticToo = false,
 def copyExtras(outFolder, all = true) {
     def buildFolder = getPackagePath() + '/' + outFolder
     def headerFolder = './include'
-    def aarFolder = getOutPath() + '/outputs/aar'
-    def includeBuildFolder = buildFolder + '/include'
-    def aarBuildFolder = buildFolder + '/aar'
+    def aarFolder = joinPath(getOutPath(), 'outputs', 'aar')
+    def includeBuildFolder = joinPath(buildFolder, 'include')
+    def aarBuildFolder = joinPath(buildFolder, 'aar')
 
     copy {
         from file(headerFolder)
@@ -339,14 +348,18 @@ def sdkNativeBuild(withTuningFork = true) {
     }
 }
 
-def localNativeBuild(withTuningFork = false) {
+def getLocalToolchain() {
     def kLocalMinSdk = project.hasProperty("GAMESDK_ANDROID_SDK_VERSION") ?
         project.GAMESDK_ANDROID_SDK_VERSION : "26"
+    return new LocalToolchain(project, kLocalMinSdk)
+}
+
+def localNativeBuild(withTuningFork = false, subdir = "src") {
+    def toolchain = getLocalToolchain();
     def stl = "c++_static"
-    def toolchain = new LocalToolchain(project, kLocalMinSdk)
     def threadChecks = true
     return defaultAbis().collect {
-        buildNativeModules(it, toolchain , stl, threadChecks, withTuningFork)
+        buildNativeModules(it, toolchain , stl, threadChecks, withTuningFork, subdir)
     }
 }
 
@@ -423,13 +436,32 @@ tasks.withType(BuildTask) {
     }
 }
 
+task localUnitTests {
+    // These unit tests require a connected ARM64 device to run
+    doLast {
+        def buildInfo = localNativeBuild(true, "test")
+        def buildKey = buildInfo.buildKey.findAll{it.contains('arm64-v8a')}[0]
+        def cmakeFolder = getTempPath() + '/' + buildKey + '/.cmake/tuningfork'
+        def toolchain = getLocalToolchain();
+        def adb = toolchain.getAdbPath();
+        exec {
+            workingDir cmakeFolder
+            commandLine adb, "push", "tuningfork_test", "/data/local/tmp"
+        }
+        exec {
+            workingDir cmakeFolder
+            commandLine adb, "shell", "/data/local/tmp/tuningfork_test"
+        }
+    }
+}
+
 // Zipping things up
 def addZipTask(name, buildTask, zipName, rootName = "gamesdk") {
     def packPath = buildTask.packageName
     tasks.register(name, Zip) {
         dependsOn buildTask
-        def buildFolder = Paths.get(getPackagePath(), packPath).toString()
-        baseName = Paths.get(buildFolder, zipName).toString()
+        def buildFolder = joinPath(getPackagePath(), packPath)
+        baseName = joinPath(buildFolder, zipName)
 
         from fileTree(buildFolder)
         exclude "*.zip"
