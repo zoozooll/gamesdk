@@ -39,8 +39,10 @@ std::vector<uint8_t> Serialize(const T &pb) {
     pb.SerializeToArray(ser.data(), ser.size());
     return ser;
 }
+// Serialize to a CProtobuf. The caller takes ownership of the returned serialization and must
+//  call CProtobufSerialization_Free to deallocate any memory.
 template <typename T>
-CProtobufSerialization CSerialize(const T &pb) {
+CProtobufSerialization CProtobufSerialization_Alloc(const T &pb) {
     CProtobufSerialization cser;
     cser.bytes = (uint8_t*)::malloc(pb.ByteSize());
     cser.size = pb.ByteSize();
@@ -48,5 +50,7 @@ CProtobufSerialization CSerialize(const T &pb) {
     pb.SerializeToArray(cser.bytes, cser.size);
     return cser;
 }
+
+void CProtobufSerialization_Free(CProtobufSerialization* ser);
 
 } // namespace tuningfork {

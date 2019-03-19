@@ -67,9 +67,9 @@ Settings TestSettings(Settings::AggregationStrategy::Submission method, int n_ti
 
 std::string ReplaceReturns(const std::string& s) {
     std::string r = s;
-    for (int i = 0; i < r.length(); ++i) {
-        if (r[i] == '\n') r[i] = ',';
-        if (r[i] == '\r') r[i] = ' ';
+    for (int i=0; i<r.length(); ++i) {
+        if (r[i]=='\n') r[i] = ',';
+        if (r[i]=='\r') r[i] = ' ';
     }
     return r;
 }
@@ -82,7 +82,7 @@ std::string PrettyPrintTuningForkLogEvent(const TuningForkLogEvent& evt) {
         p.ParseFromArray(evt.fidelityparams().c_str(), evt.fidelityparams().length());
         eventStr << "  fidelityparams : " << ReplaceReturns(p.DebugString()) << "\n";
     }
-    for (int i = 0; i < evt.histograms_size(); ++i) {
+    for (int i=0; i<evt.histograms_size(); ++i) {
         auto &h = evt.histograms(i);
         Annotation ann;
         ann.ParseFromArray(h.annotation().c_str(), h.annotation().length());
@@ -91,11 +91,12 @@ std::string PrettyPrintTuningForkLogEvent(const TuningForkLogEvent& evt) {
         eventStr << "    instrument_id : " << h.instrument_id() << "\n";
         eventStr << "    annotation : " << ReplaceReturns(ann.DebugString()) << "\n    counts : ";
         eventStr << "[";
-        for (int j = 0; j < h.counts_size(); ++j) {
-            if (first)
+        for (int j=0; j<h.counts_size(); ++j) {
+            if (first) {
                 first = false;
-            else
+            } else {
                 eventStr << ",";
+            }
             eventStr << h.counts(j);
         }
         eventStr << "]\n  }\n";
@@ -141,18 +142,18 @@ void SetAnnotations() {
         a.set_level((proto_tf::Level)sLevel);
         auto next_level = sLevel + 1;
         a.set_next_level((proto_tf::Level)(next_level>proto_tf::Level_MAX?1:next_level));
-        auto ser = tf::CSerialize(a);
+        auto ser = tf::CProtobufSerialization_Alloc(a);
         TuningFork_setCurrentAnnotation(&ser);
-        if(ser.dealloc) ser.dealloc(ser.bytes);
+        tf::CProtobufSerialization_Free(&ser);
     }
 }
 
-void SetFidelityParams(const CProtobufSerialization& params) {
+void SetFidelityParams(const CProtobufSerialization* params) {
     FidelityParams p;
     // Set default values
     p.set_num_spheres(20);
     p.set_tesselation_percent(50);
-    std::vector<uint8_t> params_ser(params.bytes, params.bytes + params.size);
+    std::vector<uint8_t> params_ser(params->bytes, params->bytes + params->size);
     tf::Deserialize(params_ser, p);
     std::string s = p.DebugString();
     ALOGI("Using FidelityParams: %s", ReplaceReturns(s).c_str());
@@ -167,53 +168,26 @@ extern "C" {
 
 JNIEXPORT void JNICALL
 Java_com_google_tuningfork_TFTestActivity_initTuningFork(JNIEnv *env, jobject activity) {
-    Settings s = TestSettings(Settings::AggregationStrategy::TICK_BASED,
-                              100, // Time in ms between events
-                              5, // Number of instrumentation keys (SYSCPU, SYSGPU, WAIT_TIME, SWAP_TIME and choreographer)
-                              {4, 4}, // annotation enum sizes (4 levels)
-                              {{14, // histogram minimum delta time in ms
-                                19, // histogram maximum delta time in ms
-                                70} // number of buckets between the max and min (there will be
-                                  //   2 more for out-of-bounds ticks, too)
-                              });
-    CProtobufSerialization ser;
-    if(!TuningFork_findSettingsInAPK(env, activity, &ser)) {
-        ALOGW("Falling back to default tuningfork settings");
-        ser = tf::CSerialize(s);
-    }
-
     Swappy_init(env, activity);
-    if(!(Swappy_isEnabled() && TuningFork_initWithSwappy(&ser, env, activity, "libnative-lib.so", SetAnnotations)))
-        TuningFork_init(&ser, env, activity);
-    TuningFork_setUploadCallback(UploadCallback);
-    if (ser.dealloc) ser.dealloc(ser.bytes);
-
-    int nfps=0;
-    CProtobufSerialization defaultParams = {};
-    // Try to use the middle fidelity params in the APK as the default
-    TuningFork_findFidelityParamsInAPK(env, activity, NULL, &nfps);
-    if (nfps>0) {
-        std::vector<CProtobufSerialization> fps(nfps);
-        TuningFork_findFidelityParamsInAPK(env, activity, fps.data(), &nfps);
-        int chosen = nfps/2;
-        ALOGI("Using params from dev_tuningfork_fidelityparams_%d.bin as default", chosen);
-        for (int i=0;i<nfps;++i) {
-            if (i == chosen) defaultParams = fps[i];
-            else if (fps[i].dealloc) fps[i].dealloc(fps[i].bytes);
+    if (Swappy_isEnabled()) {
+        int defaultFPIndex = 3; // i.e. dev_tuningfork_fidelityparams_3.bin
+        int initialTimeoutMs = 1000;
+        int ultimateTimeoutMs = 100000;
+        TFErrorCode c = TuningFork_initFromAssetsWithSwappy(env, activity, "libnative-lib.so",
+                                                    SetAnnotations, defaultFPIndex,
+                                                    SetFidelityParams,
+                                                    initialTimeoutMs, ultimateTimeoutMs);
+        if (c==TFERROR_OK) {
+            TuningFork_setUploadCallback(UploadCallback);
+            SetAnnotations();
+        } else {
+            ALOGW("Error initializing TuningFork: %d", c);
         }
+    } else {
+        ALOGW("Couldn't enable Swappy. Tuning Fork is not enabled either");
     }
-    CProtobufSerialization params = {};
-    if (!TuningFork_getFidelityParameters(&defaultParams, &params, 1000)) {
-        ALOGW("Could not get FidelityParams from server");
-        SetFidelityParams(defaultParams);
-        if (defaultParams.dealloc) defaultParams.dealloc(defaultParams.bytes);
-    }
-    else {
-        SetFidelityParams(params);
-        if (params.dealloc) params.dealloc(params.bytes);
-    }
-    SetAnnotations();
 }
+
 JNIEXPORT void JNICALL
 Java_com_google_tuningfork_TFTestActivity_onChoreographer(JNIEnv */*env*/, jclass clz, jlong /*frameTimeNanos*/) {
     TuningFork_frameTick(TFTICK_CHOREOGRAPHER);

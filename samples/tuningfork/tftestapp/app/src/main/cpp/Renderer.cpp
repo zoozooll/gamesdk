@@ -16,7 +16,7 @@
 
 #include "Renderer.h"
 
-#define LOG_TAG "Renderer"
+#define LOG_TAG "TestAppRender"
 
 #include <vector>
 #include <condition_variable>
