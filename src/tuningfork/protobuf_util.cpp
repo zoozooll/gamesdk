@@ -15,6 +15,7 @@
  */
 
 
+#include "tuningfork/protobuf_util.h"
 #include "tuningfork/protobuf_nano_util.h"
 
 #include <pb_encode.h>
@@ -50,6 +51,15 @@ bool VectorStream::Write(pb_ostream_t *stream, const uint8_t *buf, size_t count)
     vec->resize(sz+count);
     std::copy(buf, buf+count, &(*vec)[sz]);
     return true;
+}
+
+void CProtobufSerialization_Free(CProtobufSerialization* ser) {
+    if(ser && ser->dealloc && ser->bytes) {
+        ser->dealloc(ser->bytes);
+        ser->bytes = 0;
+        ser->size = 0;
+        ser->dealloc = 0;
+    }
 }
 
 } // namespace tuningfork {
