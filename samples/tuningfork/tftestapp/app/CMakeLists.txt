@@ -23,37 +23,29 @@ include_directories(../../../../src)
 include_directories(../../../common/include)
 include_directories(../../../../include)
 
+# Note that we use the FULL version of protobuf in the testapp, so we can get debug strings
 add_library( protobuf-static
-        STATIC ${PROTOBUF_LITE_SRCS} ${PROTOBUF_SRCS}
-        )
+             STATIC
+             ${PROTOBUF_LITE_SRCS}
+             ${PROTOBUF_SRCS}
+)
 target_compile_options(protobuf-static PUBLIC "-Wno-tautological-constant-compare" "-Wno-enum-compare-switch")
 
-add_library( tuningfork_test
+add_library( native-lib
              SHARED
-             src/test/cpp/nativetests.cpp
-             src/test/cpp/histogram_test.cpp
-             src/test/cpp/tuningfork_test.cpp
+             src/main/cpp/tftestapp.cpp
+             src/main/cpp/Renderer.cpp
+             src/main/cpp/Scene.cpp
              ${PROTO_GENS_DIR}/full/dev_tuningfork.pb.cc
              ${PROTO_GENS_DIR}/full/tuningfork.pb.cc
-             ${PROTO_GENS_DIR}/full/tuningfork_clearcut_log.pb.cc)
+             ${PROTO_GENS_DIR}/full/tuningfork_clearcut_log.pb.cc
+)
 
-# Note that we use the FULL version of protobuf in the tests, so we can get debug strings
-target_link_libraries( tuningfork_test
+target_link_libraries( native-lib
         gamesdk
         protobuf-static
         android
         EGL
         GLESv2
         log
-
 )
-set_target_properties( tuningfork_test PROPERTIES COMPILE_OPTIONS "-DPROTOBUF_FULL" )
-
-add_library( native-lib
-             SHARED
-             src/main/cpp/tftestapp.cpp
-             src/main/cpp/Renderer.cpp
-             src/main/cpp/Scene.cpp)
-
-target_link_libraries( native-lib
-		       tuningfork_test)
