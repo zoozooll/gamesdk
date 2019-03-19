@@ -1,4 +1,6 @@
 /*
+ * Copyright 2019 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "tuningfork_test.h"
-
 #include "tuningfork/protobuf_util.h"
 #include "tuningfork/tuningfork_internal.h"
 
@@ -21,8 +21,13 @@
 #include "full/tuningfork_clearcut_log.pb.h"
 #include "full/dev_tuningfork.pb.h"
 
+#include "gtest/gtest.h"
+
 #include <vector>
 #include <mutex>
+
+#define LOG_TAG "TFTest"
+#include "Log.h"
 
 using namespace tuningfork;
 
@@ -40,19 +45,18 @@ public:
                       std::shared_ptr<std::mutex> mutex_) : cv(cv_), mutex(mutex_) {}
 
     bool Process(const ProtobufSerialization &evt_ser) override {
+        ALOGI("Process");
         {
             std::lock_guard<std::mutex> lock(*mutex);
             TuningForkLogEvent evt;
             Deserialize(evt_ser, evt);
-#ifdef PROTOBUF_LITE
-            result = evt.SerializeAsString();
-#else
             result = evt.DebugString();
-#endif
         }
         cv->notify_all();
         return true;
     }
+
+    void clear() { result = ""; }
 
     std::string result;
     std::shared_ptr<std::condition_variable> cv;
@@ -61,25 +65,22 @@ public:
 
 class TestParamsLoader : public ParamsLoader {
 public:
-    ~TestParamsLoader() override {}
-
     bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) override {
-        fidelity_params.clear();
-        return true;
+        return false;
     }
 };
 
 // Increment time with a known tick size
 class TestTimeProvider : public ITimeProvider {
 public:
-    TestTimeProvider(Duration tickSizeNs_ = std::chrono::nanoseconds(1)) : tickSizeNs(
-        tickSizeNs_) {}
+    TestTimeProvider(Duration tickSizeNs_ = std::chrono::milliseconds(20))
+        : tickSizeNs(tickSizeNs_) {}
 
     TimePoint t;
     Duration tickSizeNs;
 
     TimePoint NowNs() override {
-        t += std::chrono::nanoseconds(tickSizeNs);
+        t += tickSizeNs;
         return t;
     }
 };
@@ -87,7 +88,7 @@ public:
 std::shared_ptr<std::condition_variable> cv = std::make_shared<std::condition_variable>();
 std::shared_ptr<std::mutex> rmutex = std::make_shared<std::mutex>();
 TestBackend testBackend(cv, rmutex);
-TestParamsLoader testLoader;
+TestParamsLoader paramsLoader;
 TestTimeProvider timeProvider;
 
 struct HistogramSettings {
@@ -114,23 +115,25 @@ Settings TestSettings(Settings::AggregationStrategy::Submission method, int n_ti
     }
     return s;
 }
+const Duration test_wait_time = std::chrono::seconds(1);
 std::string TestEndToEnd() {
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     auto settings = TestSettings(Settings::AggregationStrategy::TICK_BASED, NTICKS - 1, 1, {});
-    tuningfork::Init(Serialize(settings), &testBackend, &testLoader, &timeProvider);
+    tuningfork::Init(Serialize(settings), &testBackend, &paramsLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSCPU);
     // Wait for the upload thread to complete writing the string
-    cv->wait(lock);
+    EXPECT_TRUE(cv->wait_for(lock, test_wait_time)==std::cv_status::no_timeout) << "Timeout";
     return testBackend.result;
 }
 
 std::string TestEndToEndWithAnnotation() {
+    testBackend.clear();
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     // {3} is the number of values in the Level enum in tuningfork_extensions.proto
     auto settings = TestSettings(Settings::AggregationStrategy::TICK_BASED, NTICKS - 1, 2, {3});
-    tuningfork::Init(Serialize(settings), &testBackend, &testLoader, &timeProvider);
+    tuningfork::Init(Serialize(settings), &testBackend, &paramsLoader, &timeProvider);
     Annotation ann;
     ann.set_level(com::google::tuningfork::LEVEL_1);
     tuningfork::SetCurrentAnnotation(Serialize(ann));
@@ -138,35 +141,64 @@ std::string TestEndToEndWithAnnotation() {
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSGPU);
     // Wait for the upload thread to complete writing the string
-    cv->wait(lock);
+    EXPECT_TRUE(cv->wait_for(lock, test_wait_time)==std::cv_status::no_timeout) << "Timeout";
     return testBackend.result;
 }
 
 std::string TestEndToEndTimeBased() {
+    testBackend.clear();
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     TestTimeProvider timeProvider(std::chrono::milliseconds(100)); // Tick in 100ms intervals
-    auto settings = TestSettings(Settings::AggregationStrategy::TIME_BASED, 10100, 1, {});
-    tuningfork::Init(Serialize(settings), &testBackend, &testLoader, &timeProvider);
+    auto settings = TestSettings(Settings::AggregationStrategy::TIME_BASED, 10100, 1, {}, {{50,150,10}});
+    tuningfork::Init(Serialize(settings), &testBackend, &paramsLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSCPU);
     // Wait for the upload thread to complete writing the string
-    cv->wait(lock);
+    EXPECT_TRUE(cv->wait_for(lock, test_wait_time)==std::cv_status::no_timeout) << "Timeout";
     return testBackend.result;
 }
 
 std::string TestEndToEndWithStaticHistogram() {
+    testBackend.clear();
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     TestTimeProvider timeProvider(std::chrono::milliseconds(100)); // Tick in 100ms intervals
     auto settings = TestSettings(Settings::AggregationStrategy::TIME_BASED,
                                  10100, 1, {}, {{98, 102, 10}});
-    tuningfork::Init(Serialize(settings), &testBackend, &testLoader, &timeProvider);
+    tuningfork::Init(Serialize(settings), &testBackend, &paramsLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSCPU);
     // Wait for the upload thread to complete writing the string
-    cv->wait(lock);
+    EXPECT_TRUE(cv->wait_for(lock, test_wait_time)==std::cv_status::no_timeout) << "Timeout";
     return testBackend.result;
 }
 
+TEST(TuningForkTest, EndToEnd) {
+  EXPECT_EQ(TestEndToEnd(), "histograms {\n  instrument_id: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 100\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n}\n") << "Base test failed";
 }
+TEST(TuningForkTest, TestEndToEndWithAnnotation) {
+  EXPECT_EQ(TestEndToEndWithAnnotation(), "histograms {\n  instrument_id: 1\n  annotation: \"\\010\\001\"\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 100\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n}\n") << "Annotation test failed";
+}
+TEST(TuningForkTest, TestEndToEndTimeBased) {
+  EXPECT_EQ(TestEndToEndTimeBased(), "histograms {\n  instrument_id: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 100\n  counts: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n}\n") << "Base test failed";
+}
+TEST(TuningForkTest, TestEndToEndWithStaticHistogram) {
+  EXPECT_EQ(TestEndToEndWithStaticHistogram(), "histograms {\n  instrument_id: 0\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 100\n  counts: 0\n  counts: 0\n"
+            "  counts: 0\n  counts: 0\n  counts: 0\n}\n") << "Base test failed";
+}
+
+} // namespace tuningfork_test
