@@ -34,9 +34,21 @@ task prepare_proto_before {
     }
 }
 
-task prepare_proto(type: Exec, dependsOn: prepare_proto_before) {
-    commandLine "python"
-    args = ["-c", "import google.protobuf as pb; print('python protobuf version is: ' + pb.__version__)"]
+task prepare_proto(dependsOn: prepare_proto_before) {
+    doLast {
+        exec {
+            commandLine "python"
+            args = ["-c", "import google.protobuf as pb; print('python protobuf contains: ' + str(dir(pb)))"]
+        }
+        exec {
+            commandLine "python"
+            args = ["-c", "import google.protobuf as pb; print('python protobuf version is: ' + pb.__version__)"]
+        }
+        exec {
+            commandLine "dpkg-query"
+            args = ["--list", "*env*"]
+        }
+    }
 }
 
 buildscript {
