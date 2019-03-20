@@ -14,7 +14,7 @@ endfunction()
 protobuf_generate_nano_c( ${CMAKE_CURRENT_SOURCE_DIR}/proto
   proto/tuningfork.proto
   proto/tuningfork_clearcut_log.proto
-  proto/eng_tuningfork.proto)
+  proto/example_tuningfork.proto)
 
 include_directories(${PROTOBUF_NANO_SRC_DIR})
 include_directories( ../../include )
@@ -38,7 +38,7 @@ set( TUNINGFORK_SRCS
   ${MODPB64_DIR}/modp_b64.cc
   ${PROTO_GENS_DIR}/nano/tuningfork.pb.c
   ${PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c
-  ${PROTO_GENS_DIR}/nano/eng_tuningfork.pb.c)
+  ${PROTO_GENS_DIR}/nano/example_tuningfork.pb.c)
 
 add_library( tuningfork_static
   STATIC ${TUNINGFORK_SRCS} ${PROTOBUF_NANO_SRCS})
@@ -50,5 +50,6 @@ add_library( tuningfork
 set_target_properties( tuningfork PROPERTIES COMPILE_OPTIONS "-DPROTOBUF_NANO" )
 target_link_libraries( tuningfork
   android
+  GLESv2
   log)
 extra_tf_link_options( tuningfork )

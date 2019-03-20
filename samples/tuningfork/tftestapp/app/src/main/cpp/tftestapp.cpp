@@ -104,6 +104,18 @@ std::string PrettyPrintTuningForkLogEvent(const TuningForkLogEvent& evt) {
     if (evt.has_experiment_id()) {
         eventStr << "  experiment_id : " << evt.experiment_id() << "\n";
     }
+    if (evt.has_session_id()) {
+        eventStr << "  session_id : " << evt.session_id() << "\n";
+    }
+    if (evt.has_device_info()) {
+        eventStr << "  device_info : {" << ReplaceReturns(evt.device_info().DebugString()) << "}\n";
+    }
+    if (evt.has_apk_package_name()) {
+        eventStr << "  apk_package_name : " << evt.apk_package_name() << "\n";
+    }
+    if (evt.has_apk_version_code()) {
+        eventStr << "  apk_version_code : " << evt.apk_version_code() << "\n";
+    }
     eventStr << "}";
     return eventStr.str();
 }

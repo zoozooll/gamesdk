@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef TUNINGFORK_UPLOADTHREAD_H
-#define TUNINGFORK_UPLOADTHREAD_H
+#pragma once
 
 #include <thread>
 #include <mutex>
@@ -27,7 +26,6 @@ namespace tuningfork {
 
 class UploadThread {
 private:
-    typedef void (*UploadCallback)(const CProtobufSerialization*);
     std::unique_ptr<std::thread> thread_;
     std::mutex mutex_;
     std::condition_variable cv_;
@@ -35,9 +33,10 @@ private:
     const ProngCache *ready_;
     Backend *backend_;
     ProtobufSerialization current_fidelity_params_;
-    UploadCallback upload_callback_;
-public:
-    UploadThread(Backend *backend);
+    ProtoCallback upload_callback_;
+    ExtraUploadInfo extra_info_;
+ public:
+    UploadThread(Backend *backend, const ExtraUploadInfo& extraInfo);
 
     ~UploadThread();
 
@@ -54,13 +53,16 @@ public:
         current_fidelity_params_ = fp;
     }
 
-    void SetUploadCallback(UploadCallback upload_callback) {
+    void SetUploadCallback(ProtoCallback upload_callback) {
         upload_callback_ = upload_callback;
     }
+
+    static ExtraUploadInfo GetExtraUploadInfo(JNIEnv* env, jobject activity);
+
+ private:
+    void UpdateGLVersion();
 
     friend class ClearcutSerializer;
 };
 
 } // namespace tuningfork {
-
-#endif //TUNINGFORK_UPLOADTHREAD_H

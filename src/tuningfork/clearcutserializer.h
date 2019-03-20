@@ -28,13 +28,14 @@
 namespace tuningfork {
 
 typedef logs_proto_tuningfork_TuningForkLogEvent TuningForkLogEvent;
-
 typedef logs_proto_tuningfork_TuningForkHistogram ClearcutHistogram;
+typedef logs_proto_tuningfork_DeviceInfo DeviceInfo;
 
 class ClearcutSerializer {
 public:
     static void SerializeEvent(const ProngCache& t,
                                const ProtobufSerialization& fidelity_params,
+                               const ExtraUploadInfo& device_info,
                                ProtobufSerialization& evt_ser);
     // Fill in the event histograms
     static void FillHistograms(const ProngCache& pc, TuningForkLogEvent &evt);
@@ -42,15 +43,20 @@ public:
     static void Fill(const Prong& p, ClearcutHistogram& h);
     // Fill in the histogram data
     static void Fill(const Histogram& h, ClearcutHistogram& ch);
-    // Fill in the experiment ID
-    static void FillExperimentID(const std::string& experiment_id, TuningForkLogEvent& evt);
+    // Fill in the device info
+    static void Fill(const ExtraUploadInfo& p, DeviceInfo& di);
+    // Fill in the other experiment, session and apk info
+    static void FillExtras(const ExtraUploadInfo& p, TuningForkLogEvent& evt);
 
     // Callbacks needed by nanopb
     static bool writeCountArray(pb_ostream_t *stream, const pb_field_t *field, void *const *arg);
     static bool writeAnnotation(pb_ostream_t* stream, const pb_field_t *field, void *const *arg);
     static bool writeHistograms(pb_ostream_t* stream, const pb_field_t *field, void *const *arg);
     static bool writeFidelityParams(pb_ostream_t* stream, const pb_field_t *field, void *const *arg);
-    static bool writeExperimentId(pb_ostream_t *stream, const pb_field_t *field, void *const *arg);
+    static bool writeString(pb_ostream_t *stream, const pb_field_t *field, void *const *arg);
+    static bool writeDeviceInfo(pb_ostream_t* stream, const pb_field_t *field, void *const *arg);
+    static bool writeCpuFreqs(pb_ostream_t *stream, const pb_field_t *field, void *const *arg);
+
 };
 
 } //namespace tuningfork
