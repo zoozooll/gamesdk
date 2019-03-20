@@ -97,14 +97,15 @@ private:
     AnnotationId current_annotation_id_;
     ITimeProvider *time_provider_;
 public:
-    TuningForkImpl(const Settings &settings,
+    TuningForkImpl(const Settings& settings,
+                   const ExtraUploadInfo& extra_upload_info,
                    Backend *backend,
                    ParamsLoader *loader,
                    ITimeProvider *time_provider) : settings_(settings),
                                                     trace_(gamesdk::Trace::create()),
                                                     backend_(backend),
                                                     loader_(loader),
-                                                    upload_thread_(backend),
+                                                    upload_thread_(backend, extra_upload_info),
                                                     current_annotation_id_(0),
                                                     time_provider_(time_provider) {
         if (time_provider_ == nullptr) {
@@ -200,6 +201,7 @@ bool decodeHistograms(pb_istream_t* stream, const pb_field_t *field, void** arg)
 }
 
 void Init(const ProtobufSerialization &settings_ser,
+          const ExtraUploadInfo& extra_upload_info,
           Backend *backend,
           ParamsLoader *loader,
           ITimeProvider *time_provider) {
@@ -221,7 +223,7 @@ void Init(const ProtobufSerialization &settings_ser,
       = pbsettings.aggregation_strategy.intervalms_or_count;
     settings.aggregation_strategy.max_instrumentation_keys
       = pbsettings.aggregation_strategy.max_instrumentation_keys;
-    s_impl = std::make_unique<TuningForkImpl>(settings, backend, loader,
+    s_impl = std::make_unique<TuningForkImpl>(settings, extra_upload_info, backend, loader,
                                               time_provider);
 }
 
@@ -232,13 +234,14 @@ ParamsLoader sLoader;
 void Init(const ProtobufSerialization &settings_ser, JNIEnv* env, jobject activity) {
     bool backendInited = sBackend.Init(env, activity, &sProtoPrint);
 
+    ExtraUploadInfo extra_upload_info = UploadThread::GetExtraUploadInfo(env, activity);
     if(backendInited) {
         ALOGV("TuningFork.Clearcut: OK");
-        Init(settings_ser, &sBackend, &sLoader);
+        Init(settings_ser, extra_upload_info, &sBackend, &sLoader);
     }
     else {
         ALOGV("TuningFork.Clearcut: FAILED");
-        Init(settings_ser);
+        Init(settings_ser, extra_upload_info);
     }
 }
 

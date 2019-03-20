@@ -30,6 +30,8 @@
 #include <vector>
 #include <jni.h>
 
+class AAsset;
+
 namespace tuningfork {
 
 typedef std::vector<uint8_t> ProtobufSerialization;
@@ -61,6 +63,19 @@ struct Settings {
     std::vector<Histogram> histograms;
 };
 
+// Extra information that is uploaded with the ClearCut proto.
+struct ExtraUploadInfo {
+    std::string experiment_id;
+    std::string session_id;
+    uint64_t total_memory_bytes;
+    uint32_t gl_es_version;
+    std::string build_fingerprint;
+    std::string build_version_sdk;
+    std::vector<uint64_t> cpu_max_freq_hz;
+    std::string apk_package_name;
+    int apk_version_code;
+};
+
 class Backend {
 public:
     virtual ~Backend() {};
@@ -87,7 +102,6 @@ public:
     bool Process(const ProtobufSerialization &tuningfork_log_event) override;
 };
 
-
 // You can provide your own time source rather than steady_clock by inheriting this and passing
 //   it to init.
 class ITimeProvider {
@@ -99,8 +113,8 @@ public:
 // If no backend is passed, a debug version is used which returns empty fidelity params
 // and outputs histograms in protobuf text format to logcat.
 // If no timeProvider is passed, std::chrono::steady_clock is used.
-void Init(const ProtobufSerialization &settings, Backend *backend = 0, ParamsLoader *loader = 0,
-          ITimeProvider *time_provider = 0);
+void Init(const ProtobufSerialization &settings, const ExtraUploadInfo& extra_info,
+          Backend *backend = 0, ParamsLoader *loader = 0, ITimeProvider *time_provider = 0);
 
 // Init must be called before any other functions
 void Init(const ProtobufSerialization &settings, JNIEnv* env, jobject activity);
@@ -132,5 +146,53 @@ TraceHandle StartTrace(InstrumentationKey key);
 void EndTrace(TraceHandle h);
 
 void SetUploadCallback(ProtoCallback cbk);
+
+// Utility functions from tuningfork_extra.cpp
+namespace apk_utils {
+
+// Get an asset from this APK's asset directory.
+// Returns NULL if the asset could not be found.
+// Asset_close must be called once the asset is no longer needed.
+AAsset* GetAsset(JNIEnv* env, jobject activity, const char* name);
+
+// Gets the serialized settings from the APK.
+// Returns false if there was an error.
+bool GetSettingsSerialization(JNIEnv* env, jobject activity,
+                              CProtobufSerialization& settings_ser);
+
+// Gets the serialized fidelity params from the APK.
+// Call this function once with fps_ser=NULL to get the count of files present,
+// then allocate an array of CProtobufSerializations and pass this as fps_ser
+// to a second call.
+void GetFidelityParamsSerialization(JNIEnv* env, jobject activity,
+                                    CProtobufSerialization* fps_ser,
+                                    int* fp_count);
+
+// Get the app's version code. Also fills packageNameStr with the package name
+//  if it is non-null.
+int GetVersionCode(JNIEnv *env, jobject context, std::string* packageNameStr = nullptr);
+
+} // namespace apk_utils
+
+namespace file_utils {
+
+// Creates the directory if it does not exist. Returns true if the directory
+//  already existed or could be created.
+bool CheckAndCreateDir(const std::string& path);
+
+// Get the name of the tuning fork save file. Returns true if the directory
+//  for the file exists and false on error.
+bool GetSavedFileName(JNIEnv* env, jobject activity, std::string& name);
+
+// Get a previously save fidelity param serialization.
+bool GetSavedFidelityParams(JNIEnv* env, jobject activity, CProtobufSerialization* params);
+
+// Save fidelity params to the save file.
+bool SaveFidelityParams(JNIEnv* env, jobject activity, const CProtobufSerialization* params);
+
+// Check if we have saved fidelity params.
+bool SavedFidelityParamsFileExists(JNIEnv* env, jobject activity);
+
+} // namespace file_utils
 
 } // namespace tuningfork {

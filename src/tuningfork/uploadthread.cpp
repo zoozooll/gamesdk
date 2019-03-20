@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-#include <sstream>
 #include "uploadthread.h"
+
+#include <sys/system_properties.h>
+#include <GLES3/gl32.h>
+#include <fstream>
+#include <sstream>
+#include <cmath>
 #include "clearcutserializer.h"
 #include "modp_b64.h"
 
@@ -56,9 +61,10 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
 
 std::unique_ptr<DebugBackend> s_debug_backend = std::make_unique<DebugBackend>();
 
-UploadThread::UploadThread(Backend *backend) : backend_(backend),
+UploadThread::UploadThread(Backend *backend, const ExtraUploadInfo& extraInfo) : backend_(backend),
                                                current_fidelity_params_(0),
-                                               upload_callback_(nullptr) {
+                                               upload_callback_(nullptr),
+                                               extra_info_(extraInfo) {
     if (backend_ == nullptr)
         backend_ = s_debug_backend.get();
     Start();
@@ -93,7 +99,10 @@ void UploadThread::Run() {
         std::unique_lock<std::mutex> lock(mutex_);
         if (ready_) {
             ProtobufSerialization evt_ser;
-            ClearcutSerializer::SerializeEvent(*ready_, current_fidelity_params_, evt_ser);
+            UpdateGLVersion(); // Needs to be done with an active gl context
+            ClearcutSerializer::SerializeEvent(*ready_, current_fidelity_params_,
+                                               extra_info_,
+                                               evt_ser);
             if(upload_callback_) {
                 CProtobufSerialization cser = { evt_ser.data(), evt_ser.size(), nullptr};
                 upload_callback_(&cser);
@@ -116,6 +125,97 @@ bool UploadThread::Submit(const ProngCache *prongs) {
         return true;
     } else
         return false;
+}
+
+namespace {
+
+// TODO: replace these with device_info library calls once they are available
+
+std::string slurpFile(const char* fname) {
+    std::ifstream f(fname);
+    if (f.good()) {
+        std::stringstream str;
+        str << f.rdbuf();
+        return str.str();
+    }
+    return "";
+}
+
+const char* skipSpace(const char* q) {
+    while(*q && (*q==' ' || *q=='\t')) ++q;
+    return q;
+}
+std::string getSystemPropViaGet(const char* key) {
+    char buffer[PROP_VALUE_MAX + 1]="";  // +1 for terminator
+    int bufferLen = __system_property_get(key, buffer);
+    if(bufferLen>0)
+        return buffer;
+    else
+        return "";
+}
+
+}
+
+/* static */
+ExtraUploadInfo UploadThread::GetExtraUploadInfo(JNIEnv* env, jobject activity) {
+    ExtraUploadInfo extra_info;
+    // Total memory
+    std::string s = slurpFile("/proc/meminfo");
+    if (!s.empty()) {
+        // Lines like 'MemTotal:        3749460 kB'
+        std::string to_find("MemTotal:");
+        auto it = s.find(to_find);
+        if(it!=std::string::npos) {
+            const char* p = s.data() + it + to_find.length();
+            p = skipSpace(p);
+            std::istringstream str(p);
+            uint64_t x;
+            str >> x;
+            std::string units;
+            str >> units;
+            static std::string unitPrefix = "bBkKmMgGtTpP";
+            auto j = unitPrefix.find(units[0]);
+            uint64_t mult = 1;
+            if (j!=std::string::npos) {
+                mult = ::pow(1024L,j/2);
+            }
+            extra_info.total_memory_bytes = x*mult;
+        }
+    }
+    extra_info.build_version_sdk = getSystemPropViaGet("ro.build.version.sdk");
+    extra_info.build_fingerprint = getSystemPropViaGet("ro.build.fingerprint");
+
+    extra_info.cpu_max_freq_hz.clear();
+    for(int index = 1;;++index) {
+        std::stringstream str;
+        str << "/sys/devices/system/cpu/cpu/" << index << "/cpufreq/cpuinfo_max_freq";
+        auto cpu_freq_file = slurpFile(str.str().c_str());
+        if (cpu_freq_file.empty())
+            break;
+        uint64_t freq;
+        std::istringstream cstr(cpu_freq_file);
+        cstr >> freq;
+        // TODO check units
+        extra_info.cpu_max_freq_hz.push_back(freq);
+    }
+
+    extra_info.apk_version_code = apk_utils::GetVersionCode(env, activity,
+        &extra_info.apk_package_name);
+    return extra_info;
+}
+
+void UploadThread::UpdateGLVersion() {
+    // gl_es_version
+    GLint glVerMajor = 2;
+    GLint glVerMinor = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &glVerMajor);
+    if (glGetError() != GL_NO_ERROR) {
+        glVerMajor = 0;
+        glVerMinor = 0;
+    } else {
+        glGetIntegerv(GL_MINOR_VERSION, &glVerMinor);
+    }
+    extra_info_.gl_es_version = (glVerMajor<<16) + glVerMinor;
 }
 
 } // namespace tuningfork
