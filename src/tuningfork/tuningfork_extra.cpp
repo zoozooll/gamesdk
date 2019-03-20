@@ -25,7 +25,7 @@
 
 namespace tf = tuningfork;
 
-namespace {
+namespace tuningfork {
 
 using PFN_Swappy_initTracer = void (*)(const SwappyTracer* tracer);
 
@@ -132,6 +132,10 @@ public:
 std::unique_ptr<SwappyTuningFork> SwappyTuningFork::s_instance_;
 
 namespace apk_utils {
+
+    // Get an asset from this APK's asset directory.
+    // Returns NULL if the asset could not be found.
+    // Asset_close must be called once the asset is no longer needed.
     AAsset* GetAsset(JNIEnv* env, jobject activity, const char* name) {
         jclass cls = env->FindClass("android/content/Context");
         jmethodID get_assets = env->GetMethodID(cls, "getAssets",
@@ -158,6 +162,9 @@ namespace apk_utils {
         }
         return asset;
     }
+
+    // Gets the serialized settings from the APK.
+    // Returns false if there was an error.
     bool GetSettingsSerialization(JNIEnv* env, jobject activity,
                                          CProtobufSerialization& settings_ser) {
         auto asset = GetAsset(env, activity, "tuningfork/tuningfork_settings.bin");
@@ -173,6 +180,11 @@ namespace apk_utils {
         AAsset_close(asset);
         return true;
     }
+
+    // Gets the serialized fidelity params from the APK.
+    // Call this function once with fps_ser=NULL to get the count of files present,
+    // then allocate an array of CProtobufSerializations and pass this as fps_ser
+    // to a second call.
     void GetFidelityParamsSerialization(JNIEnv* env, jobject activity,
                                                CProtobufSerialization* fps_ser,
                                                int* fp_count) {
@@ -199,10 +211,10 @@ namespace apk_utils {
             AAsset_close(asset);
         }
     }
-}
 
-namespace file_utils {
-    int GetVersionCode(JNIEnv *env, jobject context) {
+    // Get the app's version code. Also fills packageNameStr with the package name
+    //  if it is non-null.
+    int GetVersionCode(JNIEnv *env, jobject context, std::string* packageNameStr) {
         jstring packageName;
         jobject packageManagerObj;
         jobject packageInfoObj;
@@ -221,15 +233,27 @@ namespace file_utils {
 
         packageName =  (jstring)env->CallObjectMethod(context, getPackageNameMid);
 
+        if (packageNameStr != nullptr) {
+            // Fill packageNameStr with the package name
+            const char* packageName_cstr = env->GetStringUTFChars(packageName, NULL);
+            *packageNameStr = std::string(packageName_cstr);
+            env->ReleaseStringUTFChars(packageName, packageName_cstr);
+        }
+        // Get version code from package info
         packageManagerObj = env->CallObjectMethod(context, getPackageManager);
-
         packageInfoObj = env->CallObjectMethod(packageManagerObj,getPackageInfo,
                                                packageName, 0x0);
         int versionCode = env->GetIntField( packageInfoObj, versionCodeFid);
-
         return versionCode;
     }
-    bool CheckDir(const std::string& path) {
+
+} // namespace apk_utils
+
+namespace file_utils {
+
+    // Creates the directory if it does not exist. Returns true if the directory
+    //  already existed or could be created.
+    bool CheckAndCreateDir(const std::string& path) {
         struct stat sb;
         int32_t res = stat(path.c_str(), &sb);
         if (0 == res && sb.st_mode & S_IFDIR) {
@@ -244,6 +268,9 @@ namespace file_utils {
         }
         return false;
     }
+
+    // Get the name of the tuning fork save file. Returns true if the directory
+    //  for the file exists and false on error.
     bool GetSavedFileName(JNIEnv* env, jobject activity, std::string& name) {
         jclass activityClass = env->FindClass( "android/app/NativeActivity" );
         jmethodID getCacheDir = env->GetMethodID( activityClass, "getCacheDir",
@@ -261,17 +288,19 @@ namespace file_utils {
         // Create tuningfork/version folder if it doesn't exist
         std::stringstream tf_path_str;
         tf_path_str << temp_folder << "/tuningfork";
-        if (!CheckDir(tf_path_str.str())) {
+        if (!CheckAndCreateDir(tf_path_str.str())) {
             return false;
         }
-        tf_path_str << "/V" << GetVersionCode(env, activity);
-        if (!CheckDir(tf_path_str.str())) {
+        tf_path_str << "/V" << apk_utils::GetVersionCode(env, activity);
+        if (!CheckAndCreateDir(tf_path_str.str())) {
             return false;
         }
         tf_path_str << "/saved_fp.bin";
         name = tf_path_str.str();
         return true;
     }
+
+    // Get a previously save fidelity param serialization.
     bool GetSavedFidelityParams(JNIEnv* env, jobject activity, CProtobufSerialization* params) {
         std::string save_filename;
         if (GetSavedFileName(env, activity, save_filename)) {
@@ -290,6 +319,8 @@ namespace file_utils {
         }
         return false;
     }
+
+    // Save fidelity params to the save file.
     bool SaveFidelityParams(JNIEnv* env, jobject activity, const CProtobufSerialization* params) {
         std::string save_filename;
         if (GetSavedFileName(env, activity, save_filename)) {
@@ -303,6 +334,8 @@ namespace file_utils {
         }
         return false;
     }
+
+    // Check if we have saved fidelity params.
     bool SavedFidelityParamsFileExists(JNIEnv* env, jobject activity) {
         std::string save_filename;
         if (GetSavedFileName(env, activity, save_filename)) {
@@ -311,13 +344,14 @@ namespace file_utils {
         }
         return false;
     }
-}
 
+} // namespace file_utils
+
+// Download FPs on a separate thread
 void StartFidelityParamDownloadThread(JNIEnv* env, jobject activity,
                                       const CProtobufSerialization& defaultParams,
                                       ProtoCallback fidelity_params_callback,
                                       int initialTimeoutMs, int ultimateTimeoutMs) {
-    // Download FPs on a separate thread
     static std::mutex threadMutex;
     std::lock_guard<std::mutex> lock(threadMutex);
     static std::thread fpThread;
@@ -362,9 +396,12 @@ void StartFidelityParamDownloadThread(JNIEnv* env, jobject activity,
         }
     }, defaultParams);
 }
-} // anonymous namespace
+
+} // namespace tuningfork
 
 extern "C" {
+
+using namespace tuningfork;
 
 bool TuningFork_findSettingsInAPK(JNIEnv* env, jobject activity,
                                   CProtobufSerialization* settings_ser) {
