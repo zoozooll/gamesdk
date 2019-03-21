@@ -14,11 +14,11 @@
  * limitations under the License
  */
 
-syntax = "proto2";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
 // Annotation can only contains ENUMs
 message Annotation {
-  optional int32 invalid_field = 4;
+  int32 invalid_field = 4;
 }

@@ -14,18 +14,18 @@
  * limitations under the License
  */
 
-syntax = "proto2";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
 message Message {
   message State {
-    optional int32 value = 1;
+    int32 value = 1;
   }
-  optional State field1 = 1;
+  State field1 = 1;
 }
 
 message AnotherMessage {
-  optional int32 field1 = 1;
-  optional string field2 = 2;
+  int32 field1 = 1;
+  string field2 = 2;
 }

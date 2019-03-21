@@ -14,10 +14,10 @@
  * limitations under the License
  */
 
-syntax = "proto2";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
 message FidelityParams {
-  optional int64 not_int32_field = 1;
+  int64 not_int32_field = 1;
 }
