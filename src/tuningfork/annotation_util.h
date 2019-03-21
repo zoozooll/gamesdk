@@ -37,4 +37,5 @@ int SerializeAnnotationId(uint64_t id, SerializedAnnotation& ser,
 
 void SetUpAnnotationRadixes( std::vector<int>& radix_mult,
                              const std::vector<int>& enum_sizes);
+
 } // namespace annotation_util
