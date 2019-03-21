@@ -38,11 +38,7 @@ task prepare_proto(dependsOn: prepare_proto_before) {
     doLast {
         exec {
             commandLine "python"
-            args = ["-c", "import google.protobuf as pb; print('python protobuf contains: ' + str(dir(pb)))"]
-        }
-        exec {
-            commandLine "python"
-            args = ["-c", "import google.protobuf as pb; print('python protobuf version is: ' + pb.__version__)"]
+            args = ["ab_info.py"]
         }
         exec {
             commandLine "dpkg-query"
