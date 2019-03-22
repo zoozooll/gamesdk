@@ -17,14 +17,13 @@
 package com.google.tuningfork.validation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.flogger.GoogleLogger;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protos.com.google.tuningfork.Tuningfork.Settings;
-import com.google.protos.com.google.tuningfork.Tuningfork.Settings.AggregationStrategy;
+import com.google.tuningfork.Tuningfork.Settings;
+import com.google.tuningfork.Tuningfork.Settings.AggregationStrategy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -33,8 +32,6 @@ import java.util.List;
 final class ValidationUtil {
 
   private ValidationUtil() {}
-
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private static final Integer MAX_INTSTRUMENTATION_KEYS = 256;
 
@@ -185,15 +182,6 @@ final class ValidationUtil {
             String.format(
                 "FidelityParams can only be of type FLOAT, INT32 or ENUM, %s field has type %s",
                 field.getName(), type));
-      }
-
-      if (field.getType() == FieldDescriptor.Type.ENUM
-          && field.getEnumType().findValueByNumber(0) != null) {
-        errors.addError(
-            ErrorType.FIDELITY_PARAMS_INDEX,
-            String.format(
-                "FidelityParams's enums must not start from 0 index, but %s enum has zero index",
-                field.getName()));
       }
     }
   }

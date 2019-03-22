@@ -14,7 +14,7 @@
  * limitations under the License
  */
 
-syntax = "proto2";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
@@ -23,7 +23,7 @@ import "proto/not/exist.proto";
 // Annotation can not contain messages
 message Annotation {
   message State {
-    optional int32 value = 1;
+    int32 value = 1;
   }
-  optional State too_complex_state = 1;
+  State too_complex_state = 1;
 }

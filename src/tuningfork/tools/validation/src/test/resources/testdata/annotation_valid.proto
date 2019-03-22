@@ -14,44 +14,44 @@
  * limitations under the License
  */
 
-syntax = "proto2";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
 enum LoadingState {
-  LOADING = 1;
-  NOT_LOADING = 2;
+  UNKNOWN_LOADING_STATE = 0;
+  NOT_LOADING = 1;
 }
 enum State {
+  UNKNOWN_STATE = 0;
   STATE_ONE = 1;
   STATE_TWO = 2;
-  STATE_THREE = 3;
 }
 enum QualitySettings {
-  FASTEST = 1;
-  FAST = 2;
-  SIMPLE = 3;
-  GOOD = 4;
-  BEAUTIFUL = 5;
-  FANTASTIC = 6;
+  UNKNOWN_SETTINGS = 0;
+  FAST = 1;
+  SIMPLE = 2;
+  GOOD = 3;
+  BEAUTIFUL = 4;
+  FANTASTIC = 5;
 }
 enum UnusedEnum {
-  VALUE1 = 1;
-  VALUE2 = 2;
-  VALUE3 = 3;
+  UNKNOWN_VALUE = 0;
+  VALUE2 = 1;
+  VALUE3 = 2;
 }
 
 message Annotation {
   enum NestedEnum {
-    FASTEST = 1;
-    FAST = 2;
-    SIMPLE = 3;
-    GOOD = 4;
-    BEAUTIFUL = 5;
-    FANTASTIC = 6;
+    UNKNOWN_NESTED_ENUM = 0;
+    FAST = 1;
+    SIMPLE = 2;
+    GOOD = 3;
+    BEAUTIFUL = 4;
+    FANTASTIC = 5;
   }
-  optional LoadingState loading_state = 1;
-  optional State state = 2;
-  optional QualitySettings settings = 3;
-  optional NestedEnum nested_enum = 4;
+  LoadingState loading_state = 1;
+  State state = 2;
+  QualitySettings settings = 3;
+  NestedEnum nested_enum = 4;
 }

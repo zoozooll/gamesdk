@@ -14,13 +14,13 @@
  * limitations under the License
  */
 
-syntax = "proto2";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
 message FidelityParams {
   message Nested {
-    optional int32 value = 1;
+    int32 value = 1;
   }
-  optional Nested complex_field = 1;
+  Nested complex_field = 1;
 }

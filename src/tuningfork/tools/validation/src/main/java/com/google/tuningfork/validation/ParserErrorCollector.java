@@ -19,11 +19,11 @@ package com.google.tuningfork.validation;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.flogger.GoogleLogger;
+import com.google.common.flogger.FluentLogger;
 
 /** Collects validation errors */
 final class ParserErrorCollector implements ErrorCollector {
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   private final ListMultimap<ErrorType, String> errors = LinkedListMultimap.create();
 
@@ -81,7 +81,6 @@ final class ParserErrorCollector implements ErrorCollector {
   public Boolean hasFidelityParamsErrors() {
     return errors.containsKey(ErrorType.FIDELITY_PARAMS_EMPTY)
         || errors.containsKey(ErrorType.FIDELITY_PARAMS_COMPLEX)
-        || errors.containsKey(ErrorType.FIDELITY_PARAMS_TYPE)
-        || errors.containsKey(ErrorType.FIDELITY_PARAMS_INDEX);
+        || errors.containsKey(ErrorType.FIDELITY_PARAMS_TYPE);
   }
 }

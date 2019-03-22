@@ -20,9 +20,9 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protos.com.google.tuningfork.Tuningfork.Settings;
-import com.google.protos.com.google.tuningfork.Tuningfork.Settings.AggregationStrategy;
-import com.google.protos.com.google.tuningfork.Tuningfork.Settings.Histogram;
+import com.google.tuningfork.Tuningfork.Settings;
+import com.google.tuningfork.Tuningfork.Settings.AggregationStrategy;
+import com.google.tuningfork.Tuningfork.Settings.Histogram;
 import com.google.testing.testsize.MediumTest;
 import java.io.File;
 import java.util.Arrays;

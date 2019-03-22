@@ -35,6 +35,8 @@ final class ProtoHelper {
     File file = File.createTempFile(TEMP_FILE_NAME, null);
     Files.asCharSink(file, UTF_8).write(content);
     ExternalProtoCompiler compiler = new ExternalProtoCompiler(protocBinary);
-    return compiler.compile(file);
+    FileDescriptor desc = compiler.compile(file);
+    file.delete();
+    return desc;
   }
 }
