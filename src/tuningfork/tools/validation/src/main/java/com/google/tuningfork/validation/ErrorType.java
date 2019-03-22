@@ -24,9 +24,8 @@ public enum ErrorType {
 
   FIDELITY_PARAMS_EMPTY, // FidelityParams fied is empty
   FIDELITY_PARAMS_COMPLEX, // FidelityParams field is complex - contains
-  // oneof/nestedtypes/extensions
+                           // oneof/nestedtypes/extensions
   FIDELITY_PARAMS_TYPE, // FidelityParams can only contains float, int32 or enum
-  FIDELITY_PARAMS_INDEX, // FidelityParams's enums can not have 0 index
 
   DEV_FIDELITY_PARAMETERS_EMPTY, // Fidelity parameters are empty
   DEV_FIDELITY_PARAMETERS_PARSING, // Fidelity parameters parsing error

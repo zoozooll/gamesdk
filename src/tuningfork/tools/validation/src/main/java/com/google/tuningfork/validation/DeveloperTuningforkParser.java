@@ -21,12 +21,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.common.flogger.GoogleLogger;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
-import com.google.protos.com.google.tuningfork.Tuningfork.Settings;
+import com.google.tuningfork.Tuningfork.Settings;
 import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
@@ -34,7 +34,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 /** Tuningfork validation tool.
- * Parses proto and settings files and validates it. */
+ * Parses proto and settings files and validates them. */
 public class DeveloperTuningforkParser {
 
   private Optional<String> devTuningfork = Optional.empty();
@@ -44,7 +44,7 @@ public class DeveloperTuningforkParser {
   private final ErrorCollector errors;
   private final File protocBinary;
 
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   public DeveloperTuningforkParser(ErrorCollector errors, File protocBinary) {
     this.errors = errors;

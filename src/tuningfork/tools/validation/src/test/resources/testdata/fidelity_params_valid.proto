@@ -14,21 +14,21 @@
  * limitations under the License
  */
 
-syntax = "proto2";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
 enum QualitySettings {
-  FASTEST = 1;
-  FAST = 2;
-  SIMPLE = 3;
-  GOOD = 4;
-  BEAUTIFUL = 5;
-  FANTASTIC = 6;
+  UNKNOWN = 0;
+  FAST = 1;
+  SIMPLE = 2;
+  GOOD = 3;
+  BEAUTIFUL = 4;
+  FANTASTIC = 5;
 }
 
 message FidelityParams {
-  optional QualitySettings field1 = 1;
-  optional int32 field2 = 2;
-  optional float field3 = 3;
+  QualitySettings field1 = 1;
+  int32 field2 = 2;
+  float field3 = 3;
 }

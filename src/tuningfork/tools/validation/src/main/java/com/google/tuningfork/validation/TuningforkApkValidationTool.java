@@ -22,7 +22,7 @@ import com.google.common.base.Strings;
 import com.google.common.flags.Flag;
 import com.google.common.flags.FlagSpec;
 import com.google.common.flags.Flags;
-import com.google.common.flogger.GoogleLogger;
+import com.google.common.flogger.FluentLogger;
 import java.io.File;
 import java.io.IOException;
 import java.util.Enumeration;
@@ -31,7 +31,7 @@ import java.util.jar.JarFile;
 
 /** APK Validation tool for Tuningfork */
 final class TuningforkApkValidationTool {
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @FlagSpec(help = "Path to apk file")
   public static final Flag<String> apkPath = Flag.nullString();

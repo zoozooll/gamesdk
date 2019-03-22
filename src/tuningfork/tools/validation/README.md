@@ -1,10 +1,10 @@
 # Tuning Fork Validation tool
 
-Current tool validates proto and settings files in APK.
+This tool validates Tuning Fork proto and settings files in an APK.
 
 ## tuningfork_settings
 
-Apk must contain *assets/tuningfork/tuningfork_settings.bin* file with
+The APK must contain *assets/tuningfork/tuningfork_settings.bin* file with
 serialized data for `Settings` proto message:
 
 ```proto
@@ -45,7 +45,7 @@ aggregation_strategy:
   method: TIME_BASED,
   intervalms_or_count: 600000,
   max_instrumentation_keys: 2,
-  annotation_enum_size: [2, 3]
+  annotation_enum_size: [3, 4]
 }
 histograms:
 [
@@ -73,13 +73,12 @@ and `FidelityParams` proto message.
 
 Both messages (`Annotation` and `FidelityParams`) must follow these rules
 * No oneofs
-* No Nested types 
+* No Nested types
 * No extensions
-* Enums must not contains fields with 0 index
 
 Additional limitation for `Annotation` message only
 * Only `ENUM` types
-* Size of enums must match a`nnotation_enum_size` field in settings.
+* Size of enums must match 'annotation_enum_size` field in settings.
 
 Additional limitation for `FidelityParams` messsage only
 * Only `ENUM`, `FLOAT` and `INT32` types
@@ -89,27 +88,30 @@ Additional limitation for `FidelityParams` messsage only
 Valid .proto file:
 
 ```proto
-syntax = "proto2";
+syntax = "proto3";
 
 package com.google.tuningfork;
 
 enum LoadingState {
+  UNKNOWN = 0;
   LOADING = 1;
   NOT_LOADING = 2;
 }
 
 enum Level {
+  UNKNOWN = 0;
   Level_1 = 1;
   Level_2 = 2;
   Level_3 = 3;
 }
 
 message Annotation {
-  optional LoadingState loading_state = 1;
-  optional Level level = 2;
+  LoadingState loading_state = 1;
+  Level level = 2;
 }
 
 enum QualitySettings {
+  UNKNOWN = 0;
   FASTEST = 1;
   FAST = 2;
   SIMPLE = 3;
@@ -119,16 +121,26 @@ enum QualitySettings {
 }
 
 message FidelityParams {
-  optional QualitySettings quality_settings = 1;
-  optional int32 lod_level = 2;
-  optional float distance = 3;
+  QualitySettings quality_settings = 1;
+  int32 lod_level = 2;
+  float distance = 3;
 }
 ```
 
+### Annotation size explanation
+
+*annotation_enum_size* from Settings proto must match 'Annotation' message
+
+From `Annotation` message example above:
+  * number of enum fields for `LoadingState` enum is 3
+  * number of enum fields for `Level` enum is 4
+  * `Annotation` message contains two fields - 'loading_state' and 'level'
+  * `annotation_enum_size` must be [3, 4]
+
 ## dev_tuningfork_fidelityparams
 
-Apk must contain at least one file in assets/tuningfork folder with pattern 
-*dev_tuningfork_fidelityparams_.{1,15}.bin*. Each file contains serialized 
+The APK must contain at least one file in assets/tuningfork folder with pattern
+*dev_tuningfork_fidelityparams_.{1,15}.bin*. Each file contains serialized
 parameters for `FidelityParams` proto message from *dev_tuningfork.proto* file.
 
 
