@@ -48,8 +48,8 @@ void TuningFork_findFidelityParamsInAPK(JNIEnv* env, jobject activity,
 // When using Swappy, there will be 2 default tick points added and the
 //  histogram settings need to be coordinated with your swap rate.
 // If you know the shared library in which Swappy is, pass it in libraryName.
-// If libraryName is NULL or TuningFork cannot find Swappy in the library, it
-//  will look in the current module and then try in order:
+// If libraryName is NULL or TuningFork cannot find Swappy in the library, the
+//  function  will look in the current module and then try in order:
 //  [libgamesdk.so, libswappy.so, libunity.so]
 // frame_callback is called once per frame: you can set any Annotations
 //  during this callback if you wish.
@@ -80,11 +80,11 @@ void TuningFork_setUploadCallback(ProtoCallback cbk);
 // ultimateTimeoutMs is the time after which to stop retrying the download.
 // The following error codes may be returned:
 enum TFErrorCode {
-  TFERROR_OK = 0, // No error
-  TFERROR_NO_SETTINGS = 1, // No tuningfork_settings.bin found in assets/tuningfork.
-  TFERROR_NO_SWAPPY = 2, // Not able to find Swappy.
-  TFERROR_INVALID_DEFAULT_FIDELITY_PARAMS = 3, // fpDefaultFileNum is out of range.
-  TFERROR_NO_FIDELITY_PARAMS = 4 // No dev_tuningfork_fidelityparams_#.bin found
+    TFERROR_OK = 0, // No error
+    TFERROR_NO_SETTINGS = 1, // No tuningfork_settings.bin found in assets/tuningfork.
+    TFERROR_NO_SWAPPY = 2, // Not able to find Swappy.
+    TFERROR_INVALID_DEFAULT_FIDELITY_PARAMS = 3, // fpDefaultFileNum is out of range.
+    TFERROR_NO_FIDELITY_PARAMS = 4 // No dev_tuningfork_fidelityparams_#.bin found
                                  //  in assets/tuningfork.
 };
 TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject activity,
