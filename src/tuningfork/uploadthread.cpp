@@ -15,6 +15,7 @@
  */
 
 #include "uploadthread.h"
+#include "tuningfork_utils.h"
 
 #include <sys/system_properties.h>
 #include <GLES3/gl32.h>

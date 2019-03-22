@@ -1,7 +1,8 @@
 
 #include "tuningfork/tuningfork_extra.h"
-#include "tuningfork_internal.h"
 #include "tuningfork/protobuf_util.h"
+#include "tuningfork_internal.h"
+#include "tuningfork_utils.h"
 
 #include <cinttypes>
 #include <dlfcn.h>
@@ -12,20 +13,17 @@
 #include <thread>
 #include <fstream>
 #include <mutex>
-#include <sys/stat.h>
-#include <errno.h>
 
 #define LOG_TAG "TuningFork"
 #include "Log.h"
 #include "swappy/swappy_extra.h"
 
-#include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
 #include <jni.h>
 
-namespace tf = tuningfork;
+using namespace tuningfork;
 
-namespace tuningfork {
+namespace {
 
 using PFN_Swappy_initTracer = void (*)(const SwappyTracer* tracer);
 
@@ -131,221 +129,117 @@ public:
 
 std::unique_ptr<SwappyTuningFork> SwappyTuningFork::s_instance_;
 
-namespace apk_utils {
+// Gets the serialized settings from the APK.
+// Returns false if there was an error.
+bool GetSettingsSerialization(JNIEnv* env, jobject activity,
+                                        CProtobufSerialization& settings_ser) {
+    auto asset = apk_utils::GetAsset(env, activity, "tuningfork/tuningfork_settings.bin");
+    if (asset == nullptr )
+        return false;
+    ALOGI("Got settings from tuningfork/tuningfork_settings.bin");
+    // Get serialized settings from assets
+    uint64_t size = AAsset_getLength64(asset);
+    settings_ser.bytes = (uint8_t*)::malloc(size);
+    memcpy(settings_ser.bytes, AAsset_getBuffer(asset), size);
+    settings_ser.size = size;
+    settings_ser.dealloc = ::free;
+    AAsset_close(asset);
+    return true;
+}
 
-    // Get an asset from this APK's asset directory.
-    // Returns NULL if the asset could not be found.
-    // Asset_close must be called once the asset is no longer needed.
-    AAsset* GetAsset(JNIEnv* env, jobject activity, const char* name) {
-        jclass cls = env->FindClass("android/content/Context");
-        jmethodID get_assets = env->GetMethodID(cls, "getAssets",
-                                                "()Landroid/content/res/AssetManager;");
-        if(get_assets==nullptr) {
-            ALOGE("No Context.getAssets() method");
-            return nullptr;
-        }
-        auto javaMgr = env->CallObjectMethod(activity, get_assets);
-        if (javaMgr == nullptr) {
-            ALOGE("No java asset manager");
-            return nullptr;
-        }
-        AAssetManager* mgr = AAssetManager_fromJava(env, javaMgr);
-        if (mgr == nullptr) {
-            ALOGE("No asset manager");
-            return nullptr;
-        }
-        AAsset* asset = AAssetManager_open(mgr, name,
-                                           AASSET_MODE_BUFFER);
-        if (asset == nullptr) {
-            ALOGW("Can't find %s in APK", name);
-            return nullptr;
-        }
-        return asset;
+// Gets the serialized fidelity params from the APK.
+// Call this function once with fps_ser=NULL to get the count of files present,
+// then allocate an array of CProtobufSerializations and pass this as fps_ser
+// to a second call.
+void GetFidelityParamsSerialization(JNIEnv* env, jobject activity,
+                                            CProtobufSerialization* fps_ser,
+                                            int* fp_count) {
+    std::vector<AAsset*> fps;
+    for( int i=1; i<16; ++i ) {
+        std::stringstream name;
+        name << "tuningfork/dev_tuningfork_fidelityparams_" << i << ".bin";
+        auto fp = apk_utils::GetAsset(env, activity, name.str().c_str());
+        if ( fp == nullptr ) break;
+        fps.push_back(fp);
     }
-
-    // Gets the serialized settings from the APK.
-    // Returns false if there was an error.
-    bool GetSettingsSerialization(JNIEnv* env, jobject activity,
-                                         CProtobufSerialization& settings_ser) {
-        auto asset = GetAsset(env, activity, "tuningfork/tuningfork_settings.bin");
-        if (asset == nullptr )
-            return false;
-        ALOGI("Got settings from tuningfork/tuningfork_settings.bin");
-        // Get serialized settings from assets
+    *fp_count = fps.size();
+    if( fps_ser==nullptr )
+        return;
+    for(int i=0; i<*fp_count; ++i) {
+        // Get serialized FidelityParams from assets
+        AAsset* asset = fps[i];
+        CProtobufSerialization& fp_ser = fps_ser[i];
         uint64_t size = AAsset_getLength64(asset);
-        settings_ser.bytes = (uint8_t*)::malloc(size);
-        memcpy(settings_ser.bytes, AAsset_getBuffer(asset), size);
-        settings_ser.size = size;
-        settings_ser.dealloc = ::free;
+        fp_ser.bytes = (uint8_t*)::malloc(size);
+        memcpy(fp_ser.bytes, AAsset_getBuffer(asset), size);
+        fp_ser.size = size;
+        fp_ser.dealloc = ::free;
         AAsset_close(asset);
-        return true;
     }
+}
 
-    // Gets the serialized fidelity params from the APK.
-    // Call this function once with fps_ser=NULL to get the count of files present,
-    // then allocate an array of CProtobufSerializations and pass this as fps_ser
-    // to a second call.
-    void GetFidelityParamsSerialization(JNIEnv* env, jobject activity,
-                                               CProtobufSerialization* fps_ser,
-                                               int* fp_count) {
-        std::vector<AAsset*> fps;
-        for( int i=1; i<16; ++i ) {
-            std::stringstream name;
-            name << "tuningfork/dev_tuningfork_fidelityparams_" << i << ".bin";
-            auto fp = GetAsset(env, activity, name.str().c_str());
-            if ( fp == nullptr ) break;
-            fps.push_back(fp);
-        }
-        *fp_count = fps.size();
-        if( fps_ser==nullptr )
-            return;
-        for(int i=0; i<*fp_count; ++i) {
-            // Get serialized FidelityParams from assets
-            AAsset* asset = fps[i];
-            CProtobufSerialization& fp_ser = fps_ser[i];
-            uint64_t size = AAsset_getLength64(asset);
-            fp_ser.bytes = (uint8_t*)::malloc(size);
-            memcpy(fp_ser.bytes, AAsset_getBuffer(asset), size);
-            fp_ser.size = size;
-            fp_ser.dealloc = ::free;
-            AAsset_close(asset);
-        }
+// Get the name of the tuning fork save file. Returns true if the directory
+//  for the file exists and false on error.
+bool GetSavedFileName(JNIEnv* env, jobject activity, std::string& name) {
+
+    // Create tuningfork/version folder if it doesn't exist
+    std::stringstream tf_path_str;
+    tf_path_str << file_utils::GetAppCacheDir(env, activity) << "/tuningfork";
+    if (!file_utils::CheckAndCreateDir(tf_path_str.str())) {
+        return false;
     }
-
-    // Get the app's version code. Also fills packageNameStr with the package name
-    //  if it is non-null.
-    int GetVersionCode(JNIEnv *env, jobject context, std::string* packageNameStr) {
-        jstring packageName;
-        jobject packageManagerObj;
-        jobject packageInfoObj;
-        jclass contextClass =  env->GetObjectClass( context);
-        jmethodID getPackageNameMid = env->GetMethodID( contextClass, "getPackageName",
-            "()Ljava/lang/String;");
-        jmethodID getPackageManager =  env->GetMethodID( contextClass, "getPackageManager",
-            "()Landroid/content/pm/PackageManager;");
-
-        jclass packageManagerClass = env->FindClass("android/content/pm/PackageManager");
-        jmethodID getPackageInfo = env->GetMethodID( packageManagerClass, "getPackageInfo",
-            "(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;");
-
-        jclass packageInfoClass = env->FindClass("android/content/pm/PackageInfo");
-        jfieldID versionCodeFid = env->GetFieldID( packageInfoClass, "versionCode", "I");
-
-        packageName =  (jstring)env->CallObjectMethod(context, getPackageNameMid);
-
-        if (packageNameStr != nullptr) {
-            // Fill packageNameStr with the package name
-            const char* packageName_cstr = env->GetStringUTFChars(packageName, NULL);
-            *packageNameStr = std::string(packageName_cstr);
-            env->ReleaseStringUTFChars(packageName, packageName_cstr);
-        }
-        // Get version code from package info
-        packageManagerObj = env->CallObjectMethod(context, getPackageManager);
-        packageInfoObj = env->CallObjectMethod(packageManagerObj,getPackageInfo,
-                                               packageName, 0x0);
-        int versionCode = env->GetIntField( packageInfoObj, versionCodeFid);
-        return versionCode;
+    tf_path_str << "/V" << apk_utils::GetVersionCode(env, activity);
+    if (!file_utils::CheckAndCreateDir(tf_path_str.str())) {
+        return false;
     }
+    tf_path_str << "/saved_fp.bin";
+    name = tf_path_str.str();
+    return true;
+}
 
-} // namespace apk_utils
-
-namespace file_utils {
-
-    // Creates the directory if it does not exist. Returns true if the directory
-    //  already existed or could be created.
-    bool CheckAndCreateDir(const std::string& path) {
-        struct stat sb;
-        int32_t res = stat(path.c_str(), &sb);
-        if (0 == res && sb.st_mode & S_IFDIR) {
-            ALOGV("Directory %s already exists", path.c_str());
+// Get a previously save fidelity param serialization.
+bool GetSavedFidelityParams(JNIEnv* env, jobject activity, CProtobufSerialization* params) {
+    std::string save_filename;
+    if (GetSavedFileName(env, activity, save_filename)) {
+        std::ifstream save_file(save_filename, std::ios::binary);
+        if (save_file.good()) {
+            save_file.seekg(0, std::ios::end);
+            params->size = save_file.tellg();
+            params->bytes = (uint8_t*)::malloc(params->size);
+            params->dealloc = ::free;
+            save_file.seekg(0, std::ios::beg);
+            save_file.read((char*)params->bytes, params->size);
+            ALOGI("Loaded fps from %s (%zu bytes)", save_filename.c_str(), params->size);
             return true;
-        } else if (ENOENT == errno) {
-            ALOGI("Creating directory %s", path.c_str());
-            res = mkdir(path.c_str(), 0770);
-            if(res!=0)
-                ALOGW("Error creating directory %s: %d", path.c_str(), res);
-            return res==0;
         }
-        return false;
+        ALOGI("Couldn't load fps from %s", save_filename.c_str());
     }
+    return false;
+}
 
-    // Get the name of the tuning fork save file. Returns true if the directory
-    //  for the file exists and false on error.
-    bool GetSavedFileName(JNIEnv* env, jobject activity, std::string& name) {
-        jclass activityClass = env->FindClass( "android/app/NativeActivity" );
-        jmethodID getCacheDir = env->GetMethodID( activityClass, "getCacheDir",
-            "()Ljava/io/File;" );
-        jobject cache_dir = env->CallObjectMethod( activity, getCacheDir );
-
-        jclass fileClass = env->FindClass( "java/io/File" );
-        jmethodID getPath = env->GetMethodID( fileClass, "getPath", "()Ljava/lang/String;" );
-        jstring path_string = (jstring)env->CallObjectMethod( cache_dir, getPath );
-
-        const char *path_chars = env->GetStringUTFChars( path_string, NULL );
-        std::string temp_folder( path_chars );
-        env->ReleaseStringUTFChars( path_string, path_chars );
-
-        // Create tuningfork/version folder if it doesn't exist
-        std::stringstream tf_path_str;
-        tf_path_str << temp_folder << "/tuningfork";
-        if (!CheckAndCreateDir(tf_path_str.str())) {
-            return false;
+// Save fidelity params to the save file.
+bool SaveFidelityParams(JNIEnv* env, jobject activity, const CProtobufSerialization* params) {
+    std::string save_filename;
+    if (GetSavedFileName(env, activity, save_filename)) {
+        std::ofstream save_file(save_filename, std::ios::binary);
+        if (save_file.good()) {
+            save_file.write((const char*)params->bytes, params->size);
+            ALOGI("Saved fps to %s (%zu bytes)", save_filename.c_str(), params->size);
+            return true;
         }
-        tf_path_str << "/V" << apk_utils::GetVersionCode(env, activity);
-        if (!CheckAndCreateDir(tf_path_str.str())) {
-            return false;
-        }
-        tf_path_str << "/saved_fp.bin";
-        name = tf_path_str.str();
-        return true;
+        ALOGI("Couldn't save fps to %s", save_filename.c_str());
     }
+    return false;
+}
 
-    // Get a previously save fidelity param serialization.
-    bool GetSavedFidelityParams(JNIEnv* env, jobject activity, CProtobufSerialization* params) {
-        std::string save_filename;
-        if (GetSavedFileName(env, activity, save_filename)) {
-            std::ifstream save_file(save_filename, std::ios::binary);
-            if (save_file.good()) {
-                save_file.seekg(0, std::ios::end);
-                params->size = save_file.tellg();
-                params->bytes = (uint8_t*)::malloc(params->size);
-                params->dealloc = ::free;
-                save_file.seekg(0, std::ios::beg);
-                save_file.read((char*)params->bytes, params->size);
-                ALOGI("Loaded fps from %s (%zu bytes)", save_filename.c_str(), params->size);
-                return true;
-            }
-            ALOGI("Couldn't load fps from %s", save_filename.c_str());
-        }
-        return false;
+// Check if we have saved fidelity params.
+bool SavedFidelityParamsFileExists(JNIEnv* env, jobject activity) {
+    std::string save_filename;
+    if (GetSavedFileName(env, activity, save_filename)) {
+        return file_utils::FileExists(save_filename);
     }
-
-    // Save fidelity params to the save file.
-    bool SaveFidelityParams(JNIEnv* env, jobject activity, const CProtobufSerialization* params) {
-        std::string save_filename;
-        if (GetSavedFileName(env, activity, save_filename)) {
-            std::ofstream save_file(save_filename, std::ios::binary);
-            if (save_file.good()) {
-                save_file.write((const char*)params->bytes, params->size);
-                ALOGI("Saved fps to %s (%zu bytes)", save_filename.c_str(), params->size);
-                return true;
-            }
-            ALOGI("Couldn't save fps to %s", save_filename.c_str());
-        }
-        return false;
-    }
-
-    // Check if we have saved fidelity params.
-    bool SavedFidelityParamsFileExists(JNIEnv* env, jobject activity) {
-        std::string save_filename;
-        if (GetSavedFileName(env, activity, save_filename)) {
-            struct stat buffer;
-            return (stat(save_filename.c_str(), &buffer)==0);
-        }
-        return false;
-    }
-
-} // namespace file_utils
+    return false;
+}
 
 // Download FPs on a separate thread
 void StartFidelityParamDownloadThread(JNIEnv* env, jobject activity,
@@ -372,10 +266,10 @@ void StartFidelityParamDownloadThread(JNIEnv* env, jobject activity,
                 if (TuningFork_getFidelityParameters(&defaultParams,
                                                      &params, waitTimeMs)) {
                     ALOGI("Got fidelity params from server");
-                    file_utils::SaveFidelityParams(newEnv, newActivity, &params);
-                    tf::CProtobufSerialization_Free(&defaultParams);
+                    SaveFidelityParams(newEnv, newActivity, &params);
+                    CProtobufSerialization_Free(&defaultParams);
                     fidelity_params_callback(&params);
-                    tf::CProtobufSerialization_Free(&params);
+                    CProtobufSerialization_Free(&params);
                     break;
                 } else {
                     ALOGI("Could not get fidelity params from server");
@@ -385,7 +279,7 @@ void StartFidelityParamDownloadThread(JNIEnv* env, jobject activity,
                     }
                     if (waitTimeMs > ultimateTimeoutMs) {
                         ALOGW("Not waiting any longer for fidelity params");
-                        tf::CProtobufSerialization_Free(&defaultParams);
+                        CProtobufSerialization_Free(&defaultParams);
                         break;
                     }
                     waitTimeMs *= 2; // back off
@@ -397,23 +291,21 @@ void StartFidelityParamDownloadThread(JNIEnv* env, jobject activity,
     }, defaultParams);
 }
 
-} // namespace tuningfork
+} // anonymous namespace
 
 extern "C" {
-
-using namespace tuningfork;
 
 bool TuningFork_findSettingsInAPK(JNIEnv* env, jobject activity,
                                   CProtobufSerialization* settings_ser) {
     if(settings_ser) {
-        return apk_utils::GetSettingsSerialization(env, activity, *settings_ser);
+        return GetSettingsSerialization(env, activity, *settings_ser);
     } else {
         return false;
     }
 }
 void TuningFork_findFidelityParamsInAPK(JNIEnv* env, jobject activity,
                                         CProtobufSerialization* fps, int* fp_count) {
-    apk_utils::GetFidelityParamsSerialization(env, activity, fps, fp_count);
+    GetFidelityParamsSerialization(env, activity, fps, fp_count);
 }
 
 bool TuningFork_initWithSwappy(const CProtobufSerialization* settings, JNIEnv* env,
@@ -442,8 +334,8 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject activity,
     bool resetSavedFPs = fpFileNum<0;
     fpFileNum = abs(fpFileNum);
     // Use the saved params as default, if they exist
-    if (!resetSavedFPs && file_utils::SavedFidelityParamsFileExists(env, activity)) {
-        file_utils::GetSavedFidelityParams(env, activity, &defaultParams);
+    if (!resetSavedFPs && SavedFidelityParamsFileExists(env, activity)) {
+        GetSavedFidelityParams(env, activity, &defaultParams);
     } else {
         int nfps=0;
         TuningFork_findFidelityParamsInAPK(env, activity, NULL, &nfps);
@@ -455,7 +347,7 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject activity,
                 if (i==chosen) {
                     defaultParams = fps[i];
                 } else {
-                    tf::CProtobufSerialization_Free(&fps[i]);
+                    CProtobufSerialization_Free(&fps[i]);
                 }
             }
             if (chosen>=0 && chosen<nfps) {
@@ -468,7 +360,7 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject activity,
             return TFERROR_NO_FIDELITY_PARAMS;
         }
         // Save the default params
-        file_utils::SaveFidelityParams(env, activity, &defaultParams);
+        SaveFidelityParams(env, activity, &defaultParams);
     }
     StartFidelityParamDownloadThread(env, activity, defaultParams, fidelity_params_callback,
         initialTimeoutMs, ultimateTimeoutMs);
