@@ -49,4 +49,7 @@ namespace file_utils {
 
 } // namespace file_utils
 
+// Get a unique identifier using java.util.UUID
+std::string UniqueId(JNIEnv* env);
+
 } // namespace tuningfork
