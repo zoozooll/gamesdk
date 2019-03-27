@@ -136,6 +136,8 @@ void ClearcutSerializer::FillExtras(const ExtraUploadInfo& info,
     evt.apk_package_name.arg = (void*)&info.apk_package_name;
     evt.has_apk_version_code = true;
     evt.apk_version_code = info.apk_version_code;
+    evt.has_tuningfork_version = true;
+    evt.tuningfork_version = info.tuningfork_version;
 }
 
 void ClearcutSerializer::FillHistograms(const ProngCache& pc, TuningForkLogEvent &evt) {

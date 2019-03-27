@@ -48,7 +48,7 @@ void Renderer::setWindow(ANativeWindow *window, int32_t width, int32_t height) {
     enqueue([=](State* state) {
         state->clearSurface();
 
-        ALOGE("Creating window surface %dx%d", width, height);
+        ALOGI("Creating window surface %dx%d", width, height);
 
         if (!window) return;
 

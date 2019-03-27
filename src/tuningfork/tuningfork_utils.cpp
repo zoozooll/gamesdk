@@ -139,4 +139,17 @@ namespace file_utils {
 
 } // namespace file_utils
 
+std::string UniqueId(JNIEnv* env) {
+    jclass uuid_class = env->FindClass("java/util/UUID");
+    jmethodID randomUUID = env->GetStaticMethodID( uuid_class, "randomUUID",
+            "()Ljava/util/UUID;");
+    jobject uuid = env->CallStaticObjectMethod(uuid_class, randomUUID);
+    jmethodID toString = env->GetMethodID( uuid_class, "toString", "()Ljava/lang/String;");
+    jstring uuid_string = (jstring)env->CallObjectMethod(uuid, toString);
+    const char *uuid_chars = env->GetStringUTFChars( uuid_string, NULL );
+    std::string temp_uuid( uuid_chars );
+    env->ReleaseStringUTFChars( uuid_string, uuid_chars );
+    return temp_uuid;
+}
+
 } // namespace tuningfork

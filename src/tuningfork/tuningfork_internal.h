@@ -74,6 +74,7 @@ struct ExtraUploadInfo {
     std::vector<uint64_t> cpu_max_freq_hz;
     std::string apk_package_name;
     int apk_version_code;
+    int tuningfork_version;
 };
 
 class Backend {

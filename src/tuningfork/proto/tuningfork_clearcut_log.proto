@@ -48,6 +48,9 @@ message TuningForkLogEvent {
 
   // Version code from APK manifest.
   optional int32 apk_version_code = 7;
+
+  // Tuning fork version (upper 16 bits: major, lower 16 bits minor)
+  optional int32 tuningfork_version = 8;
 }
 
 message TuningForkHistogram {

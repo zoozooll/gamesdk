@@ -116,6 +116,9 @@ std::string PrettyPrintTuningForkLogEvent(const TuningForkLogEvent& evt) {
     if (evt.has_apk_version_code()) {
         eventStr << "  apk_version_code : " << evt.apk_version_code() << "\n";
     }
+    if (evt.has_tuningfork_version()) {
+        eventStr << "  tuningfork_version : " << evt.tuningfork_version() << "\n";
+    }
     eventStr << "}";
     return eventStr.str();
 }
