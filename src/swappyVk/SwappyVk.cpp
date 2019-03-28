@@ -715,8 +715,11 @@ VkResult SwappyVkGoogleDisplayTimingAndroid::doQueuePresent(VkQueue             
         waitForFenceChoreographer(queue);
     }
 
-    // adjust the presentation time based on the current frameID we are at.
-    assert(mFrameID >= mTargetFrameID);
+    // Adjust the presentation time based on the current frameID we are at.
+    if(mFrameID < mTargetFrameID) {
+        ALOGE("Bad frame ID %ld < target %ld", mFrameID, mTargetFrameID);
+        mTargetFrameID = mFrameID;
+    }
     mNextDesiredPresentTime += (mFrameID - mTargetFrameID) * mRefreshDur;
 
     // Setup the new structures to pass:
