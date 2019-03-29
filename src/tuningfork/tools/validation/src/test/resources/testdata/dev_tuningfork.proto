@@ -14,29 +14,32 @@
  * limitations under the License
  */
 
-package com.google.tuningfork.validation;
+syntax = "proto3";
 
-import com.google.common.collect.Multimap;
+package com.google.tuningfork;
 
-/** Collecting validation errors */
-public interface ErrorCollector {
-  void addError(ErrorType errorType, String message);
+option java_package = "com.google.tuningfork";
 
-  void addError(ErrorType errorType, String message, Exception e);
+enum LoadingState {
+  UNKNOWN = 0;
+  NOT_LOADING = 1;
+}
 
-  Integer getErrorCount();
+message Annotation {
+  LoadingState loading_state = 1;
+}
 
-  Integer getErrorCount(ErrorType errorType);
+enum QualitySettings {
+  UNKNOWN_QUALITY = 0;
+  FAST = 1;
+  SIMPLE = 2;
+  GOOD = 3;
+  BEAUTIFUL = 4;
+  FANTASTIC = 5;
+}
 
-  void printStatus();
-
-  Boolean hasErrors(ErrorType.ErrorGroup group);
-
-  Boolean hasAnnotationErrors();
-
-  Boolean hasFidelityParamsErrors();
-
-  Boolean hasSettingsErrors();
-
-  Multimap<ErrorType, String> getErrors();
-};
+message FidelityParams {
+  QualitySettings quality_settings = 1;
+  int32 int_field = 2;
+  float float_field = 3;
+}

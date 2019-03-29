@@ -20,12 +20,13 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.testing.testsize.MediumTest;
 import com.google.tuningfork.Tuningfork.Settings;
 import com.google.tuningfork.Tuningfork.Settings.AggregationStrategy;
 import com.google.tuningfork.Tuningfork.Settings.Histogram;
-import com.google.testing.testsize.MediumTest;
 import java.io.File;
 import java.util.Arrays;
+import java.util.Optional;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -51,6 +52,26 @@ public final class ValidationUtilTest {
   final String tuningforkPath = "assets/tuningfork";
 
   private final ErrorCollector errors = new ParserErrorCollector();
+
+  @Test
+  public void settingsValid() throws Exception {
+    AggregationStrategy aggregation =
+        AggregationStrategy.newBuilder()
+            .addAllAnnotationEnumSize(Arrays.asList(5, 10))
+            .setMaxInstrumentationKeys(100)
+            .build();
+    Settings settings =
+        Settings.newBuilder()
+            .setAggregationStrategy(aggregation)
+            .addHistograms(Histogram.getDefaultInstance())
+            .build();
+
+    Optional<Settings> parsedSettings =
+        ValidationUtil.validateSettings(Arrays.asList(5, 10), settings.toString(), errors);
+
+    assertThat(errors.getErrorCount()).isEqualTo(0);
+    assertThat(parsedSettings.get()).isEqualTo(settings);
+  }
 
   @Test
   public void settingsHistogramsValid() throws Exception {
