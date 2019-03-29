@@ -45,11 +45,8 @@ bool ClearcutSerializer::writeCpuFreqs(pb_ostream_t *stream, const pb_field_t *f
     std::vector<uint64_t>* v = static_cast<std::vector<uint64_t>*>(*arg);
     // Encode each item
     for (int i = 0; i < v->size(); ++i) {
-        if(!pb_encode_tag(stream, PB_WT_STRING,
-                          logs_proto_tuningfork_DeviceInfo_cpu_max_freq_hz_tag))
-            return false;
-        if(!pb_encode_varint(stream, (*v)[i]))
-            return false;
+        pb_encode_tag_for_field(stream, field);
+        pb_encode_varint(stream, (*v)[i]);
     }
     return true;
 }

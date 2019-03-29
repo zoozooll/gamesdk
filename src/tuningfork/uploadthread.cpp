@@ -191,15 +191,14 @@ ExtraUploadInfo UploadThread::GetExtraUploadInfo(JNIEnv* env, jobject activity) 
     extra_info.cpu_max_freq_hz.clear();
     for(int index = 1;;++index) {
         std::stringstream str;
-        str << "/sys/devices/system/cpu/cpu/" << index << "/cpufreq/cpuinfo_max_freq";
+        str << "/sys/devices/system/cpu/cpu" << index << "/cpufreq/cpuinfo_max_freq";
         auto cpu_freq_file = slurpFile(str.str().c_str());
         if (cpu_freq_file.empty())
             break;
         uint64_t freq;
         std::istringstream cstr(cpu_freq_file);
         cstr >> freq;
-        // TODO check units
-        extra_info.cpu_max_freq_hz.push_back(freq);
+        extra_info.cpu_max_freq_hz.push_back(freq*1000); // File is in kHz
     }
 
     extra_info.apk_version_code = apk_utils::GetVersionCode(env, activity,
