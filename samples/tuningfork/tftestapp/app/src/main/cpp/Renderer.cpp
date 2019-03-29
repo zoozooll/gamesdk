@@ -32,8 +32,11 @@
 
 #include "swappy/swappy.h"
 #include "swappy/swappy_extra.h"
+#include "tuningfork/tuningfork.h"
 
 #include "Scene.h"
+
+extern bool swappy_enabled;
 
 using namespace std::chrono_literals;
 
@@ -227,7 +230,8 @@ void Renderer::draw(State *state) {
         return;
     }
 
-    Swappy_recordFrameStart(state->display, state->surface);
+    if (swappy_enabled)
+        Swappy_recordFrameStart(state->display, state->surface);
 
     calculateFps();
 
@@ -252,7 +256,12 @@ void Renderer::draw(State *state) {
 
     state->scene.draw(aspectRatio, mTesselation);
 
-    Swappy_swap(state->display, state->surface);
+    if (swappy_enabled)
+        Swappy_swap(state->display, state->surface);
+    else {
+        TuningFork_frameTick(TFTICK_SYSCPU);
+        eglSwapBuffers(state->display, state->surface);
+    }
 
     // If we're still started, request another frame
     requestDraw();
