@@ -25,6 +25,8 @@ final class ApkConfig {
   public static final String ASSETS_DIRECTORY = "assets/tuningfork/";
 
   public static final String DEV_TUNINGFORK_PROTO = ASSETS_DIRECTORY + "dev_tuningfork.proto";
+  public static final String DEV_TUNINGFORK_PROTO_DESCRIPTOR =
+      ASSETS_DIRECTORY + "dev_tuningfork.descriptor";
   public static final String TUNINGFORK_SETTINGS = ASSETS_DIRECTORY + "tuningfork_settings.bin";
   public static final Pattern DEV_FIDELITY_PATTERN =
       Pattern.compile(ASSETS_DIRECTORY + "dev_tuningfork_fidelityparams_.{1,15}.bin");

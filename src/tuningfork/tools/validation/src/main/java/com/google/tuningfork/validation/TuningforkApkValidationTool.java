@@ -18,79 +18,76 @@ package com.google.tuningfork.validation;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.google.common.base.Strings;
-import com.google.common.flags.Flag;
-import com.google.common.flags.FlagSpec;
-import com.google.common.flags.Flags;
 import com.google.common.flogger.FluentLogger;
 import java.io.File;
 import java.io.IOException;
-import java.util.Enumeration;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 /** APK Validation tool for Tuningfork */
 final class TuningforkApkValidationTool {
+
+  private static class Parameters {
+    @Parameter(
+        names = {"--tuningforkPath"},
+        description = "Path to an assets/tuningfork folder")
+    public String tuningforkPath;
+
+    @Parameter(
+        names = {"--protoCompiler"},
+        description = "Path to protoc binary")
+    public String protoCompiler;
+  }
+
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
-  @FlagSpec(help = "Path to apk file")
-  public static final Flag<String> apkPath = Flag.nullString();
-
-  @FlagSpec(help = "Path to proto compiler")
-  public static final Flag<String> protoCompiler = Flag.nullString();
-
   public static void main(String[] args) {
-    Flags.parse(args);
+    Parameters parameters = new Parameters();
+    new JCommander(parameters, args);
 
     checkArgument(
-        !Strings.isNullOrEmpty(apkPath.get()),
-        "You need to specify path to your apk file --apkPath");
+        !Strings.isNullOrEmpty(parameters.tuningforkPath),
+        "You need to specify path to your tuningfork settings folder --tuningforkPath");
 
     checkArgument(
-        !Strings.isNullOrEmpty(protoCompiler.get()),
+        !Strings.isNullOrEmpty(parameters.protoCompiler),
         "You need to specify path to proto compiler --protoCompiler");
 
-    File apkFile = new File(apkPath.get());
-    if (!apkFile.exists()) {
-      logger.atSevere().log("APK File does not exist %s", apkPath.get());
-      return;
+    File tuningforkFolder = new File(parameters.tuningforkPath);
+    if (!tuningforkFolder.exists()) {
+      logger.atSevere().log(
+          "Tuningfork settings folder does not exist %s", parameters.tuningforkPath);
     }
 
-    File protoCompilerFile = new File(protoCompiler.get());
+    if (!tuningforkFolder.isDirectory()) {
+      logger.atSevere().log(
+          "--tuningforkPath=[%s] is not a path to a folder", parameters.tuningforkPath);
+    }
+
+    File protoCompilerFile = new File(parameters.protoCompiler);
     if (!protoCompilerFile.exists()) {
-      logger.atSevere().log("Proto compiler file does not exist %s", protoCompiler.get());
-      return;
+      logger.atSevere().log("Proto compiler file does not exist %s", parameters.protoCompiler);
     }
 
-    logger.atInfo().log("Start validation of %s...", apkFile.getName());
-
-    JarFile jarApk;
-
-    try {
-      jarApk = new JarFile(apkFile);
-    } catch (IOException e) {
-      logger.atSevere().withCause(e).log("Can not open apk file %s", apkFile.getName());
-      return;
+    if (!protoCompilerFile.isFile() || !protoCompilerFile.canExecute()) {
+      logger.atSevere().log(
+          "--protoCompiler=[%s] is not a path to an executable file", parameters.protoCompiler);
     }
+
+    logger.atInfo().log("Start validation of %s...", tuningforkFolder.getPath());
 
     ErrorCollector errors = new ParserErrorCollector();
-    DeveloperTuningforkParser parser = new DeveloperTuningforkParser(errors, protoCompilerFile);
-
-    Enumeration<JarEntry> apkFiles = jarApk.entries();
-    while (apkFiles.hasMoreElements()) {
-      JarEntry file = apkFiles.nextElement();
-      try {
-        parser.parseJarEntry(jarApk, file);
-      } catch (Exception e) {
-        logger.atWarning().withCause(e).log("Can not parse apk entry %s", file.getName());
-      }
-    }
+    DeveloperTuningforkParser parser =
+        new DeveloperTuningforkParser(errors, tuningforkFolder, protoCompilerFile);
 
     try {
+      parser.parseFilesInFolder();
       parser.validate();
       if (errors.getErrorCount() == 0) {
-        logger.atInfo().log("Apk %s is valid", apkFile.getName());
+        logger.atInfo().log("Tuning Fork settings are valid");
       } else {
+        logger.atWarning().log("Tuning Fork settings are invalid");
         errors.printStatus();
       }
     } catch (IOException | CompilationException e) {

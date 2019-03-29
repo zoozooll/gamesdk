@@ -56,31 +56,42 @@ final class ParserErrorCollector implements ErrorCollector {
   public void printStatus() {
     StringBuilder builder = new StringBuilder();
     for (ErrorType errorType : ErrorType.values()) {
-      builder.append(errorType).append(" : ");
       int errorCount = errors.get(errorType).size();
-      if (errorCount == 0) {
-        builder.append("OK");
-      } else {
-        builder.append(errorCount);
-        builder.append(" ERRORS\n\t");
-        builder.append(errors.get(errorType));
+      if (errorCount != 0) {
+        builder
+            .append(errorType)
+            .append(" : ")
+            .append(errorCount)
+            .append(" ERRORS\n\t")
+            .append(errors.get(errorType))
+            .append("\n");
       }
-      builder.append("\n");
     }
-    logger.atInfo().log(builder.toString());
+    logger.atWarning().log(builder.toString());
+  }
+
+  @Override
+  public Boolean hasErrors(ErrorType.ErrorGroup group) {
+    for (ErrorType errorType : ErrorType.values()) {
+      if (errorType.getGroup() == group && errors.containsKey(errorType)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
   public Boolean hasAnnotationErrors() {
-    return errors.containsKey(ErrorType.ANNOTATION_EMPTY)
-        || errors.containsKey(ErrorType.ANNOTATION_COMPLEX)
-        || errors.containsKey(ErrorType.ANNOTATION_TYPE);
+    return hasErrors(ErrorType.ErrorGroup.ANNOTATION);
   }
 
   @Override
   public Boolean hasFidelityParamsErrors() {
-    return errors.containsKey(ErrorType.FIDELITY_PARAMS_EMPTY)
-        || errors.containsKey(ErrorType.FIDELITY_PARAMS_COMPLEX)
-        || errors.containsKey(ErrorType.FIDELITY_PARAMS_TYPE);
+    return hasErrors(ErrorType.ErrorGroup.FIDELITY);
+  }
+
+  @Override
+  public Boolean hasSettingsErrors() {
+    return hasErrors(ErrorType.ErrorGroup.SETTINGS);
   }
 }

@@ -18,23 +18,52 @@ package com.google.tuningfork.validation;
 
 /** Validation errors */
 public enum ErrorType {
-  ANNOTATION_EMPTY, // Annotation field is empty
-  ANNOTATION_COMPLEX, // Annotation field is too complex - contains oneofs/nestedtypes/extensions
-  ANNOTATION_TYPE, // Annotation must contains enums only
+  // Annotation field is empty
+  ANNOTATION_EMPTY(ErrorGroup.ANNOTATION),
+  // Annotation field is too complex - contains oneofs/nestedtypes/extensions
+  ANNOTATION_COMPLEX(ErrorGroup.ANNOTATION),
+  // Annotation must contains enums only
+  ANNOTATION_TYPE(ErrorGroup.ANNOTATION),
+  // FidelityParams fied is empty
+  FIDELITY_PARAMS_EMPTY(ErrorGroup.FIDELITY),
+  // FidelityParams field is complex - contains  oneof/nestedtypes/extensions
+  FIDELITY_PARAMS_COMPLEX(ErrorGroup.FIDELITY),
+  // FidelityParams can only contains float, int32 or enum
+  FIDELITY_PARAMS_TYPE(ErrorGroup.FIDELITY),
+  // Fidelity parameters are empty
+  DEV_FIDELITY_PARAMETERS_EMPTY(ErrorGroup.DEV_FIDELITY),
+  // Fidelity parameters parsing error
+  DEV_FIDELITY_PARAMETERS_PARSING(ErrorGroup.DEV_FIDELITY),
+  // Fidelity parameters encoding textproto file
+  DEV_FIDELITY_PARAMETERS_ENCODING(ErrorGroup.DEV_FIDELITY),
+  // Fidelity parameters reading file
+  DEV_FIDELITY_PARAMETERS_READING(ErrorGroup.DEV_FIDELITY),
+  // Parsing error
+  SETTINGS_PARSING(ErrorGroup.SETTINGS),
+  // Histogram field is empty
+  HISTOGRAM_EMPTY(ErrorGroup.SETTINGS),
+  // Aggreagtion field is empty
+  AGGREGATION_EMPTY(ErrorGroup.SETTINGS),
+  // Aggregation contains incorrect  max_instrumentation_keys field
+  AGGREGATION_INSTRUMENTATION_KEY(ErrorGroup.SETTINGS),
+  // Aggregation contains incorrect annotation_enum_sizes
+  AGGREGATION_ANNOTATIONS(ErrorGroup.SETTINGS);
 
-  FIDELITY_PARAMS_EMPTY, // FidelityParams fied is empty
-  FIDELITY_PARAMS_COMPLEX, // FidelityParams field is complex - contains
-                           // oneof/nestedtypes/extensions
-  FIDELITY_PARAMS_TYPE, // FidelityParams can only contains float, int32 or enum
+  private final ErrorGroup group;
 
-  DEV_FIDELITY_PARAMETERS_EMPTY, // Fidelity parameters are empty
-  DEV_FIDELITY_PARAMETERS_PARSING, // Fidelity parameters parsing error
+  public ErrorGroup getGroup() {
+    return group;
+  }
 
-  SETTINGS_PARSING, // Parsing error
+  ErrorType(ErrorGroup group) {
+    this.group = group;
+  }
 
-  HISTOGRAM_EMPTY, // Histogram field is empty
-
-  AGGREGATION_EMPTY, // Aggreagtion field is empty
-  AGGREGATION_INSTRUMENTATION_KEY, // Aggregation contains incorrect max_instrumentation_keys field
-  AGGREGATION_ANNOTATIONS, // Aggregation contains incorrect annotation_enum_sizes
+  /** Validation group of errors */
+  public enum ErrorGroup {
+    ANNOTATION,
+    FIDELITY,
+    DEV_FIDELITY,
+    SETTINGS,
+  }
 };

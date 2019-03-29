@@ -16,27 +16,12 @@
 
 package com.google.tuningfork.validation;
 
-import com.google.common.collect.Multimap;
+/** Settings and proto file names for assets/tuningfork folder */
+final class FolderConfig {
 
-/** Collecting validation errors */
-public interface ErrorCollector {
-  void addError(ErrorType errorType, String message);
-
-  void addError(ErrorType errorType, String message, Exception e);
-
-  Integer getErrorCount();
-
-  Integer getErrorCount(ErrorType errorType);
-
-  void printStatus();
-
-  Boolean hasErrors(ErrorType.ErrorGroup group);
-
-  Boolean hasAnnotationErrors();
-
-  Boolean hasFidelityParamsErrors();
-
-  Boolean hasSettingsErrors();
-
-  Multimap<ErrorType, String> getErrors();
-};
+  public static final String DEV_TUNINGFORK_PROTO = "dev_tuningfork.proto";
+  public static final String DEV_TUNINGFORK_DESCRIPTOR = "dev_tuningfork.descriptor";
+  public static final String TUNINGFORK_SETTINGS_TEXTPROTO = "tuningfork_settings.txt";
+  public static final String TUNINGFORK_SETTINGS_BINARY = "tuningfork_settings.bin";
+  public static final String DEV_FIDELITY_TEXTPROTO = "dev_tuningfork_fidelityparams_.{1,15}.txt";
+}
