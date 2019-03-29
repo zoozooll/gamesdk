@@ -36,6 +36,8 @@ namespace proto_tf = com::google::tuningfork;
 namespace tf = tuningfork;
 using namespace samples;
 
+bool swappy_enabled = false;
+
 namespace {
 
 constexpr TFInstrumentKey TFTICK_CHOREOGRAPHER = 4;
@@ -184,7 +186,8 @@ extern "C" {
 JNIEXPORT void JNICALL
 Java_com_google_tuningfork_TFTestActivity_initTuningFork(JNIEnv *env, jobject activity) {
     Swappy_init(env, activity);
-    if (Swappy_isEnabled()) {
+    swappy_enabled = Swappy_isEnabled();
+    if (swappy_enabled) {
         int defaultFPIndex = 3; // i.e. dev_tuningfork_fidelityparams_3.bin
         int initialTimeoutMs = 1000;
         int ultimateTimeoutMs = 100000;
@@ -199,7 +202,29 @@ Java_com_google_tuningfork_TFTestActivity_initTuningFork(JNIEnv *env, jobject ac
             ALOGW("Error initializing TuningFork: %d", c);
         }
     } else {
-        ALOGW("Couldn't enable Swappy. Tuning Fork is not enabled either");
+        ALOGW("Couldn't enable Swappy.");
+        CProtobufSerialization settings = {};
+        TuningFork_findSettingsInAPK(env, activity, &settings);
+        TuningFork_init(&settings, env, activity);
+        tuningfork::CProtobufSerialization_Free(&settings);
+        int fp_count;
+        TuningFork_findFidelityParamsInAPK(env, activity, NULL, &fp_count);
+        CProtobufSerialization fps = {};
+        std::vector<CProtobufSerialization> defaultFPs(fp_count);
+        TuningFork_findFidelityParamsInAPK(env, activity, defaultFPs.data(), &fp_count);
+        CProtobufSerialization* defaultFP = &defaultFPs[fp_count/2-1]; // Middle settings level
+        if (TuningFork_getFidelityParameters(defaultFP, &fps, 1000)) {
+            SetFidelityParams(&fps);
+            tuningfork::CProtobufSerialization_Free(&fps);
+        }
+        else {
+            SetFidelityParams(defaultFP);
+        }
+        for(auto& a: defaultFPs) {
+            tuningfork::CProtobufSerialization_Free(&a);
+        }
+        TuningFork_setUploadCallback(UploadCallback);
+        SetAnnotations();
     }
 }
 

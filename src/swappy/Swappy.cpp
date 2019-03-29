@@ -78,6 +78,12 @@ void Swappy::init(JNIEnv *env, jobject jactivity) {
             displayClass,
             "getAppVsyncOffsetNanos", "()J");
 
+    // getAppVsyncOffsetNanos was only added in API 21.
+    // Return gracefully if this device doesn't support it.
+    if (getAppVsyncOffsetNanos == 0 || env->ExceptionOccurred()) {
+        env->ExceptionClear();
+        return;
+    }
     const long appVsyncOffsetNanos = env->CallLongMethod(display, getAppVsyncOffsetNanos);
 
     jmethodID getPresentationDeadlineNanos = env->GetMethodID(
