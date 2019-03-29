@@ -22,6 +22,7 @@ import com.google.devtools.build.runtime.Runfiles;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import java.io.File;
+import java.util.Optional;
 import org.junit.rules.TemporaryFolder;
 
 /** Base class for tests that need to create proto Descriptors */
@@ -39,7 +40,7 @@ public class ProtoCompilerHelper {
   public Descriptor getDescriptor(String fileName, String message, String descName)
       throws Exception {
     File file = testdata.getFile(fileName);
-    FileDescriptor fDesc = compiler.compile(file);
+    FileDescriptor fDesc = compiler.compile(file, Optional.empty());
     assertThat(fDesc).isNotNull();
     Descriptor desc = fDesc.findMessageTypeByName(descName);
     return desc;
