@@ -31,7 +31,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/** Utility methods for validating Tuning Fork protos and settings.*/
+/** Utility methods for validating Tuning Fork protos and settings. */
 final class ValidationUtil {
 
   private ValidationUtil() {}
@@ -46,7 +46,9 @@ final class ValidationUtil {
   public static Optional<Settings> validateSettings(
       List<Integer> enumSizes, String settingsTextProto, ErrorCollector errors) {
     try {
-      Settings settings = TextFormat.parse(settingsTextProto, Settings.class);
+      Settings.Builder builder = Settings.newBuilder();
+      TextFormat.merge(settingsTextProto, builder);
+      Settings settings = builder.build();
       validateSettingsAggregation(settings, enumSizes, errors);
       validateSettingsHistograms(settings, errors);
       return Optional.of(settings);
