@@ -22,13 +22,16 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.TextFormat;
+import com.google.protobuf.TextFormat.ParseException;
 import com.google.tuningfork.Tuningfork.Settings;
 import com.google.tuningfork.Tuningfork.Settings.AggregationStrategy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
-/** Utility methods for validating Tuning Fork protos and settings.*/
+/** Utility methods for validating Tuning Fork protos and settings. */
 final class ValidationUtil {
 
   private ValidationUtil() {}
@@ -38,6 +41,22 @@ final class ValidationUtil {
   private static final ImmutableList<FieldDescriptor.Type> ALLOWED_FIDELITYPARAMS_TYPES =
       ImmutableList.of(
           FieldDescriptor.Type.ENUM, FieldDescriptor.Type.FLOAT, FieldDescriptor.Type.INT32);
+
+  /* Validate settings */
+  public static Optional<Settings> validateSettings(
+      List<Integer> enumSizes, String settingsTextProto, ErrorCollector errors) {
+    try {
+      Settings.Builder builder = Settings.newBuilder();
+      TextFormat.merge(settingsTextProto, builder);
+      Settings settings = builder.build();
+      validateSettingsAggregation(settings, enumSizes, errors);
+      validateSettingsHistograms(settings, errors);
+      return Optional.of(settings);
+    } catch (ParseException e) {
+      errors.addError(ErrorType.SETTINGS_PARSING, "Parsing tuningfork_settings.txt", e);
+      return Optional.empty();
+    }
+  }
 
   /* Validate settings */
   public static final void validateSettings(

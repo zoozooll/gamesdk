@@ -199,12 +199,14 @@ protected:
     PFN_AChoreographer_postFrameCallbackDelayed mAChoreographer_postFrameCallbackDelayed = nullptr;
 
     long mFrameID = 0;
-    long mLastframeTimeNanos = 0;
+    long mTargetFrameID = 0;
+    uint64_t mLastframeTimeNanos = 0;
     long mSumRefreshTime = 0;
     long mSamples = 0;
+    long mCallbacksBeforeIdle = 0;
 
-    static constexpr int CHOREOGRAPHER_THRESH = 1000;
     static constexpr int MAX_SAMPLES = 5;
+    static constexpr int MAX_CALLBACKS_BEFORE_IDLE = 10;
 
     void initGoogExtention()
     {
@@ -222,7 +224,8 @@ protected:
     void *looperThread();
     static void frameCallback(long frameTimeNanos, void *data);
     void onDisplayRefresh(long frameTimeNanos);
-    void calcRefreshRate(long frameTimeNanos);
+    void calcRefreshRate(uint64_t currentTime);
+    void postChoreographerCallback();
 };
 
 void SwappyVkBase::startChoreographerThread() {
@@ -279,21 +282,34 @@ void SwappyVkBase::frameCallback(long frameTimeNanos, void *data) {
 
 void SwappyVkBase::onDisplayRefresh(long frameTimeNanos) {
     std::lock_guard<std::mutex> lock(mWaitingMutex);
-    calcRefreshRate(frameTimeNanos);
-    mLastframeTimeNanos = frameTimeNanos;
+    struct timespec currTime;
+    clock_gettime(CLOCK_MONOTONIC, &currTime);
+    uint64_t currentTime =
+            ((uint64_t) currTime.tv_sec * kBillion) + (uint64_t) currTime.tv_nsec;
+
+    calcRefreshRate(currentTime);
+    mLastframeTimeNanos = currentTime;
     mFrameID++;
     mWaitingCondition.notify_all();
+
+    // queue the next frame callback
+    if (mCallbacksBeforeIdle > 0) {
+        mCallbacksBeforeIdle--;
+        mAChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+    }
 }
 
-void SwappyVkBase::calcRefreshRate(long frameTimeNanos) {
-  long refresh_nano = std::abs(frameTimeNanos - mLastframeTimeNanos);
+void SwappyVkBase::postChoreographerCallback() {
+    if (mCallbacksBeforeIdle == 0) {
+        mAChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+    }
+    mCallbacksBeforeIdle = MAX_CALLBACKS_BEFORE_IDLE;
+}
+
+void SwappyVkBase::calcRefreshRate(uint64_t currentTime) {
+    long refresh_nano = currentTime - mLastframeTimeNanos;
 
     if (mRefreshDur != 0 || mLastframeTimeNanos == 0) {
-        return;
-    }
-
-    // ignore wrap around
-    if (mLastframeTimeNanos > frameTimeNanos) {
         return;
     }
 
@@ -662,7 +678,10 @@ void SwappyVkGoogleDisplayTimingAndroid::waitForFenceChoreographer(VkQueue queue
     mPendingSync[queue].pop_front();
     mWaitingCondition.wait(lock, [&]() {
         if (vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE, 0) == VK_TIMEOUT) {
-            mAChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+            postChoreographerCallback();
+
+            // adjust the target frame here as we are waiting additional frame for the fence
+            mTargetFrameID++;
             return false;
         }
         return true;
@@ -681,19 +700,11 @@ VkResult SwappyVkGoogleDisplayTimingAndroid::doQueuePresent(VkQueue             
         return ret;
     }
 
-    struct timespec currTime;
-    clock_gettime(CLOCK_MONOTONIC, &currTime);
-    uint64_t currentTime =
-            ((uint64_t) currTime.tv_sec * kBillion) + (uint64_t) currTime.tv_nsec;
-
-    // do we have something in the queue ?
-    if (mNextDesiredPresentTime > currentTime) {
+    {
         std::unique_lock<std::mutex> lock(mWaitingMutex);
-        long target = mFrameID + mInterval;
         mWaitingCondition.wait(lock, [&]() {
-            if (mFrameID < target) {
-                // wait for the next frame as this frame is too soon
-                mAChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+            if (mFrameID < mTargetFrameID) {
+                postChoreographerCallback();
                 return false;
             }
             return true;
@@ -704,10 +715,12 @@ VkResult SwappyVkGoogleDisplayTimingAndroid::doQueuePresent(VkQueue             
         waitForFenceChoreographer(queue);
     }
 
-    clock_gettime(CLOCK_MONOTONIC, &currTime);
-    currentTime =
-            ((uint64_t) currTime.tv_sec * kBillion) + (uint64_t) currTime.tv_nsec;
-    mNextDesiredPresentTime = currentTime + mRefreshDur * mInterval;
+    // Adjust the presentation time based on the current frameID we are at.
+    if(mFrameID < mTargetFrameID) {
+        ALOGE("Bad frame ID %ld < target %ld", mFrameID, mTargetFrameID);
+        mTargetFrameID = mFrameID;
+    }
+    mNextDesiredPresentTime += (mFrameID - mTargetFrameID) * mRefreshDur;
 
     // Setup the new structures to pass:
     VkPresentTimeGOOGLE pPresentTimes[pPresentInfo->swapchainCount];
@@ -750,6 +763,11 @@ VkResult SwappyVkGoogleDisplayTimingAndroid::doQueuePresent(VkQueue             
                                                pPresentInfo->pImageIndices, pPresentInfo->pResults};
     ret = mpfnQueuePresentKHR(queue, &replacementPresentInfo);
 
+    // next present time is going to be 2 intervals from now, leaving 1 interval for cpu work
+    // and 1 interval for gpu work
+    mNextDesiredPresentTime = mLastframeTimeNanos + 2 * mRefreshDur * mInterval;
+    mTargetFrameID = mFrameID + mInterval;
+
     return ret;
 }
 
@@ -785,7 +803,7 @@ public:
         std::unique_lock<std::mutex> lock(mWaitingMutex);
         mWaitingCondition.wait(lock, [&]() {
             if (mRefreshDur == 0) {
-                mAChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+                postChoreographerCallback();
                 return false;
             }
             return true;
@@ -804,19 +822,17 @@ public:
                                     const VkPresentInfoKHR* pPresentInfo) override
     {
         {
-            const long target = mFrameID + mInterval;
             std::unique_lock<std::mutex> lock(mWaitingMutex);
 
-
             mWaitingCondition.wait(lock, [&]() {
-                if (mFrameID < target) {
-                    // wait for the next frame as this frame is too soon
-                    mAChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+                if (mFrameID < mTargetFrameID) {
+                    postChoreographerCallback();
                     return false;
                 }
                 return true;
             });
         }
+        mTargetFrameID = mFrameID + mInterval;
         return mpfnQueuePresentKHR(queue, pPresentInfo);
     }
 };
