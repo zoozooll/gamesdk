@@ -105,7 +105,8 @@ void UploadThread::Run() {
                                                extra_info_,
                                                evt_ser);
             if(upload_callback_) {
-                CProtobufSerialization cser = { evt_ser.data(), evt_ser.size(), nullptr};
+                CProtobufSerialization cser = { evt_ser.data(),
+                                          static_cast<uint32_t>(evt_ser.size()), nullptr};
                 upload_callback_(&cser);
             }
             backend_->Process(evt_ser);
@@ -158,7 +159,7 @@ std::string getSystemPropViaGet(const char* key) {
 }
 
 /* static */
-ExtraUploadInfo UploadThread::GetExtraUploadInfo(JNIEnv* env, jobject activity) {
+ExtraUploadInfo UploadThread::GetExtraUploadInfo(JNIEnv* env, jobject context) {
     ExtraUploadInfo extra_info;
     // Total memory
     std::string s = slurpFile("/proc/meminfo");
@@ -201,7 +202,7 @@ ExtraUploadInfo UploadThread::GetExtraUploadInfo(JNIEnv* env, jobject activity) 
         extra_info.cpu_max_freq_hz.push_back(freq*1000); // File is in kHz
     }
 
-    extra_info.apk_version_code = apk_utils::GetVersionCode(env, activity,
+    extra_info.apk_version_code = apk_utils::GetVersionCode(env, context,
         &extra_info.apk_package_name);
 
     extra_info.tuningfork_version = TUNINGFORK_PACKED_VERSION;

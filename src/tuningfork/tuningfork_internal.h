@@ -19,11 +19,6 @@
 #include "tuningfork/tuningfork.h"
 #include "tuningfork/tuningfork_extra.h"
 
-#ifdef PROTOBUF_NANO
-#include "pb_encode.h"
-#include "pb_decode.h"
-#endif
-
 #include <stdint.h>
 #include <string>
 #include <chrono>
@@ -49,18 +44,12 @@ struct Settings {
             TIME_BASED
         };
         Submission method;
-        int32_t intervalms_or_count;
-        int32_t max_instrumentation_keys;
-        std::vector<int> annotation_enum_size;
-    };
-    struct Histogram {
-        int32_t instrument_key;
-        float bucket_min;
-        float bucket_max;
-        int32_t n_buckets;
+        uint32_t intervalms_or_count;
+        uint32_t max_instrumentation_keys;
+        std::vector<uint32_t> annotation_enum_size;
     };
     AggregationStrategy aggregation_strategy;
-    std::vector<Histogram> histograms;
+    std::vector<TFHistogram> histograms;
 };
 
 // Extra information that is uploaded with the ClearCut proto.
@@ -73,8 +62,8 @@ struct ExtraUploadInfo {
     std::string build_version_sdk;
     std::vector<uint64_t> cpu_max_freq_hz;
     std::string apk_package_name;
-    int apk_version_code;
-    int tuningfork_version;
+    uint32_t apk_version_code;
+    uint32_t tuningfork_version;
 };
 
 class Backend {
@@ -86,7 +75,7 @@ public:
 class ParamsLoader {
 public:
     virtual ~ParamsLoader() {};
-    virtual bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) {
+    virtual bool GetFidelityParams(ProtobufSerialization &fidelity_params, uint32_t timeout_ms) {
         return false;
     }
 };
@@ -110,15 +99,13 @@ public:
     virtual std::chrono::steady_clock::time_point NowNs() = 0;
 };
 
-// init must be called before any other functions
 // If no backend is passed, a debug version is used which returns empty fidelity params
 // and outputs histograms in protobuf text format to logcat.
 // If no timeProvider is passed, std::chrono::steady_clock is used.
-void Init(const ProtobufSerialization &settings, const ExtraUploadInfo& extra_info,
+TFErrorCode Init(const TFSettings &settings, const ExtraUploadInfo& extra_info,
           Backend *backend = 0, ParamsLoader *loader = 0, ITimeProvider *time_provider = 0);
 
-// Init must be called before any other functions
-void Init(const ProtobufSerialization &settings, JNIEnv* env, jobject activity);
+TFErrorCode Init(const TFSettings &settings, JNIEnv* env, jobject context);
 
 // Blocking call to get fidelity parameters from the server.
 // Returns true if parameters could be downloaded within the timeout, false otherwise.
@@ -126,26 +113,25 @@ void Init(const ProtobufSerialization &settings, JNIEnv* env, jobject activity);
 //  as being associated with those parameters.
 // If you subsequently call GetFidelityParameters, any data that is already collected will be
 // submitted to the backend.
-bool GetFidelityParameters(const ProtobufSerialization& defaultParams,
-                           ProtobufSerialization &params, size_t timeout_ms);
+TFErrorCode GetFidelityParameters(const ProtobufSerialization& defaultParams,
+                           ProtobufSerialization &params, uint32_t timeout_ms);
 
 // Protobuf serialization of the current annotation
-// Returns the internal annotation id if it was set or -1 if not
-uint64_t SetCurrentAnnotation(const ProtobufSerialization &annotation);
+TFErrorCode SetCurrentAnnotation(const ProtobufSerialization &annotation);
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation
-void FrameTick(InstrumentationKey id);
+TFErrorCode FrameTick(InstrumentationKey id);
 
 // Record a frame tick using an external time, rather than system time
-void FrameDeltaTimeNanos(InstrumentationKey id, Duration dt);
+TFErrorCode FrameDeltaTimeNanos(InstrumentationKey id, Duration dt);
 
 // Start a trace segment
-TraceHandle StartTrace(InstrumentationKey key);
+TFErrorCode StartTrace(InstrumentationKey key, TraceHandle& handle);
 
 // Record a trace with the key and annotation set using startTrace
-void EndTrace(TraceHandle h);
+TFErrorCode EndTrace(TraceHandle h);
 
-void SetUploadCallback(ProtoCallback cbk);
+TFErrorCode SetUploadCallback(ProtoCallback cbk);
 
 } // namespace tuningfork

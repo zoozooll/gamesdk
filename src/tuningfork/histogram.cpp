@@ -38,7 +38,7 @@ Histogram::Histogram(float start_ms, float end_ms, int num_buckets_between)
         ALOGE("Histogram end needs to be larger than histogram begin");
 }
 
-Histogram::Histogram(const Settings::Histogram &hs)
+Histogram::Histogram(const TFHistogram &hs)
     : Histogram(hs.bucket_min, hs.bucket_max, hs.n_buckets) {
 }
 

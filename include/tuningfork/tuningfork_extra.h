@@ -26,21 +26,21 @@ typedef void (*VoidCallback)();
 typedef void (*ProtoCallback)(const CProtobufSerialization*);
 
 // Load settings from assets/tuningfork/tuningfork_settings.bin.
-// Returns true and fills 'settings' if the file could be loaded.
 // Ownership of settings is passed to the caller: call
 //  CProtobufSerialization_Free to deallocate any memory.
-// Returns false if the file was not found or there was an error.
-bool TuningFork_findSettingsInAPK(JNIEnv* env, jobject activity,
-                                  CProtobufSerialization* settings);
+// Returns TFERROR_OK and fills 'settings' if the file could be loaded.
+// Returns TFERROR_NO_SETTINGS if the file was not found.
+TFErrorCode TuningFork_findSettingsInApk(JNIEnv* env, jobject context,
+                                         TFSettings* settings);
 
 // Load fidelity params from assets/tuningfork/dev_tuningfork_fidelityparams_#.bin.
-// Call once with fps=NULL to get the number of files in fp_count.
+// Call once with fps=nullptr to get the number of files in fp_count.
 // The call a second time with a pre-allocated array of size fp_count in fps.
 // Ownership of serializations is passed to the caller: call
 //  CProtobufSerialization_Free to deallocate any memory.
-void TuningFork_findFidelityParamsInAPK(JNIEnv* env, jobject activity,
-                                        CProtobufSerialization* fps,
-                                        int* fp_count);
+TFErrorCode TuningFork_findFidelityParamsInApk(JNIEnv* env, jobject context,
+                                               CProtobufSerialization* fps,
+                                               int* fp_count);
 
 // Initialize tuning fork and automatically inject tracers into Swappy.
 // If Swappy is not available or could not be initialized, the function returns
@@ -53,14 +53,14 @@ void TuningFork_findFidelityParamsInAPK(JNIEnv* env, jobject activity,
 //  [libgamesdk.so, libswappy.so, libunity.so]
 // frame_callback is called once per frame: you can set any Annotations
 //  during this callback if you wish.
-bool TuningFork_initWithSwappy(const CProtobufSerialization* settings,
-                               JNIEnv* env, jobject activity,
-                               const char* libraryName,
-                               VoidCallback frame_callback);
+TFErrorCode TuningFork_initWithSwappy(const TFSettings* settings,
+                                      JNIEnv* env, jobject context,
+                                      const char* libraryName,
+                                      VoidCallback frame_callback);
 
 // Set a callback to be called on a separate thread every time TuningFork
 //  performs an upload.
-void TuningFork_setUploadCallback(ProtoCallback cbk);
+TFErrorCode TuningFork_setUploadCallback(ProtoCallback cbk);
 
 // This function calls initWithSwappy and also performs the following:
 // 1) Settings and default fidelity params are retrieved from the APK.
@@ -79,15 +79,7 @@ void TuningFork_setUploadCallback(ProtoCallback cbk);
 //  could be downloaded..
 // ultimateTimeoutMs is the time after which to stop retrying the download.
 // The following error codes may be returned:
-enum TFErrorCode {
-    TFERROR_OK = 0, // No error
-    TFERROR_NO_SETTINGS = 1, // No tuningfork_settings.bin found in assets/tuningfork.
-    TFERROR_NO_SWAPPY = 2, // Not able to find Swappy.
-    TFERROR_INVALID_DEFAULT_FIDELITY_PARAMS = 3, // fpDefaultFileNum is out of range.
-    TFERROR_NO_FIDELITY_PARAMS = 4 // No dev_tuningfork_fidelityparams_#.bin found
-                                 //  in assets/tuningfork.
-};
-TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject activity,
+TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
                              const char* libraryName,
                              VoidCallback frame_callback,
                              int fpDefaultFileNum,
