@@ -65,12 +65,17 @@ public:
         return histogram_.Count();
     }
 
+    void SetInstrumentKey(InstrumentationKey key) {
+        instrumentation_key_ = key;
+    }
+
     friend class ClearcutSerializer;
 };
 
 // Simple fixed-size cache
 class ProngCache {
     std::vector<std::unique_ptr<Prong>> prongs_;
+    int max_num_instrumentation_keys_;
 public:
     ProngCache(size_t size, int max_num_instrumentation_keys,
                const std::vector<TFHistogram>& histogram_settings,
@@ -79,6 +84,8 @@ public:
     Prong *Get(uint64_t compound_id);
 
     void Clear();
+
+    void SetInstrumentKeys(const std::vector<InstrumentationKey>& instrument_keys);
 
     friend class ClearcutSerializer;
 

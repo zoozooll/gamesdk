@@ -46,32 +46,7 @@ const int defaultFPIndex = -3; // i.e. dev_tuningfork_fidelityparams_3.bin
 const int initialTimeoutMs = 1000;
 const int ultimateTimeoutMs = 100000;
 
-constexpr TFInstrumentKey TFTICK_CHOREOGRAPHER = 4;
-
-struct HistogramSettings {
-    float start, end;
-    int nBuckets;
-};
-Settings TestSettings(Settings::AggregationStrategy::Submission method, int n_ticks, int n_keys,
-                      std::vector<int> annotation_size,
-                      const std::vector<HistogramSettings>& hists = {}) {
-    // Make sure we set all required fields
-    Settings s;
-    s.mutable_aggregation_strategy()->set_method(method);
-    s.mutable_aggregation_strategy()->set_intervalms_or_count(n_ticks);
-    s.mutable_aggregation_strategy()->set_max_instrumentation_keys(n_keys);
-    for(int i=0;i<annotation_size.size();++i)
-        s.mutable_aggregation_strategy()->add_annotation_enum_size(annotation_size[i]);
-    int i=0;
-    for(auto& h: hists) {
-        auto sh = s.add_histograms();
-        sh->set_bucket_min(h.start);
-        sh->set_bucket_max(h.end);
-        sh->set_n_buckets(h.nBuckets);
-        sh->set_instrument_key(i++);
-    }
-    return s;
-}
+constexpr TFInstrumentKey TFTICK_CHOREOGRAPHER = TFTICK_USERDEFINED_BASE;
 
 std::string ReplaceReturns(const std::string& s) {
     std::string r = s;

@@ -142,7 +142,8 @@ const TuningForkLogEvent& TestEndToEndTimeBased() {
     testBackend.clear();
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     TestTimeProvider timeProvider(std::chrono::milliseconds(100)); // Tick in 100ms intervals
-    auto settings = TestSettings(TFAggregationStrategy::TIME_BASED, 10100, 1, {}, {{0, 50,150,10}});
+    auto settings = TestSettings(TFAggregationStrategy::TIME_BASED, 10100, 1, {},
+                                 {{TFTICK_SYSCPU, 50,150,10}});
     tuningfork::Init(settings, extra_upload_info, &testBackend, &paramsLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
@@ -152,7 +153,8 @@ const TuningForkLogEvent& TestEndToEndTimeBased() {
     return testBackend.result;
 }
 
-void CheckEvent(const std::string& name, const TuningForkLogEvent& result,const TuningForkLogEvent& expected) {
+void CheckEvent(const std::string& name, const TuningForkLogEvent& result,
+                const TuningForkLogEvent& expected) {
     EXPECT_EQ(result.histograms_size(), expected.histograms_size()) << name << ": N histograms";
     auto n_hist = result.histograms_size();
     for(int i=0;i<n_hist;++i) {
@@ -174,7 +176,7 @@ TEST(TuningForkTest, EndToEnd) {
     auto& result = TestEndToEnd();
     TuningForkLogEvent expected = {};
     auto h = expected.add_histograms();
-    h->set_instrument_id(0);
+    h->set_instrument_id(TFTICK_SYSCPU);
     for(int i=0;i<32;++i)
         h->add_counts(i==11?100:0);
     CheckEvent("Base", result, expected);
@@ -184,7 +186,7 @@ TEST(TuningForkTest, TestEndToEndWithAnnotation) {
     auto& result = TestEndToEndWithAnnotation();
     TuningForkLogEvent expected = {};
     auto h = expected.add_histograms();
-    h->set_instrument_id(1);
+    h->set_instrument_id(TFTICK_SYSGPU);
     for(int i=0;i<32;++i)
         h->add_counts(i==11?100:0);
     char ann[] = "\010\001";
@@ -196,7 +198,7 @@ TEST(TuningForkTest, TestEndToEndTimeBased) {
     auto& result = TestEndToEndTimeBased();
     TuningForkLogEvent expected = {};
     auto h = expected.add_histograms();
-    h->set_instrument_id(0);
+    h->set_instrument_id(TFTICK_SYSCPU);
     for(int i=0;i<12;++i)
         h->add_counts(i==6?100:0);
     CheckEvent("TimeBased", result, expected);

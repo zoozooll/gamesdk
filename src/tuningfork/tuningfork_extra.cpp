@@ -30,9 +30,6 @@ using namespace tuningfork;
 
 namespace {
 
-constexpr TFInstrumentKey TFTICK_WAIT_TIME = 2;
-constexpr TFInstrumentKey TFTICK_SWAP_TIME = 3;
-
 class TuningForkTraceWrapper {
     SwappyTracerFn swappyTracerFn_;
     SwappyTracer trace_;
@@ -61,11 +58,17 @@ public:
                                          long /*currentFrameTimeStampMs*/) {
         TuningForkTraceWrapper* _this = (TuningForkTraceWrapper*)userPtr;
         _this->frame_callback_();
-        TuningFork_frameTick(TFTICK_SYSCPU);
+        auto err = TuningFork_frameTick(TFTICK_SYSCPU);
+        if (err!=TFERROR_OK) {
+            ALOGE("Error ticking %d : %d", TFTICK_SYSCPU, err);
+        }
     }
     static void swappyPreWaitCallback(void* userPtr) {
         TuningForkTraceWrapper* _this = (TuningForkTraceWrapper*)userPtr;
-        TuningFork_startTrace(TFTICK_WAIT_TIME, &_this->waitTraceHandle_);
+        auto err = TuningFork_startTrace(TFTICK_SWAPPY_WAIT_TIME, &_this->waitTraceHandle_);
+        if (err!=TFERROR_OK) {
+            ALOGE("Error tracing %d : %d", TFTICK_SWAPPY_WAIT_TIME, err);
+        }
     }
     static void swappyPostWaitCallback(void* userPtr) {
         TuningForkTraceWrapper *_this = (TuningForkTraceWrapper *) userPtr;
@@ -73,11 +76,17 @@ public:
             TuningFork_endTrace(_this->waitTraceHandle_);
             _this->waitTraceHandle_ = 0;
         }
-        TuningFork_frameTick(TFTICK_SYSGPU);
+        auto err=TuningFork_frameTick(TFTICK_SYSGPU);
+        if (err!=TFERROR_OK) {
+            ALOGE("Error ticking %d : %d", TFTICK_SYSGPU, err);
+        }
     }
     static void swappyPreSwapBuffersCallback(void* userPtr) {
         TuningForkTraceWrapper* _this = (TuningForkTraceWrapper*)userPtr;
-        TuningFork_startTrace(TFTICK_SWAP_TIME, &_this->swapTraceHandle_);
+        auto err = TuningFork_startTrace(TFTICK_SWAPPY_SWAP_TIME, &_this->swapTraceHandle_);
+        if (err!=TFERROR_OK) {
+            ALOGE("Error tracing %d : %d", TFTICK_SWAPPY_SWAP_TIME, err);
+        }
     }
     static void swappyPostSwapBuffersCallback(void* userPtr, long /*desiredPresentationTimeMs*/) {
         TuningForkTraceWrapper *_this = (TuningForkTraceWrapper *) userPtr;
