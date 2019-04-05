@@ -24,6 +24,8 @@ extern "C" {
 
 typedef void (*VoidCallback)();
 typedef void (*ProtoCallback)(const CProtobufSerialization*);
+struct SwappyTracer;
+typedef void (*SwappyTracerFn)(const SwappyTracer*);
 
 // Load settings from assets/tuningfork/tuningfork_settings.bin.
 // Ownership of settings is passed to the caller: call
@@ -43,19 +45,15 @@ TFErrorCode TuningFork_findFidelityParamsInApk(JNIEnv* env, jobject context,
                                                int* fp_count);
 
 // Initialize tuning fork and automatically inject tracers into Swappy.
-// If Swappy is not available or could not be initialized, the function returns
-//  false.
-// When using Swappy, there will be 2 default tick points added and the
-//  histogram settings need to be coordinated with your swap rate.
-// If you know the shared library in which Swappy is, pass it in libraryName.
-// If libraryName is NULL or TuningFork cannot find Swappy in the library, the
-//  function  will look in the current module and then try in order:
-//  [libgamesdk.so, libswappy.so, libunity.so]
-// frame_callback is called once per frame: you can set any Annotations
-//  during this callback if you wish.
+// There will be at least 2 tick points added.
+// Pass a pointer to the Swappy_initTracer function as the 4th argument and
+//  the Swappy version number as the 5th.
+// frame_callback, if non-NULL, is called once per frame during the Swappy
+//  startFrame tracer callback.
 TFErrorCode TuningFork_initWithSwappy(const TFSettings* settings,
                                       JNIEnv* env, jobject context,
-                                      const char* libraryName,
+                                      SwappyTracerFn swappy_tracer_fn,
+                                      uint32_t swappy_lib_version,
                                       VoidCallback frame_callback);
 
 // Set a callback to be called on a separate thread every time TuningFork
@@ -80,7 +78,8 @@ TFErrorCode TuningFork_setUploadCallback(ProtoCallback cbk);
 // ultimateTimeoutMs is the time after which to stop retrying the download.
 // The following error codes may be returned:
 TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
-                             const char* libraryName,
+                             SwappyTracerFn swappy_tracer_fn,
+                             uint32_t swappy_lib_version,
                              VoidCallback frame_callback,
                              int fpDefaultFileNum,
                              ProtoCallback fidelity_params_callback,

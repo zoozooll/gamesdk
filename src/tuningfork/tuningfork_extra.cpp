@@ -30,82 +30,45 @@ using namespace tuningfork;
 
 namespace {
 
-using PFN_Swappy_initTracer = void (*)(const SwappyTracer* tracer);
-
 constexpr TFInstrumentKey TFTICK_WAIT_TIME = 2;
 constexpr TFInstrumentKey TFTICK_SWAP_TIME = 3;
 
-class DynamicSwappy {
-    typedef void* Handle;
-    Handle lib_;
-    PFN_Swappy_initTracer inject_tracer_;
-public:
-    DynamicSwappy(const char* libraryName) {
-        static char defaultLibNames[][20] = {"libgamesdk.so", "libswappy.so", "libunity.so"};
-        std::vector<const char*> libNames = {
-            libraryName, NULL, defaultLibNames[0], defaultLibNames[1], defaultLibNames[2]};
-        for(auto libName: libNames) {
-            lib_ = dlopen(libName, RTLD_NOW);
-            if( lib_ ) {
-                inject_tracer_ = (PFN_Swappy_initTracer)dlsym(lib_, "Swappy_injectTracer");
-                if(inject_tracer_) {
-                    return;
-                } else {
-                    dlclose(lib_);
-                }
-            }
-        }
-        ALOGW("Couldn't find Swappy_injectTracer");
-        lib_ = nullptr;
-    }
-    ~DynamicSwappy() {
-        if(lib_) dlclose(lib_);
-    }
-    void injectTracer(const SwappyTracer* tracer) const {
-        if(inject_tracer_)
-            inject_tracer_(tracer);
-    }
-    bool valid() const { return lib_ != nullptr; }
-};
-
-class SwappyTuningFork {
-    DynamicSwappy swappy_;
+class TuningForkTraceWrapper {
+    SwappyTracerFn swappyTracerFn_;
     SwappyTracer trace_;
     VoidCallback frame_callback_;
     TFTraceHandle waitTraceHandle_ = 0;
     TFTraceHandle swapTraceHandle_ = 0;
     TFErrorCode tfInitError;
 public:
-    SwappyTuningFork(const TFSettings& settings, JNIEnv* env, jobject context,
-                     VoidCallback cbk, const char* libName)
-        : swappy_(libName), trace_({}), frame_callback_(cbk), tfInitError(TFERROR_OK) {
+    TuningForkTraceWrapper(const TFSettings& settings, JNIEnv* env, jobject context,
+                     VoidCallback cbk, SwappyTracerFn swappyTracerFn)
+        : swappyTracerFn_(swappyTracerFn), trace_({}), frame_callback_(cbk), tfInitError(TFERROR_OK) {
         trace_.startFrame = swappyStartFrameCallback;
         trace_.preWait =  swappyPreWaitCallback;
         trace_.postWait = swappyPostWaitCallback;
         trace_.preSwapBuffers = swappyPreSwapBuffersCallback;
         trace_.postSwapBuffers = swappyPostSwapBuffersCallback;
         trace_.userData = this;
-        if(swappy_.valid()) {
-            tfInitError = TuningFork_init(&settings, env, context);
-            if (tfInitError==TFERROR_OK)
-                swappy_.injectTracer(&trace_);
-        }
+        tfInitError = TuningFork_init(&settings, env, context);
+        if (tfInitError==TFERROR_OK)
+            swappyTracerFn_(&trace_);
     }
-    bool valid() const { return swappy_.valid() && (tfInitError==TFERROR_OK); }
+    bool valid() const { return tfInitError==TFERROR_OK; }
 
     // Swappy trace callbacks
     static void swappyStartFrameCallback(void* userPtr, int /*currentFrame*/,
                                          long /*currentFrameTimeStampMs*/) {
-        SwappyTuningFork* _this = (SwappyTuningFork*)userPtr;
+        TuningForkTraceWrapper* _this = (TuningForkTraceWrapper*)userPtr;
         _this->frame_callback_();
         TuningFork_frameTick(TFTICK_SYSCPU);
     }
     static void swappyPreWaitCallback(void* userPtr) {
-        SwappyTuningFork* _this = (SwappyTuningFork*)userPtr;
+        TuningForkTraceWrapper* _this = (TuningForkTraceWrapper*)userPtr;
         TuningFork_startTrace(TFTICK_WAIT_TIME, &_this->waitTraceHandle_);
     }
     static void swappyPostWaitCallback(void* userPtr) {
-        SwappyTuningFork *_this = (SwappyTuningFork *) userPtr;
+        TuningForkTraceWrapper *_this = (TuningForkTraceWrapper *) userPtr;
         if (_this->waitTraceHandle_) {
             TuningFork_endTrace(_this->waitTraceHandle_);
             _this->waitTraceHandle_ = 0;
@@ -113,28 +76,28 @@ public:
         TuningFork_frameTick(TFTICK_SYSGPU);
     }
     static void swappyPreSwapBuffersCallback(void* userPtr) {
-        SwappyTuningFork* _this = (SwappyTuningFork*)userPtr;
+        TuningForkTraceWrapper* _this = (TuningForkTraceWrapper*)userPtr;
         TuningFork_startTrace(TFTICK_SWAP_TIME, &_this->swapTraceHandle_);
     }
     static void swappyPostSwapBuffersCallback(void* userPtr, long /*desiredPresentationTimeMs*/) {
-        SwappyTuningFork *_this = (SwappyTuningFork *) userPtr;
+        TuningForkTraceWrapper *_this = (TuningForkTraceWrapper *) userPtr;
         if (_this->swapTraceHandle_) {
             TuningFork_endTrace(_this->swapTraceHandle_);
             _this->swapTraceHandle_ = 0;
         }
     }
     // Static methods
-    static std::unique_ptr<SwappyTuningFork> s_instance_;
+    static std::unique_ptr<TuningForkTraceWrapper> s_instance_;
 
     static bool Init(const TFSettings* settings, JNIEnv* env,
-                     jobject context, const char* libName, void (*frame_callback)()) {
-        s_instance_ = std::unique_ptr<SwappyTuningFork>(
-            new SwappyTuningFork(*settings, env, context, frame_callback, libName));
+                     jobject context, SwappyTracerFn swappyTracerFn, void (*frame_callback)()) {
+        s_instance_ = std::unique_ptr<TuningForkTraceWrapper>(
+            new TuningForkTraceWrapper(*settings, env, context, frame_callback, swappyTracerFn));
         return s_instance_->valid();
     }
 };
 
-std::unique_ptr<SwappyTuningFork> SwappyTuningFork::s_instance_;
+std::unique_ptr<TuningForkTraceWrapper> TuningForkTraceWrapper::s_instance_;
 
 // Gets the serialized settings from the APK.
 // Returns false if there was an error.
@@ -392,9 +355,11 @@ TFErrorCode TuningFork_findFidelityParamsInApk(JNIEnv* env, jobject context,
 }
 
 TFErrorCode TuningFork_initWithSwappy(const TFSettings* settings, JNIEnv* env,
-                               jobject context, const char* libraryName,
-                               VoidCallback frame_callback) {
-    if (SwappyTuningFork::Init(settings, env, context, libraryName, frame_callback))
+                               jobject context, SwappyTracerFn swappyTracerFn,
+                               uint32_t /*swappy_lib_version*/, VoidCallback frame_callback) {
+    // If the definition of the SwappyTracer struct changes, we need to check the Swappy version
+    //  here and act appropriately.
+    if (TuningForkTraceWrapper::Init(settings, env, context, swappyTracerFn, frame_callback))
         return TFERROR_OK;
     else
         return TFERROR_NO_SWAPPY;
@@ -405,7 +370,8 @@ TFErrorCode TuningFork_setUploadCallback(void(*cbk)(const CProtobufSerialization
 }
 
 TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
-                                                const char* libraryName,
+                                                SwappyTracerFn swappy_tracer_fn,
+                                                uint32_t swappy_lib_version,
                                                 VoidCallback frame_callback,
                                                 int fpFileNum,
                                                 ProtoCallback fidelity_params_callback,
@@ -414,7 +380,8 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
     auto err = TuningFork_findSettingsInApk(env, context, &settings);
     if (err!=TFERROR_OK)
         return err;
-    err = TuningFork_initWithSwappy(&settings, env, context, libraryName, frame_callback);
+    err = TuningFork_initWithSwappy(&settings, env, context, swappy_tracer_fn, swappy_lib_version,
+                                    frame_callback);
     settings.dealloc(&settings);
     if (err!=TFERROR_OK)
         return err;
