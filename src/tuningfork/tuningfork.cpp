@@ -22,6 +22,7 @@
 #include <memory>
 #include <chrono>
 #include <sstream>
+#include <atomic>
 
 #define LOG_TAG "TuningFork"
 #include "Log.h"
@@ -92,18 +93,22 @@ private:
     std::vector<uint32_t> annotation_radix_mult_;
     AnnotationId current_annotation_id_;
     ITimeProvider *time_provider_;
+    std::vector<InstrumentationKey> ikeys_;
+    std::atomic<int> next_ikey_;
 public:
     TuningForkImpl(const Settings& settings,
                    const ExtraUploadInfo& extra_upload_info,
                    Backend *backend,
                    ParamsLoader *loader,
                    ITimeProvider *time_provider) : settings_(settings),
-                                                    trace_(gamesdk::Trace::create()),
-                                                    backend_(backend),
-                                                    loader_(loader),
-                                                    upload_thread_(backend, extra_upload_info),
-                                                    current_annotation_id_(0),
-                                                    time_provider_(time_provider) {
+                                trace_(gamesdk::Trace::create()),
+                                backend_(backend),
+                                loader_(loader),
+                                upload_thread_(backend, extra_upload_info),
+                                current_annotation_id_(0),
+                                time_provider_(time_provider),
+                                ikeys_(settings.aggregation_strategy.max_instrumentation_keys),
+                                next_ikey_(0) {
         if (time_provider_ == nullptr) {
             time_provider_ = s_mono_time_provider.get();
         }
@@ -161,7 +166,8 @@ private:
 
     Prong *TraceNanos(uint64_t compound_id, Duration dt);
 
-    void CheckForSubmit(TimePoint t_ns, Prong *prong);
+    void CheckForSubmit(TimePoint t_ns, Prong *prong,
+                        const std::vector<InstrumentationKey>& instrument_keys);
 
     bool ShouldSubmit(TimePoint t_ns, Prong *prong);
 
@@ -171,13 +177,19 @@ private:
         return compoundId % settings_.aggregation_strategy.max_instrumentation_keys;
     }
 
-    uint64_t MakeCompoundId(InstrumentationKey k, AnnotationId a) {
-        return k + a;
+    TFErrorCode MakeCompoundId(InstrumentationKey k, AnnotationId a, uint64_t& id) {
+        int key_index;
+        auto err = GetOrCreateInstrumentKeyIndex(k, key_index);
+        if (err!=TFERROR_OK) return err;
+        id = key_index + a;
+        return TFERROR_OK;
     }
 
     SerializedAnnotation SerializeAnnotationId(uint64_t);
 
     bool keyIsValid(InstrumentationKey key) const;
+
+    TFErrorCode GetOrCreateInstrumentKeyIndex(InstrumentationKey key, int& index);
 
 };
 
@@ -322,7 +334,7 @@ SerializedAnnotation TuningForkImpl::SerializeAnnotationId(AnnotationId id) {
 
 TFErrorCode TuningForkImpl::GetFidelityParameters(const ProtobufSerialization& defaultParams,
                                            ProtobufSerialization &params_ser, uint32_t timeout_ms) {
-    if(loader_) {
+    if (loader_) {
         auto result = loader_->GetFidelityParams(params_ser, timeout_ms);
         if (result) {
             upload_thread_.SetCurrentFidelityParams(params_ser);
@@ -335,22 +347,41 @@ TFErrorCode TuningForkImpl::GetFidelityParameters(const ProtobufSerialization& d
     else
         return TFERROR_TUNINGFORK_NOT_INITIALIZED;
 }
-bool TuningForkImpl::keyIsValid(InstrumentationKey key) const {
-    return key<settings_.aggregation_strategy.max_instrumentation_keys;
+TFErrorCode TuningForkImpl::GetOrCreateInstrumentKeyIndex(InstrumentationKey key, int& index) {
+    int nkeys = next_ikey_;
+    for (int i=0; i<nkeys; ++i) {
+        if (ikeys_[i] == key) {
+            index = i;
+            return TFERROR_OK;
+        }
+    }
+    // Another thread could have incremented next_ikey while we were checking, but we
+    //  mandate that different threads not use the same key, so we are OK adding
+    //  our key, if we can.
+    int next = next_ikey_++;
+    if (next<ikeys_.size()) {
+        ikeys_[next] = key;
+        index = next;
+        return TFERROR_OK;
+    }
+    else {
+        next_ikey_--;
+    }
+    return TFERROR_INVALID_INSTRUMENT_KEY;
 }
 TFErrorCode TuningForkImpl::StartTrace(InstrumentationKey key, TraceHandle& handle) {
-    if (!keyIsValid(key)) return TFERROR_INVALID_INSTRUMENT_KEY;
+    auto err = MakeCompoundId(key, current_annotation_id_, handle);
+    if (err!=TFERROR_OK) return err;
     trace_->beginSection("TFTrace");
-    uint64_t h = MakeCompoundId(key, current_annotation_id_);
-    live_traces_[h] = time_provider_->NowNs();
-    handle = h;
+    live_traces_[handle] = time_provider_->NowNs();
     return TFERROR_OK;
 }
 
 TFErrorCode TuningForkImpl::EndTrace(TraceHandle h) {
-    trace_->endSection();
+    if (h>=live_traces_.size()) return TFERROR_INVALID_TRACE_HANDLE;
     auto i = live_traces_[h];
     if (i != TimePoint::min()) {
+        trace_->endSection();
         TraceNanos(h, time_provider_->NowNs() - i);
         live_traces_[h] = TimePoint::min();
         return TFERROR_OK;
@@ -360,23 +391,25 @@ TFErrorCode TuningForkImpl::EndTrace(TraceHandle h) {
 }
 
 TFErrorCode TuningForkImpl::FrameTick(InstrumentationKey key) {
-    if (!keyIsValid(key)) return TFERROR_INVALID_INSTRUMENT_KEY;
+    uint64_t compound_id;
+    auto err = MakeCompoundId(key, current_annotation_id_, compound_id);
+    if (err!=TFERROR_OK) return err;
     trace_->beginSection("TFTick");
     auto t = time_provider_->NowNs();
-    auto compound_id = MakeCompoundId(key, current_annotation_id_);
     auto p = TickNanos(compound_id, t);
     if (p)
-        CheckForSubmit(t, p);
+        CheckForSubmit(t, p, ikeys_);
     trace_->endSection();
     return TFERROR_OK;
 }
 
 TFErrorCode TuningForkImpl::FrameDeltaTimeNanos(InstrumentationKey key, Duration dt) {
-    if (!keyIsValid(key)) return TFERROR_INVALID_INSTRUMENT_KEY;
-    auto compound_d = MakeCompoundId(key, current_annotation_id_);
-    auto p = TraceNanos(compound_d, dt);
+    uint64_t compound_id;
+    auto err = MakeCompoundId(key, current_annotation_id_, compound_id);
+    if (err!=TFERROR_OK) return err;
+    auto p = TraceNanos(compound_id, dt);
     if (p)
-        CheckForSubmit(time_provider_->NowNs(), p);
+        CheckForSubmit(time_provider_->NowNs(), p, ikeys_);
     return TFERROR_OK;
 }
 
@@ -419,8 +452,10 @@ bool TuningForkImpl::ShouldSubmit(TimePoint t_ns, Prong *prong) {
     return false;
 }
 
-void TuningForkImpl::CheckForSubmit(TimePoint t_ns, Prong *prong) {
+void TuningForkImpl::CheckForSubmit(TimePoint t_ns, Prong *prong,
+                        const std::vector<InstrumentationKey>& instrument_keys) {
     if (ShouldSubmit(t_ns, prong)) {
+        current_prong_cache_->SetInstrumentKeys(instrument_keys);
         if (upload_thread_.Submit(current_prong_cache_)) {
             if (current_prong_cache_ == prong_caches_[0].get()) {
                 prong_caches_[1]->Clear();
@@ -436,26 +471,18 @@ void TuningForkImpl::CheckForSubmit(TimePoint t_ns, Prong *prong) {
 
 void TuningForkImpl::InitHistogramSettings() {
     TFHistogram default_histogram;
-    default_histogram.instrument_key = 0;
+    default_histogram.instrument_key = -1;
     default_histogram.bucket_min = 10;
     default_histogram.bucket_max = 40;
     default_histogram.n_buckets = Histogram::kDefaultNumBuckets;
     for(uint32_t i=0; i<settings_.aggregation_strategy.max_instrumentation_keys; ++i) {
         if(settings_.histograms.size()<=i) {
-            ALOGW("Couldn't get histogram for key %d. Using default histogram", i);
+            ALOGW("Couldn't get histogram for key index %d. Using default histogram", i);
             settings_.histograms.push_back(default_histogram);
-            settings_.histograms.back().instrument_key = i;
         }
         else {
-            for(uint32_t j=i; j<settings_.aggregation_strategy.max_instrumentation_keys; ++j) {
-                auto& h = settings_.histograms[j];
-                if(h.instrument_key==i) {
-                    if(i!=j) {
-                        std::swap(settings_.histograms[j], settings_.histograms[i]);
-                    }
-                    break;
-                }
-            }
+            int index;
+            GetOrCreateInstrumentKeyIndex(settings_.histograms[i].instrument_key, index);
         }
     }
     ALOGV("TFHistograms");

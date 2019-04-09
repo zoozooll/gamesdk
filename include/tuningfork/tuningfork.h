@@ -23,10 +23,13 @@
 #define TUNINGFORK_MINOR_VERSION 1
 #define TUNINGFORK_PACKED_VERSION ((TUNINGFORK_MAJOR_VERSION<<16)|(TUNINGFORK_MINOR_VERSION))
 
-// TODO(bug 129747133): reserve other numbers
+// Instrument keys 64000-65535 are reserved
 enum {
-    TFTICK_SYSCPU = 0,
-    TFTICK_SYSGPU = 1
+    TFTICK_USERDEFINED_BASE = 0,
+    TFTICK_SYSCPU = 64000,
+    TFTICK_SYSGPU = 64001,
+    TFTICK_SWAPPY_WAIT_TIME = 64002,
+    TFTICK_SWAPPY_SWAP_TIME = 64003
 };
 
 struct CProtobufSerialization {
@@ -115,6 +118,8 @@ TFErrorCode TuningFork_setCurrentAnnotation(const CProtobufSerialization *annota
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation.
+// NB: calling the tick or trace functions from different threads is allowed, but a given
+//  instrument key should always be ticked from the same thread.
 // Returns TFERROR_INVALID_INSTRUMENT_KEY if the instrument key is invalid.
 // Returns TFERROR_OK on success.
 TFErrorCode TuningFork_frameTick(TFInstrumentKey id);
