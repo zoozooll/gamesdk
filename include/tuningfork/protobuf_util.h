@@ -22,6 +22,9 @@
 #include <cstdint>
 #include <cstdlib>
 
+// Deallocate the bytes using stdlib's 'free'
+extern "C" void CProtobufSerialization_Dealloc(CProtobufSerialization* c);
+
 namespace tuningfork {
 
 template <typename T>
@@ -39,6 +42,7 @@ std::vector<uint8_t> Serialize(const T &pb) {
     pb.SerializeToArray(ser.data(), ser.size());
     return ser;
 }
+
 // Serialize to a CProtobuf. The caller takes ownership of the returned serialization and must
 //  call CProtobufSerialization_Free to deallocate any memory.
 template <typename T>
@@ -46,11 +50,9 @@ CProtobufSerialization CProtobufSerialization_Alloc(const T &pb) {
     CProtobufSerialization cser;
     cser.bytes = (uint8_t*)::malloc(pb.ByteSize());
     cser.size = pb.ByteSize();
-    cser.dealloc = ::free;
+    cser.dealloc = CProtobufSerialization_Dealloc;
     pb.SerializeToArray(cser.bytes, cser.size);
     return cser;
 }
-
-void CProtobufSerialization_Free(CProtobufSerialization* ser);
 
 } // namespace tuningfork {

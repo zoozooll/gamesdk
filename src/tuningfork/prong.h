@@ -39,7 +39,7 @@ public:
 
     Prong(InstrumentationKey instrumentation_key = 0,
           const SerializedAnnotation &annotation = {},
-          const Settings::Histogram& histogram_settings = {})
+          const TFHistogram& histogram_settings = {})
         : instrumentation_key_(instrumentation_key), annotation_(annotation),
           last_time_ns_(std::chrono::steady_clock::time_point::min()),
           histogram_(histogram_settings) {}
@@ -73,7 +73,7 @@ class ProngCache {
     std::vector<std::unique_ptr<Prong>> prongs_;
 public:
     ProngCache(size_t size, int max_num_instrumentation_keys,
-               const std::vector<Settings::Histogram>& histogram_settings,
+               const std::vector<TFHistogram>& histogram_settings,
                const std::function<SerializedAnnotation(uint64_t)>& seralizeId);
 
     Prong *Get(uint64_t compound_id);

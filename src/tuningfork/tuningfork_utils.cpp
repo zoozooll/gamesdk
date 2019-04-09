@@ -32,7 +32,7 @@ namespace apk_utils {
     // Get an asset from this APK's asset directory.
     // Returns NULL if the asset could not be found.
     // Asset_close must be called once the asset is no longer needed.
-    AAsset* GetAsset(JNIEnv* env, jobject activity, const char* name) {
+    AAsset* GetAsset(JNIEnv* env, jobject context, const char* name) {
         jclass cls = env->FindClass("android/content/Context");
         jmethodID get_assets = env->GetMethodID(cls, "getAssets",
                                                 "()Landroid/content/res/AssetManager;");
@@ -40,7 +40,7 @@ namespace apk_utils {
             ALOGE("No Context.getAssets() method");
             return nullptr;
         }
-        auto javaMgr = env->CallObjectMethod(activity, get_assets);
+        auto javaMgr = env->CallObjectMethod(context, get_assets);
         if (javaMgr == nullptr) {
             ALOGE("No java asset manager");
             return nullptr;
@@ -120,11 +120,11 @@ namespace file_utils {
         struct stat buffer;
         return (stat(fname.c_str(), &buffer)==0);
     }
-    std::string GetAppCacheDir(JNIEnv* env, jobject activity) {
-        jclass activityClass = env->FindClass( "android/app/NativeActivity" );
-        jmethodID getCacheDir = env->GetMethodID( activityClass, "getCacheDir",
+    std::string GetAppCacheDir(JNIEnv* env, jobject context) {
+        jclass contextClass = env->GetObjectClass(context);
+        jmethodID getCacheDir = env->GetMethodID( contextClass, "getCacheDir",
             "()Ljava/io/File;" );
-        jobject cache_dir = env->CallObjectMethod( activity, getCacheDir );
+        jobject cache_dir = env->CallObjectMethod( context, getCacheDir );
 
         jclass fileClass = env->FindClass( "java/io/File" );
         jmethodID getPath = env->GetMethodID( fileClass, "getPath", "()Ljava/lang/String;" );

@@ -20,9 +20,9 @@
 
 using namespace annotation_util;
 
-std::vector<int> TestSetup(const std::vector<int>& enum_sizes,
-                           const std::vector<int>& expected){
-    std::vector<int> radix_mult;
+std::vector<uint32_t> TestSetup(const std::vector<uint32_t>& enum_sizes,
+                           const std::vector<uint32_t>& expected){
+    std::vector<uint32_t> radix_mult;
     SetUpAnnotationRadixes(radix_mult, enum_sizes);
     EXPECT_EQ(radix_mult, expected);
     return radix_mult;
@@ -37,7 +37,7 @@ TEST(Annotation, Setup) {
 }
 
 void CheckEncodeDecode(AnnotationId id,
-                       const std::vector<int>& radix_mult, const std::string& err) {
+                       const std::vector<uint32_t>& radix_mult, const std::string& err) {
     SerializedAnnotation ser;
     EXPECT_EQ(SerializeAnnotationId(id, ser, radix_mult), 0) << err << ": error serializing";
     auto back = DecodeAnnotationSerialization( ser, radix_mult);
@@ -50,12 +50,12 @@ TEST(Annotation, EncodeDecodeGood) {
     CheckEncodeDecode( 3, radix_mult, "Third");
 }
 void CheckGood(SerializedAnnotation ser, AnnotationId id,
-               const std::vector<int>& radix_mult) {
+               const std::vector<uint32_t>& radix_mult) {
     auto back = DecodeAnnotationSerialization( ser, radix_mult);
     EXPECT_EQ(back, id) << "Good";
 }
 void CheckBad(SerializedAnnotation ser,
-              const std::vector<int>& radix_mult) {
+              const std::vector<uint32_t>& radix_mult) {
     auto back = DecodeAnnotationSerialization( ser, radix_mult);
     EXPECT_EQ(back, kAnnotationError) << "Bad";
 }

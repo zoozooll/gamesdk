@@ -38,7 +38,7 @@ public:
     static constexpr int kDefaultNumBuckets = 30;
 
     explicit Histogram(float start_ms = 0, float end_ms = 0, int num_buckets_between = kDefaultNumBuckets);
-    explicit Histogram(const Settings::Histogram&);
+    explicit Histogram(const TFHistogram&);
 
     // Add a sample delta time
     void Add(Sample dt_ms);

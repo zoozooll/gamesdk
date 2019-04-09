@@ -57,7 +57,7 @@ private:
         upload_callback_ = upload_callback;
     }
 
-    static ExtraUploadInfo GetExtraUploadInfo(JNIEnv* env, jobject activity);
+    static ExtraUploadInfo GetExtraUploadInfo(JNIEnv* env, jobject context);
 
  private:
     void UpdateGLVersion();
