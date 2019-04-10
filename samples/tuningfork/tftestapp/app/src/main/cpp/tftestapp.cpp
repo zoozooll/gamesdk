@@ -42,7 +42,7 @@ bool swappy_enabled = false;
 namespace {
 
 // Parameters used in Tuning Fork initialization using TuningFork_initFromAssetsWithSwappy.
-const int defaultFPIndex = -3; // i.e. dev_tuningfork_fidelityparams_3.bin
+const char defaultFPName[] = "dev_tuningfork_fidelityparams_3.bin";
 const int initialTimeoutMs = 1000;
 const int ultimateTimeoutMs = 100000;
 
@@ -168,10 +168,25 @@ JNIEXPORT void JNICALL
 Java_com_google_tuningfork_TFTestActivity_initTuningFork(JNIEnv *env, jobject activity) {
     Swappy_init(env, activity);
     swappy_enabled = Swappy_isEnabled();
+    // The following tests TuningFork_saveOrDeleteFidelityParamsFile
+    bool overrideDefaultFPs = false;
+    bool resetDefaultFPs = false;
+    if (overrideDefaultFPs) {
+        CProtobufSerialization fps;
+        TuningFork_findFidelityParamsInApk(env, activity, "dev_tuningfork_fidelityparams_6.bin",
+                                           &fps);
+        if (TuningFork_saveOrDeleteFidelityParamsFile(env, activity, &fps) != TFERROR_OK)
+            ALOGW("Couldn't override defaults file");
+    }
+    if (resetDefaultFPs) {
+        if (TuningFork_saveOrDeleteFidelityParamsFile(env, activity, NULL) != TFERROR_OK)
+            ALOGW("Couldn't delete defaults file");
+    }
+    // end of test
     if (swappy_enabled) {
         TFErrorCode err = TuningFork_initFromAssetsWithSwappy(env, activity,
                                                     &Swappy_injectTracer, 0,
-                                                    SetAnnotations, defaultFPIndex,
+                                                    SetAnnotations, defaultFPName,
                                                     SetFidelityParams,
                                                     initialTimeoutMs, ultimateTimeoutMs);
         if (err==TFERROR_OK) {
@@ -188,31 +203,22 @@ Java_com_google_tuningfork_TFTestActivity_initTuningFork(JNIEnv *env, jobject ac
             ALOGE("Error initializing Tuning Fork : err = %d", err);
             return;
         }
-        int fp_count;
-        err = TuningFork_findFidelityParamsInApk(env, activity, nullptr, &fp_count);
+        CProtobufSerialization defaultFP = {};
+        err = TuningFork_findFidelityParamsInApk(env, activity, defaultFPName, &defaultFP);
         if (err!=TFERROR_OK) {
             ALOGE("Error finding fidelity params : err = %d", err);
             return;
         }
         CProtobufSerialization fps = {};
-        std::vector<CProtobufSerialization> defaultFPs(fp_count);
-        err = TuningFork_findFidelityParamsInApk(env, activity, defaultFPs.data(), &fp_count);
-        if (err!=TFERROR_OK) {
-            ALOGE("Error finding fidelity params : err = %d", err);
-            return;
-        }
-        CProtobufSerialization* defaultFP = &defaultFPs[fp_count/2-1]; // Middle settings level
-        err = TuningFork_getFidelityParameters(defaultFP, &fps, 1000);
+        err = TuningFork_getFidelityParameters(&defaultFP, &fps, 1000);
         if (err == TFERROR_OK) {
             SetFidelityParams(&fps);
             CProtobufSerialization_Free(&fps);
         }
         else {
-            SetFidelityParams(defaultFP);
+            SetFidelityParams(&defaultFP);
         }
-        for(auto& a: defaultFPs) {
-            CProtobufSerialization_Free(&a);
-        }
+        CProtobufSerialization_Free(&defaultFP);
         TuningFork_setUploadCallback(UploadCallback);
         SetAnnotations();
     }
