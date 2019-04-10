@@ -144,7 +144,10 @@ public:
     void InitAnnotationRadixes();
 
     // Returns true if the fidelity params were retrieved
-    TFErrorCode GetFidelityParameters(const ProtobufSerialization& defaultParams,
+    TFErrorCode GetFidelityParameters(JNIEnv* env, jobject context,
+                               const std::string& url_base,
+                               const std::string& api_key,
+                               const ProtobufSerialization& defaultParams,
                                ProtobufSerialization &fidelityParams, uint32_t timeout_ms);
 
     // Returns the set annotation id or -1 if it could not be set
@@ -226,7 +229,7 @@ ProtoPrint sProtoPrint;
 ParamsLoader sLoader;
 
 TFErrorCode Init(const TFSettings &c_settings, JNIEnv* env, jobject context) {
-    bool backendInited = sBackend.Init(env, context, &sProtoPrint);
+    bool backendInited = sBackend.Init(env, context, &sProtoPrint)==TFERROR_OK;
 
     ExtraUploadInfo extra_upload_info = UploadThread::GetExtraUploadInfo(env, context);
     Backend* backend = nullptr;
@@ -242,12 +245,17 @@ TFErrorCode Init(const TFSettings &c_settings, JNIEnv* env, jobject context) {
     return Init(c_settings, extra_upload_info, backend, loader);
 }
 
-TFErrorCode GetFidelityParameters(const ProtobufSerialization &defaultParams,
+TFErrorCode GetFidelityParameters(JNIEnv* env, jobject context,
+                           const std::string& url_base,
+                           const std::string& api_key,
+                           const ProtobufSerialization &defaultParams,
                            ProtobufSerialization &params, uint32_t timeout_ms) {
     if (!s_impl) {
         return TFERROR_TUNINGFORK_NOT_INITIALIZED;
-    } else
-        return s_impl->GetFidelityParameters(defaultParams, params, timeout_ms);
+    } else {
+        return s_impl->GetFidelityParameters(env, context, url_base, api_key, defaultParams,
+                                             params, timeout_ms);
+    }
 }
 
 TFErrorCode FrameTick(InstrumentationKey id) {
@@ -332,17 +340,18 @@ SerializedAnnotation TuningForkImpl::SerializeAnnotationId(AnnotationId id) {
     return ann;
 }
 
-TFErrorCode TuningForkImpl::GetFidelityParameters(const ProtobufSerialization& defaultParams,
+TFErrorCode TuningForkImpl::GetFidelityParameters(JNIEnv* env, jobject context,
+                                           const std::string& url_base,
+                                           const std::string& api_key,
+                                           const ProtobufSerialization& defaultParams,
                                            ProtobufSerialization &params_ser, uint32_t timeout_ms) {
-    if (loader_) {
-        auto result = loader_->GetFidelityParams(params_ser, timeout_ms);
-        if (result) {
-            upload_thread_.SetCurrentFidelityParams(params_ser);
-            return TFERROR_OK;
-        } else {
-            upload_thread_.SetCurrentFidelityParams(defaultParams);
-            return TFERROR_TIMEOUT;
-        }
+    if(loader_) {
+        std::string experiment_id;
+        auto result = loader_->GetFidelityParams(env, context,
+                                 upload_thread_.GetExtraUploadInfo(env, context), url_base,
+                                 api_key, params_ser, experiment_id, timeout_ms);
+        upload_thread_.SetCurrentFidelityParams(params_ser, experiment_id);
+        return result;
     }
     else
         return TFERROR_TUNINGFORK_NOT_INITIALIZED;

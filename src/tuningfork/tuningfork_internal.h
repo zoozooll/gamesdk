@@ -69,15 +69,19 @@ struct ExtraUploadInfo {
 class Backend {
 public:
     virtual ~Backend() {};
-    virtual bool Process(const ProtobufSerialization &tuningfork_log_event) = 0;
+    virtual TFErrorCode Process(const ProtobufSerialization &tuningfork_log_event) = 0;
 };
 
 class ParamsLoader {
 public:
     virtual ~ParamsLoader() {};
-    virtual bool GetFidelityParams(ProtobufSerialization &fidelity_params, uint32_t timeout_ms) {
-        return false;
-    }
+    virtual TFErrorCode GetFidelityParams(JNIEnv* env, jobject context,
+                                          const ExtraUploadInfo& info,
+                                          const std::string& url_base,
+                                          const std::string& api_key,
+                                          ProtobufSerialization &fidelity_params,
+                                          std::string& experiment_id,
+                                          uint32_t timeout_ms);
 };
 
 class ProtoPrint {
@@ -89,7 +93,7 @@ public:
 class DebugBackend : public Backend {
 public:
     ~DebugBackend() override;
-    bool Process(const ProtobufSerialization &tuningfork_log_event) override;
+    TFErrorCode Process(const ProtobufSerialization &tuningfork_log_event) override;
 };
 
 // You can provide your own time source rather than steady_clock by inheriting this and passing
@@ -113,7 +117,10 @@ TFErrorCode Init(const TFSettings &settings, JNIEnv* env, jobject context);
 //  as being associated with those parameters.
 // If you subsequently call GetFidelityParameters, any data that is already collected will be
 // submitted to the backend.
-TFErrorCode GetFidelityParameters(const ProtobufSerialization& defaultParams,
+TFErrorCode GetFidelityParameters(JNIEnv* env, jobject context,
+                           const std::string& url_base,
+                           const std::string& api_key,
+                           const ProtobufSerialization& defaultParams,
                            ProtobufSerialization &params, uint32_t timeout_ms);
 
 // Protobuf serialization of the current annotation

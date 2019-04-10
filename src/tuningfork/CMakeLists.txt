@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.4.1)
 
 include("../protobuf/protobuf.cmake")
 set( MODPB64_DIR "${EXTERNAL_ROOT}/modp_b64")
+set( JSON11_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/json11")
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections,-s")
@@ -36,6 +37,8 @@ set( TUNINGFORK_SRCS
   annotation_util.cpp
   tuningfork_extra.cpp
   tuningfork_utils.cpp
+  fpdownload.cpp
+  ${JSON11_DIR}/json11.cpp
   ${MODPB64_DIR}/modp_b64.cc
   ${PROTO_GENS_DIR}/nano/tuningfork.pb.c
   ${PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c
