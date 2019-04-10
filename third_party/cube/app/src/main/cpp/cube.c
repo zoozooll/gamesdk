@@ -3340,7 +3340,7 @@ static void demo_init_vk(struct demo *demo) {
         char **swappy_required_extension_names;
         SwappyVk_determineDeviceExtensions(demo->gpu, device_extension_count, device_extensions,
                                           &swappy_required_extension_count, NULL);
-        swappy_required_extension_names = malloc(swappy_required_extension_count);
+        swappy_required_extension_names = malloc(swappy_required_extension_count * sizeof(char*));
         for (uint32_t i = 0; i < swappy_required_extension_count; i++) {
             swappy_required_extension_names[i] = malloc(VK_MAX_EXTENSION_NAME_SIZE + 1);
         }
