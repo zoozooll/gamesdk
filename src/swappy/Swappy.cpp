@@ -188,6 +188,8 @@ bool Swappy::swapInternal(EGLDisplay display, EGLSurface surface) {
 
     if (updateSwapInterval()) {
         swapIntervalChangedCallbacks();
+        TRACE_INT("mPipelineMode", mPipelineMode);
+        TRACE_INT("mAutoSwapInterval", mAutoSwapInterval);
     }
 
     updateSwapDuration(std::chrono::steady_clock::now() - mSwapTime);
@@ -230,10 +232,12 @@ void Swappy::setAutoSwapInterval(bool enabled) {
 
     std::lock_guard<std::mutex> lock(swappy->mFrameDurationsMutex);
     swappy->mAutoSwapIntervalEnabled = enabled;
+    TRACE_INT("mAutoSwapIntervalEnabled", swappy->mAutoSwapIntervalEnabled);
 
     // non pipeline mode is not supported when auto mode is disabled
     if (!enabled) {
         swappy->mPipelineMode = true;
+        TRACE_INT("mPipelineMode", swappy->mPipelineMode);
     }
 }
 
@@ -246,8 +250,10 @@ void Swappy::setAutoPipelineMode(bool enabled) {
 
     std::lock_guard<std::mutex> lock(swappy->mFrameDurationsMutex);
     swappy->mPipelineModeAutoMode = enabled;
+    TRACE_INT("mPipelineModeAutoMode", swappy->mPipelineModeAutoMode);
     if (!enabled) {
         swappy->mPipelineMode = true;
+        TRACE_INT("mPipelineMode", swappy->mPipelineMode);
     }
 }
 
@@ -429,6 +435,8 @@ void Swappy::onSettingsChanged() {
         mFrameDurations.clear();
         mFrameDurationsSum = {};
     }
+    TRACE_INT("mSwapInterval", mSwapInterval);
+    TRACE_INT("mAutoSwapInterval", mAutoSwapInterval);
 }
 
 void Swappy::handleChoreographer() {
