@@ -28,11 +28,11 @@ add_library( swappy_static
              ${SOURCE_LOCATION}/FrameStatistics.cpp
              ${SOURCE_LOCATION}/CpuInfo.cpp
              ${SOURCE_LOCATION}/SystemProperties.cpp
-             ${SOURCE_LOCATION}/Swappy.cpp
              ${SOURCE_LOCATION}/Settings.cpp
              ${SOURCE_LOCATION}/Thread.cpp
-             ${SOURCE_LOCATION}/Swappy.cpp
              ${SOURCE_LOCATION}/Swappy_c.cpp
+             ${SOURCE_LOCATION}/Swappy.cpp
+             ${SOURCE_LOCATION}/SwappyCommon.cpp
 
              # Add new source files here
              )
