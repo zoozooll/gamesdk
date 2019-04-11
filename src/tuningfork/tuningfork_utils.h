@@ -44,6 +44,8 @@ namespace file_utils {
 
     bool FileExists(const std::string& fname);
 
+    bool DeleteFile(const std::string& path);
+
     // Call NativeContext.getCacheDir via JNI
     std::string GetAppCacheDir(JNIEnv* env, jobject context);
 

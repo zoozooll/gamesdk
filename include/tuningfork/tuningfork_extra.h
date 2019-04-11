@@ -35,14 +35,12 @@ typedef void (*SwappyTracerFn)(const SwappyTracer*);
 TFErrorCode TuningFork_findSettingsInApk(JNIEnv* env, jobject context,
                                          TFSettings* settings);
 
-// Load fidelity params from assets/tuningfork/dev_tuningfork_fidelityparams_#.bin.
-// Call once with fps=nullptr to get the number of files in fp_count.
-// The call a second time with a pre-allocated array of size fp_count in fps.
+// Load fidelity params from assets/tuningfork/<filename>
 // Ownership of serializations is passed to the caller: call
 //  CProtobufSerialization_Free to deallocate any memory.
 TFErrorCode TuningFork_findFidelityParamsInApk(JNIEnv* env, jobject context,
-                                               CProtobufSerialization* fps,
-                                               int* fp_count);
+                                               const char* filename,
+                                               CProtobufSerialization* fp);
 
 // Initialize tuning fork and automatically inject tracers into Swappy.
 // There will be at least 2 tick points added.
@@ -66,24 +64,28 @@ TFErrorCode TuningFork_setUploadCallback(ProtoCallback cbk);
 //    performed until a download is successful or a timeout occurs.
 // 3) Downloaded params are stored locally and used in preference of default
 //    params when the app is started in future.
-// fpDefaultFileNum is the index of the dev_tuningfork_fidelityparams_#.bin file you
-//  wish to use when there is no download connection and no saved params. It has a
-//  special meaning if it is negative: in this case, saved params are reset to
-//  dev_tuningfork_fidelity_params_(-$fpDefaultFileNum).bin
+// fp_default_file_name is the name of the binary fidelity params file that
+//  will be used if there is no download connection and there are no saved params.
+//  This file must be in assets/tuningfork (but only use the file name here).
 // fidelity_params_callback is called with any downloaded params or with default /
 //  saved params.
 // initialTimeoutMs is the time to wait for an initial download. The fidelity_params_callback
 //  will be called after this time with the default / saved params if no params
 //  could be downloaded..
 // ultimateTimeoutMs is the time after which to stop retrying the download.
-// The following error codes may be returned:
 TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
                              SwappyTracerFn swappy_tracer_fn,
                              uint32_t swappy_lib_version,
                              VoidCallback frame_callback,
-                             int fpDefaultFileNum,
+                             const char* fp_default_file_name,
                              ProtoCallback fidelity_params_callback,
                              int initialTimeoutMs, int ultimateTimeoutMs);
+
+// The initFromAssetsWithSwappy function will save fidelity params to a file
+//  for use when a download connection is not available. With this function,
+//  you can replace or delete any saved file. To delete the file, pass fps=NULL.
+TFErrorCode TuningFork_saveOrDeleteFidelityParamsFile(JNIEnv* env, jobject context,
+                                                      CProtobufSerialization* fps);
 
 #ifdef __cplusplus
 }

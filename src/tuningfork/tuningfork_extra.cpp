@@ -126,36 +126,14 @@ bool GetSettingsSerialization(JNIEnv* env, jobject context,
     return true;
 }
 
-// Gets the serialized fidelity params from the APK.
-// Call this function once with fps_ser=NULL to get the count of files present,
-// then allocate an array of CProtobufSerializations and pass this as fps_ser
-// to a second call.
-TFErrorCode GetFidelityParamsSerialization(JNIEnv* env, jobject context,
-                                            CProtobufSerialization* fps_ser,
-                                            int* fp_count) {
-    std::vector<AAsset*> fps;
-    for( int i=1; i<16; ++i ) {
-        std::stringstream name;
-        name << "tuningfork/dev_tuningfork_fidelityparams_" << i << ".bin";
-        auto fp = apk_utils::GetAsset(env, context, name.str().c_str());
-        if ( fp == nullptr ) break;
-        fps.push_back(fp);
-    }
-    *fp_count = fps.size();
-    if( fps_ser==nullptr )
-        return TFERROR_OK;
-    for(int i=0; i<*fp_count; ++i) {
-        // Get serialized FidelityParams from assets
-        AAsset* asset = fps[i];
-        CProtobufSerialization& fp_ser = fps_ser[i];
-        uint64_t size = AAsset_getLength64(asset);
-        fp_ser.bytes = (uint8_t*)::malloc(size);
-        memcpy(fp_ser.bytes, AAsset_getBuffer(asset), size);
-        fp_ser.size = size;
-        fp_ser.dealloc = CProtobufSerialization_Dealloc;
-        AAsset_close(asset);
-    }
-    return TFERROR_OK;
+CProtobufSerialization GetAssetAsSerialization(AAsset* asset) {
+    CProtobufSerialization ser;
+    uint64_t size = AAsset_getLength64(asset);
+    ser.bytes = (uint8_t*)::malloc(size);
+    memcpy(ser.bytes, AAsset_getBuffer(asset), size);
+    ser.size = size;
+    ser.dealloc = CProtobufSerialization_Dealloc;
+    return ser;
 }
 
 // Get the name of the tuning fork save file. Returns true if the directory
@@ -358,9 +336,24 @@ TFErrorCode TuningFork_findSettingsInApk(JNIEnv* env, jobject context,
         return TFERROR_BAD_PARAMETER;
     }
 }
+
+// Load fidelity params from assets/tuningfork/<filename>
+// Ownership of serializations is passed to the caller: call
+//  CProtobufSerialization_Free to deallocate any memory.
 TFErrorCode TuningFork_findFidelityParamsInApk(JNIEnv* env, jobject context,
-                                        CProtobufSerialization* fps, int* fp_count) {
-    return GetFidelityParamsSerialization(env, context, fps, fp_count);
+                                               const char* filename,
+                                               CProtobufSerialization* fp) {
+    std::stringstream full_filename;
+    full_filename << "tuningfork/" << filename;
+    AAsset* a = apk_utils::GetAsset(env, context, full_filename.str().c_str());
+    if (a==nullptr) {
+        ALOGE("Can't find %s", full_filename.str().c_str());
+        return TFERROR_INVALID_DEFAULT_FIDELITY_PARAMS;
+    }
+    ALOGI("Using file %s for default params", full_filename.str().c_str());
+    *fp = GetAssetAsSerialization(a);
+    AAsset_close(a);
+    return TFERROR_OK;
 }
 
 TFErrorCode TuningFork_initWithSwappy(const TFSettings* settings, JNIEnv* env,
@@ -382,7 +375,7 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
                                                 SwappyTracerFn swappy_tracer_fn,
                                                 uint32_t swappy_lib_version,
                                                 VoidCallback frame_callback,
-                                                int fpFileNum,
+                                                const char* fp_file_name,
                                                 ProtoCallback fidelity_params_callback,
                                                 int initialTimeoutMs, int ultimateTimeoutMs) {
     TFSettings settings;
@@ -395,41 +388,35 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
     if (err!=TFERROR_OK)
         return err;
     CProtobufSerialization defaultParams = {};
-    // Special meaning for negative fpFileNum: don't load saved params, overwrite them instead
-    bool resetSavedFPs = fpFileNum<0;
-    fpFileNum = abs(fpFileNum);
     // Use the saved params as default, if they exist
-    if (!resetSavedFPs && SavedFidelityParamsFileExists(env, context)) {
+    if (SavedFidelityParamsFileExists(env, context)) {
+        ALOGI("Using saved default params");
         GetSavedFidelityParams(env, context, &defaultParams);
     } else {
-        int nfps=0;
-        TuningFork_findFidelityParamsInApk(env, context, NULL, &nfps);
-        if (nfps>0) {
-            std::vector<CProtobufSerialization> fps(nfps);
-            TuningFork_findFidelityParamsInApk(env, context, fps.data(), &nfps);
-            int chosen = fpFileNum - 1; // File indices start at 1
-            for (int i=0;i<nfps;++i) {
-                if (i==chosen) {
-                    defaultParams = fps[i];
-                } else {
-                    CProtobufSerialization_Free(&fps[i]);
-                }
-            }
-            if (chosen>=0 && chosen<nfps) {
-                ALOGI("Using params from dev_tuningfork_fidelityparams_%d.bin as default",
-                    fpFileNum);
-            } else {
-                return TFERROR_INVALID_DEFAULT_FIDELITY_PARAMS;
-            }
-        } else {
-            return TFERROR_NO_FIDELITY_PARAMS;
-        }
-        // Save the default params
-        SaveFidelityParams(env, context, &defaultParams);
+        if (fp_file_name==nullptr)
+            return TFERROR_INVALID_DEFAULT_FIDELITY_PARAMS;
+        err = TuningFork_findFidelityParamsInApk(env, context, fp_file_name, &defaultParams);
+        if (err!=TFERROR_OK)
+            return err;
     }
     StartFidelityParamDownloadThread(env, context, defaultParams, fidelity_params_callback,
         initialTimeoutMs, ultimateTimeoutMs);
     return TFERROR_OK;
+}
+
+TFErrorCode TuningFork_saveOrDeleteFidelityParamsFile(JNIEnv* env, jobject context,
+                                                      CProtobufSerialization* fps) {
+    if(fps) {
+        if (SaveFidelityParams(env, context, fps))
+            return TFERROR_OK;
+    } else {
+        std::string save_filename;
+        if (GetSavedFileName(env, context, save_filename)) {
+            if (file_utils::DeleteFile(save_filename))
+                return TFERROR_OK;
+        }
+    }
+    return TFERROR_COULDNT_SAVE_OR_DELETE_FPS;
 }
 
 } // extern "C"
