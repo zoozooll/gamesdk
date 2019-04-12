@@ -119,11 +119,11 @@ public class DeveloperTuningforkParser {
 
   private void encodeBinaryAndValidateDevFidelity(Descriptor fidelityField) {
     if (!devFidelityFiles.isEmpty()) {
+      StringBuilder builder = new StringBuilder();
+      devFidelityFiles.forEach(file -> builder.append(file.getName()).append("\n"));
       logger.atInfo().log(
-          "%d %s files found: OK\n %s",
-          devFidelityFiles.size(),
-          FolderConfig.DEV_FIDELITY_TEXTPROTO,
-          devFidelityFiles.toString());
+          "%d %s files found: OK\n%s",
+          devFidelityFiles.size(), FolderConfig.DEV_FIDELITY_TEXTPROTO, builder.toString());
     } else {
       logger.atSevere().log("%s files found: FAIL", FolderConfig.DEV_FIDELITY_TEXTPROTO);
     }

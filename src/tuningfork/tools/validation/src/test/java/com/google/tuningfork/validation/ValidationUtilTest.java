@@ -20,7 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
-import com.google.testing.testsize.MediumTest;
+
 import com.google.tuningfork.Tuningfork.Settings;
 import com.google.tuningfork.Tuningfork.Settings.AggregationStrategy;
 import com.google.tuningfork.Tuningfork.Settings.Histogram;
@@ -34,7 +34,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@MediumTest
+
 public final class ValidationUtilTest {
 
   @Rule

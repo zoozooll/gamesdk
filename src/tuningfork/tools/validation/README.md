@@ -2,10 +2,18 @@
 
 This tool validates Tuning Fork proto and settings files in an APK.
 
+To create a jar file:
+`./gradlew createJar`
+
+To run validation:
+`java -jar TuningforkApkValidationTool.jar \
+  --tuningforkPath $PATH_TO_FOLDER \
+  --protoCompiler $PATH_TO_PROTO_BINARY`
+
 ## tuningfork_settings
 
-The APK must contain *assets/tuningfork/tuningfork_settings.bin* file with
-serialized data for `Settings` proto message:
+The APK must contain a *assets/tuningfork/tuningfork_settings.bin* file with
+serialized data for a `Settings` proto message:
 
 ```proto
 message Settings {
@@ -32,11 +40,14 @@ message Settings {
 
 ### Settings validation
 
-* At least one histogram
-* `max_instrumentation_keys` must be between 1 and 256
-* `annotation_enum_size` must match `Annotation` message (see below)
+A `Settings` message must have:
+
+* at least one histogram,
+* `max_instrumentation_keys` must be between 1 and 256,
+* `annotation_enum_size` must match the `Annotation` message (see below).
 
 ### Example
+
 Example of data before serialization:
 
 ```textproto
@@ -66,21 +77,24 @@ histograms:
 
 ## dev_tuningfork.proto
 
-Apk must contain *assets/tuningfork/dev_tuningfork.proto* file with `Annotation`
-and `FidelityParams` proto message.
+The Apk must contain an *assets/tuningfork/dev_tuningfork.proto* file with
+`Annotation` and `FidelityParams` proto message definitions.
 
 ### Validation
 
 Both messages (`Annotation` and `FidelityParams`) must follow these rules
+
 * No oneofs
 * No Nested types
 * No extensions
 
-Additional limitation for `Annotation` message only
+Additional limitations for `Annotation` messages only:
+
 * Only `ENUM` types
 * Size of enums must match 'annotation_enum_size` field in settings.
 
-Additional limitation for `FidelityParams` messsage only
+Additional limitation for `FidelityParams` messsages only:
+
 * Only `ENUM`, `FLOAT` and `INT32` types
 
 ### Example
@@ -129,18 +143,22 @@ message FidelityParams {
 
 ### Annotation size explanation
 
-*annotation_enum_size* from Settings proto must match 'Annotation' message
+*annotation_enum_size* in the Settings proto must match the 'Annotation'
+message.
 
-From `Annotation` message example above:
+For example, from the `Annotation` message above:
+
   * number of enum fields for `LoadingState` enum is 3
   * number of enum fields for `Level` enum is 4
   * `Annotation` message contains two fields - 'loading_state' and 'level'
-  * `annotation_enum_size` must be [3, 4]
+  * Therefore, `annotation_enum_size` must be [3, 4]
 
 ## dev_tuningfork_fidelityparams
 
-The APK must contain at least one file in assets/tuningfork folder with pattern
-*dev_tuningfork_fidelityparams_.{1,15}.bin*. Each file contains serialized
-parameters for `FidelityParams` proto message from *dev_tuningfork.proto* file.
+The APK must contain at least one file in assets/tuningfork folder with the
+pattern *dev_tuningfork_fidelityparams_.{1,15}.bin*.
+
+Each file contains serialized parameters for the `FidelityParams` proto message
+from the *dev_tuningfork.proto* file.
 
 

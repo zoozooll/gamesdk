@@ -21,7 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import com.google.common.io.Files;
 import com.google.devtools.build.runtime.Runfiles;
 import com.google.protobuf.ByteString;
-import com.google.testing.testsize.MediumTest;
+
 import com.google.tuningfork.DevTuningfork.FidelityParams;
 import com.google.tuningfork.DevTuningfork.QualitySettings;
 import com.google.tuningfork.Tuningfork.Settings;
@@ -37,7 +37,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@MediumTest
+
 public final class DeveloperTuningforkParserTest {
 
   @Rule
