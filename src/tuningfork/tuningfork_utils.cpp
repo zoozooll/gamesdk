@@ -35,8 +35,8 @@ namespace apk_utils {
           jobject jmgr_;
           JNIEnv* env_;
      public:
-          AssetManagerHelper(JNIEnv* env, jobject context) : env_(env), mgr_(nullptr),
-                                                             jmgr_(nullptr) {
+          AssetManagerHelper(JNIEnv* env, jobject context) : mgr_(nullptr), jmgr_(nullptr),
+                                                             env_(env) {
               jclass cls = env->FindClass("android/content/Context");
               jmethodID get_assets = env->GetMethodID(cls, "getAssets",
                                                       "()Landroid/content/res/AssetManager;");
