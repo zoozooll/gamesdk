@@ -18,7 +18,7 @@ package com.google.tuningfork.validation;
 
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertThrows;
+import staticorg.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
