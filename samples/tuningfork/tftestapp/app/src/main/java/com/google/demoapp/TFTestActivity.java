@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package com.google.tuningfork;
+package com.google.demoapp;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;

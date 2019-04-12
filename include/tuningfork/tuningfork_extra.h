@@ -58,9 +58,30 @@ TFErrorCode TuningFork_initWithSwappy(const TFSettings* settings,
 //  performs an upload.
 TFErrorCode TuningFork_setUploadCallback(ProtoCallback cbk);
 
+// Download fidelity parameters on a separate thread.
+// A download thread is activated to retrieve fidelity params and retries are
+//    performed until a download is successful or a timeout occurs.
+// Downloaded params are stored locally and used in preference of default
+//    params when the app is started in future.
+// fp_default_file_name is the name of the binary fidelity params file that
+//  will be used if there is no download connection and there are no saved params.
+//  This file must be in assets/tuningfork (but only use the file name here).
+// fidelity_params_callback is called with any downloaded params or with default /
+//  saved params.
+// initialTimeoutMs is the time to wait for an initial download. The fidelity_params_callback
+//  will be called after this time with the default / saved params if no params
+//  could be downloaded..
+// ultimateTimeoutMs is the time after which to stop retrying the download.
+void TuningFork_startFidelityParamDownloadThread(JNIEnv* env, jobject context,
+                                      const char* url_base,
+                                      const char* api_key,
+                                      const CProtobufSerialization* defaultParams,
+                                      ProtoCallback fidelity_params_callback,
+                                      int initialTimeoutMs, int ultimateTimeoutMs);
+
 // This function calls initWithSwappy and also performs the following:
 // 1) Settings and default fidelity params are retrieved from the APK.
-// 2) A download thread is activated to retrieve fideloty params and retries are
+// 2) A download thread is activated to retrieve fidelity params and retries are
 //    performed until a download is successful or a timeout occurs.
 // 3) Downloaded params are stored locally and used in preference of default
 //    params when the app is started in future.
@@ -77,6 +98,8 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
                              SwappyTracerFn swappy_tracer_fn,
                              uint32_t swappy_lib_version,
                              VoidCallback frame_callback,
+                             const char* url_base,
+                             const char* api_key,
                              const char* fp_default_file_name,
                              ProtoCallback fidelity_params_callback,
                              int initialTimeoutMs, int ultimateTimeoutMs);

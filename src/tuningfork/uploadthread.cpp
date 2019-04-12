@@ -32,8 +32,8 @@ namespace tuningfork {
 
 DebugBackend::~DebugBackend() {}
 
-bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
-    if (evt_ser.size() == 0) return false;
+TFErrorCode DebugBackend::Process(const ProtobufSerialization &evt_ser) {
+    if (evt_ser.size() == 0) return TFERROR_BAD_PARAMETER;
     auto encode_len = modp_b64_encode_len(evt_ser.size());
     std::vector<char> dest_buf(encode_len);
     // This fills the dest buffer with a null-terminated string. It returns the length of
@@ -42,7 +42,7 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
         evt_ser.size());
     if (n_encoded == -1 || encode_len != n_encoded+1) {
         ALOGW("Could not b64 encode protobuf");
-        return false;
+        return TFERROR_B64_ENCODE_FAILED;
     }
     std::string s(&dest_buf[0], n_encoded);
     // Split the serialization into <128-byte chunks to avoid logcat line
@@ -57,7 +57,7 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
         j += m;
         ALOGI("%s", str.str().c_str());
     }
-    return true;
+    return TFERROR_OK;
 }
 
 std::unique_ptr<DebugBackend> s_debug_backend = std::make_unique<DebugBackend>();

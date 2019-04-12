@@ -20,7 +20,7 @@
 #include <jni.h>
 
 #define TUNINGFORK_MAJOR_VERSION 0
-#define TUNINGFORK_MINOR_VERSION 1
+#define TUNINGFORK_MINOR_VERSION 2
 #define TUNINGFORK_PACKED_VERSION ((TUNINGFORK_MAJOR_VERSION<<16)|(TUNINGFORK_MINOR_VERSION))
 
 // Instrument keys 64000-65535 are reserved
@@ -49,15 +49,23 @@ enum TFErrorCode {
     TFERROR_NO_SETTINGS = 1, // No tuningfork_settings.bin found in assets/tuningfork.
     TFERROR_NO_SWAPPY = 2, // Not able to find Swappy.
     TFERROR_INVALID_DEFAULT_FIDELITY_PARAMS = 3, // fpDefaultFileNum is out of range.
-    TFERROR_NO_FIDELITY_PARAMS = 4, // No dev_tuningfork_fidelityparams_#.bin found
-                                   //  in assets/tuningfork.
+    TFERROR_NO_FIDELITY_PARAMS = 4,
     TFERROR_TUNINGFORK_NOT_INITIALIZED = 5,
     TFERROR_INVALID_ANNOTATION = 6,
     TFERROR_INVALID_INSTRUMENT_KEY = 7,
     TFERROR_INVALID_TRACE_HANDLE = 8,
     TFERROR_TIMEOUT = 9,
     TFERROR_BAD_PARAMETER = 10,
-    TFERROR_COULDNT_SAVE_OR_DELETE_FPS = 11
+    TFERROR_B64_ENCODE_FAILED = 11,
+    TFERROR_JNI_BAD_VERSION = 12,
+    TFERROR_JNI_BAD_THREAD = 13,
+    TFERROR_JNI_BAD_ENV = 14,
+    TFERROR_JNI_EXCEPTION = 15,
+    TFERROR_JNI_BAD_JVM = 16,
+    TFERROR_NO_CLEARCUT = 17,
+    TFERROR_NO_FIDELITY_PARAMS_IN_APK = 18, // No dev_tuningfork_fidelityparams_#.bin found
+                                           //  in assets/tuningfork.
+    TFERROR_COULDNT_SAVE_OR_DELETE_FPS = 19
 };
 
 struct TFHistogram {
@@ -96,7 +104,8 @@ inline void TFSettings_Free(TFSettings* settings) {
 }
 
 // TuningFork_init must be called before any other functions.
-// If settings is a null pointer, settings are extracted from the app.
+// If 'settings' is a null pointer, settings are extracted from the app.
+// Ownership of 'settings' remains with the caller.
 // Returns TFERROR_OK if successful, TFERROR_NO_SETTINGS if no settings could be found.
 TFErrorCode TuningFork_init(const TFSettings *settings, JNIEnv* env, jobject context);
 
@@ -107,9 +116,15 @@ TFErrorCode TuningFork_init(const TFSettings *settings, JNIEnv* env, jobject con
 // any data that is already collected will be submitted to the backend.
 // Ownership of 'params' is transferred to the caller, so they must call params->dealloc
 // when they are done with it.
+// The parameter request is sent to:
+//  ${url_base}+'applications/'+package_name+'/apks/'+version_number+':generateTuningParameters'.
+// 'api_key', if present, will be passed as an HTTP request property with key 'X-Goog-Api-Key'.
 // Returns TFERROR_TIMEOUT if there was a timeout before params could be downloaded.
 // Returns TFERROR_OK on success.
-TFErrorCode TuningFork_getFidelityParameters(const CProtobufSerialization *defaultParams,
+TFErrorCode TuningFork_getFidelityParameters(JNIEnv* env, jobject context,
+                             const char* url_base,
+                             const char* api_key,
+                             const CProtobufSerialization *defaultParams,
                              CProtobufSerialization *params, uint32_t timeout_ms);
 
 // Protobuf serialization of the current annotation.

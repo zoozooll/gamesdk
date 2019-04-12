@@ -56,14 +56,19 @@ TFErrorCode TuningFork_init(const TFSettings *settings, JNIEnv* env, jobject con
 // Blocking call to get fidelity parameters from the server.
 // Note that once fidelity parameters are downloaded, any timing information is recorded
 //  as being associated with those parameters.
-TFErrorCode TuningFork_getFidelityParameters(const CProtobufSerialization *defaultParams,
+TFErrorCode TuningFork_getFidelityParameters(JNIEnv* env, jobject context,
+                                      const char* url_base,
+                                      const char* api_key,
+                                      const CProtobufSerialization *defaultParams,
                                       CProtobufSerialization *params, uint32_t timeout_ms) {
     tuningfork::ProtobufSerialization defaults;
     if(defaultParams)
         defaults = ToProtobufSerialization(*defaultParams);
     tuningfork::ProtobufSerialization s;
-    TFErrorCode result = tuningfork::GetFidelityParameters(defaults, s, timeout_ms);
-    if(result==TFERROR_OK && params)
+    TFErrorCode result = tuningfork::GetFidelityParameters(env, context, url_base,
+                                                           api_key?api_key:"",
+                                                           defaults, s, timeout_ms);
+    if (result==TFERROR_OK && params)
         ToCProtobufSerialization(s, params);
     return result;
 }

@@ -43,14 +43,14 @@ public:
     TestBackend(std::shared_ptr<std::condition_variable> cv_,
                       std::shared_ptr<std::mutex> mutex_) : cv(cv_), mutex(mutex_) {}
 
-    bool Process(const ProtobufSerialization &evt_ser) override {
+    TFErrorCode Process(const ProtobufSerialization &evt_ser) override {
         ALOGI("Process");
         {
             std::lock_guard<std::mutex> lock(*mutex);
             Deserialize(evt_ser, result);
         }
         cv->notify_all();
-        return true;
+        return TFERROR_OK;
     }
 
     void clear() { result = {}; }
@@ -62,8 +62,13 @@ public:
 
 class TestParamsLoader : public ParamsLoader {
 public:
-    bool GetFidelityParams(ProtobufSerialization &fidelity_params, uint32_t timeout_ms) override {
-        return false;
+    TFErrorCode GetFidelityParams(JNIEnv* env, jobject context,
+                                  const ExtraUploadInfo& info,
+                                  const std::string& url_base,
+                                  const std::string& api_key,
+                                  ProtobufSerialization &fidelity_params,
+                                  std::string& experiment_id, uint32_t timeout_ms) override {
+        return TFERROR_NO_FIDELITY_PARAMS;
     }
 };
 
