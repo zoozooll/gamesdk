@@ -20,6 +20,7 @@
 #include "full/tuningfork_clearcut_log.pb.h"
 #include "full/dev_tuningfork.pb.h"
 #include <sstream>
+#include <condition_variable>
 #include <jni.h>
 #include <android/native_window_jni.h>
 
@@ -45,6 +46,15 @@ namespace {
 const char defaultFPName[] = "dev_tuningfork_fidelityparams_3.bin";
 const int initialTimeoutMs = 1000;
 const int ultimateTimeoutMs = 100000;
+
+#error "Enter your app's api key here"
+const char api_key[] = "";
+const char play_url_base_staging[] =
+    "https://staging-performanceparameters.sandbox.googleapis.com/v1/";
+const char play_url_base_preprod[] =
+    "https://preprod-performanceparameters.sandbox.googleapis.com/v1/";
+
+const char * url_base = play_url_base_staging;
 
 constexpr TFInstrumentKey TFTICK_CHOREOGRAPHER = TFTICK_USERDEFINED_BASE;
 
@@ -146,7 +156,10 @@ void SetAnnotations() {
     }
 }
 
-void SetFidelityParams(const CProtobufSerialization* params) {
+std::mutex mutex;
+std::condition_variable cv;
+bool setFPs = false;
+extern "C" void SetFidelityParams(const CProtobufSerialization* params) {
     FidelityParams p;
     // Set default values
     p.set_num_spheres(20);
@@ -158,6 +171,13 @@ void SetFidelityParams(const CProtobufSerialization* params) {
     int nSpheres = p.num_spheres();
     int tesselation = p.tesselation_percent();
     Renderer::getInstance()->setQuality(nSpheres, tesselation);
+    setFPs = true;
+    cv.notify_one();
+}
+
+void WaitForFidelityParams() {
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.wait(lock, []{ return setFPs;});
 }
 
 } // anonymous namespace
@@ -165,7 +185,7 @@ void SetFidelityParams(const CProtobufSerialization* params) {
 extern "C" {
 
 JNIEXPORT void JNICALL
-Java_com_google_tuningfork_TFTestActivity_initTuningFork(JNIEnv *env, jobject activity) {
+Java_com_tuningfork_demoapp_TFTestActivity_initTuningFork(JNIEnv *env, jobject activity) {
     Swappy_init(env, activity);
     swappy_enabled = Swappy_isEnabled();
     // The following tests TuningFork_saveOrDeleteFidelityParamsFile
@@ -186,7 +206,8 @@ Java_com_google_tuningfork_TFTestActivity_initTuningFork(JNIEnv *env, jobject ac
     if (swappy_enabled) {
         TFErrorCode err = TuningFork_initFromAssetsWithSwappy(env, activity,
                                                     &Swappy_injectTracer, 0,
-                                                    SetAnnotations, defaultFPName,
+                                                    SetAnnotations, url_base,
+                                                    api_key, defaultFPName,
                                                     SetFidelityParams,
                                                     initialTimeoutMs, ultimateTimeoutMs);
         if (err==TFERROR_OK) {
@@ -209,23 +230,19 @@ Java_com_google_tuningfork_TFTestActivity_initTuningFork(JNIEnv *env, jobject ac
             ALOGE("Error finding fidelity params : err = %d", err);
             return;
         }
-        CProtobufSerialization fps = {};
-        err = TuningFork_getFidelityParameters(&defaultFP, &fps, 1000);
-        if (err == TFERROR_OK) {
-            SetFidelityParams(&fps);
-            CProtobufSerialization_Free(&fps);
-        }
-        else {
-            SetFidelityParams(&defaultFP);
-        }
-        CProtobufSerialization_Free(&defaultFP);
+        TuningFork_startFidelityParamDownloadThread(env, activity,
+            url_base, api_key, &defaultFP, SetFidelityParams, 1000, 10000);
         TuningFork_setUploadCallback(UploadCallback);
         SetAnnotations();
     }
+    // If we don't wait for fidelity params here, the download thread will set the them after we
+    //   have already started rendering with a different set of parameters.
+    // In a real game, we'd initialize all the other assets before waiting.
+    WaitForFidelityParams();
 }
 
 JNIEXPORT void JNICALL
-Java_com_google_tuningfork_TFTestActivity_onChoreographer(JNIEnv */*env*/, jclass clz, jlong /*frameTimeNanos*/) {
+Java_com_tuningfork_demoapp_TFTestActivity_onChoreographer(JNIEnv */*env*/, jclass clz, jlong /*frameTimeNanos*/) {
     TuningFork_frameTick(TFTICK_CHOREOGRAPHER);
     // After 600 ticks, switch to the next level
     static int tick_count = 0;
@@ -238,22 +255,22 @@ Java_com_google_tuningfork_TFTestActivity_onChoreographer(JNIEnv */*env*/, jclas
     }
 }
 JNIEXPORT void JNICALL
-Java_com_google_tuningfork_TFTestActivity_resize(JNIEnv *env, jclass /*clz*/, jobject surface, jint width, jint height) {
+Java_com_tuningfork_demoapp_TFTestActivity_resize(JNIEnv *env, jclass /*clz*/, jobject surface, jint width, jint height) {
     ANativeWindow *window = ANativeWindow_fromSurface(env, surface);
     Renderer::getInstance()->setWindow(window,
                                        static_cast<int32_t>(width),
                                        static_cast<int32_t>(height));
 }
 JNIEXPORT void JNICALL
-Java_com_google_tuningfork_TFTestActivity_clearSurface(JNIEnv */*env*/, jclass /*clz*/ ) {
+Java_com_tuningfork_demoapp_TFTestActivity_clearSurface(JNIEnv */*env*/, jclass /*clz*/ ) {
     Renderer::getInstance()->setWindow(nullptr, 0, 0);
 }
 JNIEXPORT void JNICALL
-Java_com_google_tuningfork_TFTestActivity_start(JNIEnv */*env*/, jclass /*clz*/ ) {
+Java_com_tuningfork_demoapp_TFTestActivity_start(JNIEnv */*env*/, jclass /*clz*/ ) {
     Renderer::getInstance()->start();
 }
 JNIEXPORT void JNICALL
-Java_com_google_tuningfork_TFTestActivity_stop(JNIEnv */*env*/, jclass /*clz*/ ) {
+Java_com_tuningfork_demoapp_TFTestActivity_stop(JNIEnv */*env*/, jclass /*clz*/ ) {
     Renderer::getInstance()->stop();
 }
 

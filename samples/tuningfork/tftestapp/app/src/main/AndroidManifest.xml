@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.google.tuningfork">
+    package="com.tuningfork.demoapp">
 
     <application
         android:allowBackup="true"
@@ -21,4 +21,5 @@
         </intent-filter>
     </activity>
     </application>
+    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

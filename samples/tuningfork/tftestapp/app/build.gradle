@@ -3,10 +3,10 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 28
     defaultConfig {
-        applicationId "com.google.tuningfork"
+        applicationId "com.tuningfork.demoapp"
         minSdkVersion 16
         targetSdkVersion 28
-        versionCode 1
+        versionCode 16
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {

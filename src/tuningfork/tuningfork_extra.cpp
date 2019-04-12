@@ -13,6 +13,7 @@
 #include <thread>
 #include <fstream>
 #include <mutex>
+#include <chrono>
 
 #define LOG_TAG "TuningFork"
 #include "Log.h"
@@ -199,57 +200,6 @@ bool SavedFidelityParamsFileExists(JNIEnv* env, jobject context) {
     return false;
 }
 
-// Download FPs on a separate thread
-void StartFidelityParamDownloadThread(JNIEnv* env, jobject context,
-                                      const CProtobufSerialization& defaultParams,
-                                      ProtoCallback fidelity_params_callback,
-                                      int initialTimeoutMs, int ultimateTimeoutMs) {
-    static std::mutex threadMutex;
-    std::lock_guard<std::mutex> lock(threadMutex);
-    static std::thread fpThread;
-    if (fpThread.joinable()) {
-        ALOGW("Fidelity param download thread already started");
-        return;
-    }
-    JavaVM *vm;
-    env->GetJavaVM(&vm);
-    jobject newContextRef = env->NewGlobalRef(context);
-    fpThread = std::thread([=](CProtobufSerialization defaultParams) {
-        CProtobufSerialization params = {};
-        int waitTimeMs = initialTimeoutMs;
-        bool first_time = true;
-        JNIEnv *newEnv;
-        if (vm->AttachCurrentThread(&newEnv, NULL) == 0) {
-            while (true) {
-                auto err = TuningFork_getFidelityParameters(&defaultParams,
-                                                            &params, waitTimeMs);
-                if (err==TFERROR_OK) {
-                    ALOGI("Got fidelity params from server");
-                    SaveFidelityParams(newEnv, newContextRef, &params);
-                    CProtobufSerialization_Free(&defaultParams);
-                    fidelity_params_callback(&params);
-                    CProtobufSerialization_Free(&params);
-                    break;
-                } else {
-                    ALOGI("Could not get fidelity params from server : err = %d", err);
-                    if (first_time) {
-                        fidelity_params_callback(&defaultParams);
-                        first_time = false;
-                    }
-                    if (waitTimeMs > ultimateTimeoutMs) {
-                        ALOGW("Not waiting any longer for fidelity params");
-                        CProtobufSerialization_Free(&defaultParams);
-                        break;
-                    }
-                    waitTimeMs *= 2; // back off
-                }
-            }
-            newEnv->DeleteGlobalRef(newContextRef);
-            vm->DetachCurrentThread();
-        }
-    }, defaultParams);
-}
-
 template<typename T>
 void push_back(T*& x, uint32_t& n, const T& val) {
     if (x) {
@@ -294,7 +244,67 @@ void TFSettings_Dealloc(TFSettings* s) {
     }
 }
 
-TFErrorCode TuningFork_deserializeSettings(const CProtobufSerialization* settings_ser, TFSettings* settings) {
+// Download FPs on a separate thread
+void TuningFork_startFidelityParamDownloadThread(JNIEnv* env, jobject context,
+                                      const char* url_base,
+                                      const char* api_key,
+                                      const CProtobufSerialization* defaultParams_in,
+                                      ProtoCallback fidelity_params_callback,
+                                      int initialTimeoutMs, int ultimateTimeoutMs) {
+    static std::mutex threadMutex;
+    std::lock_guard<std::mutex> lock(threadMutex);
+    static std::thread fpThread;
+    if (fpThread.joinable()) {
+        ALOGW("Fidelity param download thread already started");
+        return;
+    }
+    JavaVM *vm;
+    env->GetJavaVM(&vm);
+    jobject newContextRef = env->NewGlobalRef(context);
+    fpThread = std::thread([=](CProtobufSerialization defaultParams) {
+        CProtobufSerialization params = {};
+        auto waitTime = std::chrono::milliseconds(initialTimeoutMs);
+        bool first_time = true;
+        JNIEnv *newEnv;
+        if (vm->AttachCurrentThread(&newEnv, NULL) == 0) {
+            while (true) {
+                auto startTime = std::chrono::steady_clock::now();
+                auto err = TuningFork_getFidelityParameters(newEnv, newContextRef,
+                                                            url_base, api_key,
+                                                            &defaultParams,
+                                                            &params, waitTime.count());
+                if (err==TFERROR_OK) {
+                    ALOGI("Got fidelity params from server");
+                    SaveFidelityParams(newEnv, newContextRef, &params);
+                    CProtobufSerialization_Free(&defaultParams);
+                    fidelity_params_callback(&params);
+                    CProtobufSerialization_Free(&params);
+                    break;
+                } else {
+                    ALOGI("Could not get fidelity params from server : err = %d", err);
+                    if (first_time) {
+                        fidelity_params_callback(&defaultParams);
+                        first_time = false;
+                    }
+                    // Wait if the call returned earlier than expected
+                    auto dt = std::chrono::steady_clock::now() - startTime;
+                    if(waitTime>dt) std::this_thread::sleep_for(waitTime - dt);
+                    if (waitTime.count() > ultimateTimeoutMs) {
+                        ALOGW("Not waiting any longer for fidelity params");
+                        CProtobufSerialization_Free(&defaultParams);
+                        break;
+                    }
+                    waitTime *= 2; // back off
+                }
+            }
+            newEnv->DeleteGlobalRef(newContextRef);
+            vm->DetachCurrentThread();
+        }
+    }, *defaultParams_in);
+}
+
+TFErrorCode TuningFork_deserializeSettings(const CProtobufSerialization* settings_ser,
+                                           TFSettings* settings) {
     settings->n_histograms = 0;
     settings->histograms = nullptr;
     settings->aggregation_strategy.n_annotation_enum_size = 0;
@@ -375,6 +385,8 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
                                                 SwappyTracerFn swappy_tracer_fn,
                                                 uint32_t swappy_lib_version,
                                                 VoidCallback frame_callback,
+                                                const char* url_base,
+                                                const char* api_key,
                                                 const char* fp_file_name,
                                                 ProtoCallback fidelity_params_callback,
                                                 int initialTimeoutMs, int ultimateTimeoutMs) {
@@ -399,8 +411,8 @@ TFErrorCode TuningFork_initFromAssetsWithSwappy(JNIEnv* env, jobject context,
         if (err!=TFERROR_OK)
             return err;
     }
-    StartFidelityParamDownloadThread(env, context, defaultParams, fidelity_params_callback,
-        initialTimeoutMs, ultimateTimeoutMs);
+    TuningFork_startFidelityParamDownloadThread(env, context, url_base, api_key, &defaultParams,
+       fidelity_params_callback, initialTimeoutMs, ultimateTimeoutMs);
     return TFERROR_OK;
 }
 
