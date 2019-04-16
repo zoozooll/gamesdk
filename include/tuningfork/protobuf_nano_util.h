@@ -28,6 +28,11 @@ namespace tuningfork {
 
 // VectorStream is a view on the vector provided in vec: it takes no ownership.
 // vec must be valid while Read or Write are called. It will be resized as needed by Write.
+// Example usage:
+//    std::vector<uint8_t> v;
+//    VectorStream str {&v, 0};
+//    pb_ostream_t stream = {VectorStream::Write, &str, SIZE_MAX, 0};
+//    pb_encode(&stream, ...);
 struct VectorStream {
     std::vector<uint8_t>* vec;
     size_t it;
