@@ -19,7 +19,6 @@ package com.google.tuningfork.validation;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.io.Files;
-import com.google.devtools.build.runtime.Runfiles;
 import com.google.protobuf.ByteString;
 
 import com.google.tuningfork.DevTuningfork.FidelityParams;
@@ -73,8 +72,7 @@ public final class DeveloperTuningforkParserTest {
   private final FidelityParams devParameters2 = FidelityParams.newBuilder().setIntField(10).build();
   private final FidelityParams devParameters3 = FidelityParams.getDefaultInstance();
 
-  private static final File PROTOC_BINARY =
-      Runfiles.location("net/proto2/compiler/public/protocol_compiler");
+  private static final File PROTOC_BINARY = ProtocBinary.get();
 
   @Before
   public void setUp() throws Exception {
