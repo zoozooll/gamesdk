@@ -18,12 +18,11 @@ package com.google.tuningfork.validation;
 
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import staticorg.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-import com.google.devtools.build.runtime.Runfiles;
 import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
@@ -50,8 +49,7 @@ public final class ExternalProtoCompilerTest {
         }
       };
 
-  private static final File PROTOC_BINARY =
-      Runfiles.location("net/proto2/compiler/public/protocol_compiler");
+  private static final File PROTOC_BINARY = ProtocBinary.get();
 
   private static List<String> defaultCommandLine;
   private final ExternalProtoCompiler compiler = new ExternalProtoCompiler(PROTOC_BINARY);

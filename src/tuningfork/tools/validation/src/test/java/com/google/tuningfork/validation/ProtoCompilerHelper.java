@@ -18,7 +18,6 @@ package com.google.tuningfork.validation;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.devtools.build.runtime.Runfiles;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import java.io.File;
@@ -28,8 +27,7 @@ import org.junit.rules.TemporaryFolder;
 /** Base class for tests that need to create proto Descriptors */
 public class ProtoCompilerHelper {
 
-  private static final File PROTOC_BINARY =
-      Runfiles.location("net/proto2/compiler/public/protocol_compiler");
+  private static final File PROTOC_BINARY = ProtocBinary.get();
   private static final ExternalProtoCompiler compiler = new ExternalProtoCompiler(PROTOC_BINARY);
   private final TestdataHelper testdata;
 
