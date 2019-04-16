@@ -56,6 +56,11 @@ public:
     //  sizeAtWhichToRange samples have been collected, if we are auto-ranging.
     void CalcBucketsFromSamples();
 
+    // Only to be used for testing
+    void SetCounts(const std::vector<uint32_t>& counts) {
+        buckets_ = counts;
+    }
+
     friend class ClearcutSerializer;
 };
 
