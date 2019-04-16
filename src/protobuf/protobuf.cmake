@@ -1,36 +1,18 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-# Note that you will need to install protobuf from this directory for this default to work,
-#  and use the same version of protoc below.
-# If autogen.sh complains about gmock, comment out the check for it
-if( NOT DEFINED PROTOBUF_SRC_DIR)
-  set( PROTOBUF_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../external/protobuf/src")
-endif()
-# To use this default, you'll need to run 'protoc-gen-nanopb'
-#  in external/nanopb-c/generator
+set( PROTOBUF_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-3.0.0/install/linux-x86")
+set( PROTOBUF_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-3.0.0/src")
 if( NOT DEFINED PROTOBUF_NANO_SRC_DIR)
-  set( PROTOBUF_NANO_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../../../external/nanopb-c")
+  set( PROTOBUF_NANO_SRC_DIR "${EXTERNAL_ROOT}/nanopb-c")
 endif()
-if( DEFINED ENV{PROTOBUF_INSTALL_DIR})
-  set( PROTOBUF_INSTALL_DIR $ENV{PROTOBUF_INSTALL_DIR})
-endif()
-if( NOT DEFINED PROTOBUF_INSTALL_DIR)
-  set(PROTOC_EXE protoc)
-  set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_SRC_DIR} )
-else()
-  set(PROTOC_EXE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
-  set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_INSTALL_DIR}/include )
-endif()
-
-#message(STATUS "PROTOC_EXE=${PROTOC_EXE}")
+set(PROTOC_EXE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
+set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_SRC_DIR} )
 
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS -Os -fPIC" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti" )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGOOGLE_PROTOBUF_NO_RTTI -DHAVE_PTHREAD")
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections" )
-#The following are needed for some of the protobuf code to compile
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-tautological-constant-compare -Wno-enum-compare-switch")
 
 function(set_link_options libname versionscript)
   if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
@@ -47,10 +29,13 @@ function(extra_pb_nano_link_options libname)
 endfunction()
 
 set(PROTO_GENS_DIR ${CMAKE_BINARY_DIR}/gens)
-set(PROTO_GENS_DIR ${_PROTO_GENS_DIR} PARENT_SCOPE)
-set(PROTOC_EXE ${PROTOC_EXE} PARENT_SCOPE)
-set(PROTOBUF_SRC_DIR ${PROTOBUF_SRC_DIR} PARENT_SCOPE)
-set(PROTOBUF_NANO_SRC_DIR ${PROTOBUF_NANO_SRC_DIR} PARENT_SCOPE)
+get_directory_property(hasParent PARENT_DIRECTORY)
+if(hasParent)
+  set(PROTO_GENS_DIR ${_PROTO_GENS_DIR} PARENT_SCOPE)
+  set(PROTOC_EXE ${PROTOC_EXE} PARENT_SCOPE)
+  set(PROTOBUF_SRC_DIR ${PROTOBUF_SRC_DIR} PARENT_SCOPE)
+  set(PROTOBUF_NANO_SRC_DIR ${PROTOBUF_NANO_SRC_DIR} PARENT_SCOPE)
+endif()
 file(MAKE_DIRECTORY ${PROTO_GENS_DIR}/full)
 file(MAKE_DIRECTORY ${PROTO_GENS_DIR}/lite)
 file(MAKE_DIRECTORY ${PROTO_GENS_DIR}/nano)

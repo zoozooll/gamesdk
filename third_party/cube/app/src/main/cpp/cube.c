@@ -1241,7 +1241,7 @@ static void demo_draw(struct demo *demo) {
     logEvent(EVENT_CALLING_QP);
     ATrace_beginSection("cube_QueuePresent");
     //err = demo->fpQueuePresentKHR(demo->present_queue, &present);
-    err = swappyVkQueuePresent(demo->present_queue, &present);
+    err = SwappyVk_queuePresent(demo->present_queue, &present);
     ATrace_endSection();
     logEvent(EVENT_CALLED_QP);
 
@@ -1422,7 +1422,7 @@ static void demo_prepare_buffers(struct demo *demo) {
     // Note: destroying the swapchain also cleans up all its associated
     // presentable images once the platform is done with them.
     if (oldSwapchain != VK_NULL_HANDLE) {
-        SwappyVkDestroySwapchain(demo->device, oldSwapchain);
+        SwappyVk_destroySwapchain(demo->device, oldSwapchain);
         demo->fpDestroySwapchainKHR(demo->device, oldSwapchain, NULL);
     }
 
@@ -1478,17 +1478,17 @@ static void demo_prepare_buffers(struct demo *demo) {
         demo->next_present_id = 1;
     }
 
-    assert(swappyVkGetRefreshCycleDuration(demo->gpu, demo->device, demo->swapchain,
+    assert(SwappyVk_initAndGetRefreshCycleDuration(demo->gpu, demo->device, demo->swapchain,
                                            &demo->refresh_duration));
     if (demo->refresh_duration > (16 * MILLION)) {
         // Likely a 60Hz display--need a swap interval of 2 for 30FPS:
-        swappyVkSetSwapInterval(demo->device, demo->swapchain, 2);
+        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 2);
     } else if (demo->refresh_duration > (10 * MILLION)) {
         // Likely a 90Hz display--need a swap interval of 3 for 30FPS:
-        swappyVkSetSwapInterval(demo->device, demo->swapchain, 3);
+        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 3);
     } else {
         // Likely a 120Hz display--need a swap interval of 4 for 30FPS:
-        swappyVkSetSwapInterval(demo->device, demo->swapchain, 4);
+        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 4);
     }
 
     if (NULL != presentModes) {
@@ -2394,7 +2394,7 @@ static void demo_cleanup(struct demo *demo) {
             vkFreeMemory(demo->device, demo->textures[i].mem, NULL);
             vkDestroySampler(demo->device, demo->textures[i].sampler, NULL);
         }
-        SwappyVkDestroySwapchain(demo->device, demo->swapchain);
+        SwappyVk_destroySwapchain(demo->device, demo->swapchain);
         demo->fpDestroySwapchainKHR(demo->device, demo->swapchain, NULL);
 
         vkDestroyImageView(demo->device, demo->depth.view, NULL);
@@ -3338,13 +3338,13 @@ static void demo_init_vk(struct demo *demo) {
         // Add any extensions that SwappyVk requires:
         uint32_t swappy_required_extension_count = 0;
         char **swappy_required_extension_names;
-        swappyVkDetermineDeviceExtensions(demo->gpu, device_extension_count, device_extensions,
+        SwappyVk_determineDeviceExtensions(demo->gpu, device_extension_count, device_extensions,
                                           &swappy_required_extension_count, NULL);
-        swappy_required_extension_names = malloc(swappy_required_extension_count);
+        swappy_required_extension_names = malloc(swappy_required_extension_count * sizeof(char*));
         for (uint32_t i = 0; i < swappy_required_extension_count; i++) {
             swappy_required_extension_names[i] = malloc(VK_MAX_EXTENSION_NAME_SIZE + 1);
         }
-        swappyVkDetermineDeviceExtensions(demo->gpu, device_extension_count, device_extensions,
+        SwappyVk_determineDeviceExtensions(demo->gpu, device_extension_count, device_extensions,
                                           &swappy_required_extension_count,
                                           swappy_required_extension_names);
         for (uint32_t i = 0; i < swappy_required_extension_count; i++) {
@@ -3582,13 +3582,13 @@ static void demo_init_vk_swapchain(struct demo *demo) {
     }
 
     vkGetDeviceQueue(demo->device, demo->graphics_queue_family_index, 0, &demo->graphics_queue);
-    SwappyVkSetQueueFamiliyIndex(demo->device, demo->graphics_queue, demo->graphics_queue_family_index);
+    SwappyVk_setQueueFamilyIndex(demo->device, demo->graphics_queue, demo->graphics_queue_family_index);
 
     if (!demo->separate_present_queue) {
         demo->present_queue = demo->graphics_queue;
     } else {
         vkGetDeviceQueue(demo->device, demo->present_queue_family_index, 0, &demo->present_queue);
-        SwappyVkSetQueueFamiliyIndex(demo->device, demo->present_queue, demo->present_queue_family_index);
+        SwappyVk_setQueueFamilyIndex(demo->device, demo->present_queue, demo->present_queue_family_index);
     }
 
     // Get the list of VkFormat's that are supported:

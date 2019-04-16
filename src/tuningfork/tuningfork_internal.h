@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,27 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef TUNINGFORK_TUNINGFORK_H
-#define TUNINGFORK_TUNINGFORK_H
+#pragma once
 
-#ifdef PROTOBUF_NANO
-#include "pb_encode.h"
-#include "pb_decode.h"
-#endif
+#include "tuningfork/tuningfork.h"
+#include "tuningfork/tuningfork_extra.h"
 
 #include <stdint.h>
 #include <string>
 #include <chrono>
 #include <vector>
-#include <android/log.h>
+#include <jni.h>
+
+class AAsset;
 
 namespace tuningfork {
-
-// These are reserved instrumentation keys
-enum {
-    TFTICK_SYSCPU = 0,
-    TFTICK_SYSGPU = 1
-};
 
 typedef std::vector<uint8_t> ProtobufSerialization;
 
@@ -49,32 +44,56 @@ struct Settings {
             TIME_BASED
         };
         Submission method;
-        int32_t intervalms_or_count;
-        int32_t max_instrumentation_keys;
-        std::vector<int> annotation_enum_size;
-    };
-    struct Histogram {
-        int32_t instrument_key;
-        float bucket_min;
-        float bucket_max;
-        int32_t n_buckets;
+        uint32_t intervalms_or_count;
+        uint32_t max_instrumentation_keys;
+        std::vector<uint32_t> annotation_enum_size;
     };
     AggregationStrategy aggregation_strategy;
-    std::vector<Histogram> histograms;
+    std::vector<TFHistogram> histograms;
+};
+
+// Extra information that is uploaded with the ClearCut proto.
+struct ExtraUploadInfo {
+    std::string experiment_id;
+    std::string session_id;
+    uint64_t total_memory_bytes;
+    uint32_t gl_es_version;
+    std::string build_fingerprint;
+    std::string build_version_sdk;
+    std::vector<uint64_t> cpu_max_freq_hz;
+    std::string apk_package_name;
+    uint32_t apk_version_code;
+    uint32_t tuningfork_version;
 };
 
 class Backend {
 public:
     virtual ~Backend() {};
-    virtual bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) = 0;
-    virtual bool Process(const ProtobufSerialization &tuningfork_log_event) = 0;
+    virtual TFErrorCode Process(const ProtobufSerialization &tuningfork_log_event) = 0;
+};
+
+class ParamsLoader {
+public:
+    virtual ~ParamsLoader() {};
+    virtual TFErrorCode GetFidelityParams(JNIEnv* env, jobject context,
+                                          const ExtraUploadInfo& info,
+                                          const std::string& url_base,
+                                          const std::string& api_key,
+                                          ProtobufSerialization &fidelity_params,
+                                          std::string& experiment_id,
+                                          uint32_t timeout_ms);
+};
+
+class ProtoPrint {
+public:
+    virtual ~ProtoPrint() {};
+    virtual void Print(const ProtobufSerialization &tuningfork_log_event);
 };
 
 class DebugBackend : public Backend {
 public:
     ~DebugBackend() override;
-    bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) override;
-    bool Process(const ProtobufSerialization &tuningfork_log_event) override;
+    TFErrorCode Process(const ProtobufSerialization &tuningfork_log_event) override;
 };
 
 // You can provide your own time source rather than steady_clock by inheriting this and passing
@@ -84,12 +103,13 @@ public:
     virtual std::chrono::steady_clock::time_point NowNs() = 0;
 };
 
-// init must be called before any other functions
-//  If no backend is passed, a debug version is used which returns empty fidelity params
-//   and outputs histograms in protobuf text format to logcat.
-//  If no timeProvider is passed, std::chrono::steady_clock is used.
-void Init(const ProtobufSerialization &settings, Backend *backend = 0,
-          ITimeProvider *time_provider = 0);
+// If no backend is passed, a debug version is used which returns empty fidelity params
+// and outputs histograms in protobuf text format to logcat.
+// If no timeProvider is passed, std::chrono::steady_clock is used.
+TFErrorCode Init(const TFSettings &settings, const ExtraUploadInfo& extra_info,
+          Backend *backend = 0, ParamsLoader *loader = 0, ITimeProvider *time_provider = 0);
+
+TFErrorCode Init(const TFSettings &settings, JNIEnv* env, jobject context);
 
 // Blocking call to get fidelity parameters from the server.
 // Returns true if parameters could be downloaded within the timeout, false otherwise.
@@ -97,26 +117,28 @@ void Init(const ProtobufSerialization &settings, Backend *backend = 0,
 //  as being associated with those parameters.
 // If you subsequently call GetFidelityParameters, any data that is already collected will be
 // submitted to the backend.
-bool GetFidelityParameters(const ProtobufSerialization& defaultParams,
-                           ProtobufSerialization &params, size_t timeout_ms);
+TFErrorCode GetFidelityParameters(JNIEnv* env, jobject context,
+                           const std::string& url_base,
+                           const std::string& api_key,
+                           const ProtobufSerialization& defaultParams,
+                           ProtobufSerialization &params, uint32_t timeout_ms);
 
 // Protobuf serialization of the current annotation
-// Returns the internal annotation id if it was set or -1 if not
-uint64_t SetCurrentAnnotation(const ProtobufSerialization &annotation);
+TFErrorCode SetCurrentAnnotation(const ProtobufSerialization &annotation);
 
 // Record a frame tick that will be associated with the instrumentation key and the current
 //   annotation
-void FrameTick(InstrumentationKey id);
+TFErrorCode FrameTick(InstrumentationKey id);
 
 // Record a frame tick using an external time, rather than system time
-void FrameDeltaTimeNanos(InstrumentationKey id, Duration dt);
+TFErrorCode FrameDeltaTimeNanos(InstrumentationKey id, Duration dt);
 
 // Start a trace segment
-TraceHandle StartTrace(InstrumentationKey key);
+TFErrorCode StartTrace(InstrumentationKey key, TraceHandle& handle);
 
 // Record a trace with the key and annotation set using startTrace
-void EndTrace(TraceHandle h);
+TFErrorCode EndTrace(TraceHandle h);
 
-} // namespace tuningfork {
+TFErrorCode SetUploadCallback(ProtoCallback cbk);
 
-#endif
+} // namespace tuningfork

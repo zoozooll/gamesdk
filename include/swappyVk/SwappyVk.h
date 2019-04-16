@@ -17,10 +17,10 @@
 #ifndef SWAPPYVK_H
 #define SWAPPYVK_H
 
-#ifndef ANDROID
-#include <vulkan/vulkan.h>
-#else
+#if (defined ANDROID) && (defined SWAPPYVK_USE_WRAPPER)
 #include <vulkan_wrapper.h>
+#else
+#include <vulkan/vulkan.h>
 #endif
 
 #ifdef __cplusplus
@@ -66,7 +66,7 @@ extern "C" {
  *                    char* strings (i.e. the same as
  *                    VkDeviceCreateInfo::ppEnabledExtensionNames).
  */
-void swappyVkDetermineDeviceExtensions(
+void SwappyVk_determineDeviceExtensions(
     VkPhysicalDevice       physicalDevice,
     uint32_t               availableExtensionCount,
     VkExtensionProperties* pAvailableExtensions,
@@ -74,7 +74,7 @@ void swappyVkDetermineDeviceExtensions(
     char**                 pRequiredExtensions);
 
 /**
- * Tell Swappy The queueFamiliyIndex used to create a specific VkQueue
+ * Tell Swappy The queueFamilyIndex used to create a specific VkQueue
  *
  * Swappy needs to know the queueFamilyIndex used for creating a specific VkQueue
  * so it can use it when presenting.
@@ -86,7 +86,7 @@ void swappyVkDetermineDeviceExtensions(
  *  (IN)  queueFamilyIndex  - The queue family index used to create the VkQueue.
  *
  */
-void SwappyVkSetQueueFamiliyIndex(
+void SwappyVk_setQueueFamilyIndex(
         VkDevice    device,
         VkQueue     queue,
         uint32_t    queueFamilyIndex);
@@ -123,7 +123,7 @@ void SwappyVkSetQueueFamiliyIndex(
  *  bool            - true if the value returned by pRefreshDuration is valid,
  *                    otherwise false if an error.
  */
-bool swappyVkGetRefreshCycleDuration(
+bool SwappyVk_initAndGetRefreshCycleDuration(
         VkPhysicalDevice physicalDevice,
         VkDevice         device,
         VkSwapchainKHR   swapchain,
@@ -149,7 +149,7 @@ bool swappyVkGetRefreshCycleDuration(
  *  (IN)  interval  - The number of vertical-blanking intervals each image
  *                    should be visible
  */
-void swappyVkSetSwapInterval(
+void SwappyVk_setSwapInterval(
         VkDevice       device,
         VkSwapchainKHR swapchain,
         uint32_t       interval);
@@ -174,7 +174,7 @@ void swappyVkSetSwapInterval(
  *                    information about what image(s) to present on which
  *                    swapchain(s).
  */
-VkResult swappyVkQueuePresent(
+VkResult SwappyVk_queuePresent(
         VkQueue                 queue,
         const VkPresentInfoKHR* pPresentInfo);
 
@@ -189,7 +189,7 @@ VkResult swappyVkQueuePresent(
  *
  *  (IN)  device     - The VkDevice associated with SwappyVk
  */
-void SwappyVkDestroySwapchain(
+void SwappyVk_destroySwapchain(
         VkDevice                device,
         VkSwapchainKHR          swapchain);
 

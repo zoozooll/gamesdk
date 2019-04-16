@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -24,24 +26,21 @@ namespace tuningfork {
 
 class ClearcutBackend : public Backend {
 public:
-    // Return false if google play services are not available
-    bool Init(JNIEnv* env, jobject activity);
+    // Return TFERROR_OK if google play services are available
+    TFErrorCode Init(JNIEnv* env, jobject context, ProtoPrint *proto_print);
 
     ~ClearcutBackend() override;
-    bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) override;
-    bool Process(const ProtobufSerialization &tuningfork_log_event) override;
+    TFErrorCode Process(const ProtobufSerialization &tuningfork_log_event) override;
 
 private:
-    static const std::string LOG_SOURCE;
-    static const char* LOG_TAG;
-
     JavaVM* vm_;
     jobject clearcut_logger_;
     jmethodID new_event_;
     jmethodID log_method_;
+    ProtoPrint* proto_print_;
 
     bool IsGooglePlayServiceAvailable(JNIEnv* env, jobject context);
-    bool InitWithClearcut(JNIEnv* env, jobject activity, bool anonymousLogging);
+    bool InitWithClearcut(JNIEnv* env, jobject context, bool anonymousLogging);
     bool CheckException(JNIEnv* env); ///Need to check for exceptions after each JNI call
 };
 

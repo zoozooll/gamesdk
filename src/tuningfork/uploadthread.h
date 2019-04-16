@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,12 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef TUNINGFORK_UPLOADTHREAD_H
-#define TUNINGFORK_UPLOADTHREAD_H
+#pragma once
 
 #include <thread>
 #include <mutex>
 #include <map>
+#include <condition_variable>
 #include "prong.h"
 
 namespace tuningfork {
@@ -31,8 +33,10 @@ private:
     const ProngCache *ready_;
     Backend *backend_;
     ProtobufSerialization current_fidelity_params_;
-public:
-    UploadThread(Backend *backend);
+    ProtoCallback upload_callback_;
+    ExtraUploadInfo extra_info_;
+ public:
+    UploadThread(Backend *backend, const ExtraUploadInfo& extraInfo);
 
     ~UploadThread();
 
@@ -45,13 +49,22 @@ public:
     // Returns true if we submitted, false if we are waiting for a previous submit to complete
     bool Submit(const ProngCache *prongs);
 
-    void SetCurrentFidelityParams(const ProtobufSerialization &fp) {
+    void SetCurrentFidelityParams(const ProtobufSerialization &fp,
+                                  const std::string& experiment_id) {
         current_fidelity_params_ = fp;
+        extra_info_.experiment_id = experiment_id;
     }
+
+    void SetUploadCallback(ProtoCallback upload_callback) {
+        upload_callback_ = upload_callback;
+    }
+
+    static ExtraUploadInfo GetExtraUploadInfo(JNIEnv* env, jobject context);
+
+ private:
+    void UpdateGLVersion();
 
     friend class ClearcutSerializer;
 };
 
 } // namespace tuningfork {
-
-#endif //TUNINGFORK_UPLOADTHREAD_H

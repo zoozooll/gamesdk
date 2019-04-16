@@ -21,6 +21,7 @@
 #include <cmath>
 #include <thread>
 #include <cstdlib>
+#include <cinttypes>
 
 #include "Settings.h"
 #include "Thread.h"
@@ -77,6 +78,12 @@ void Swappy::init(JNIEnv *env, jobject jactivity) {
             displayClass,
             "getAppVsyncOffsetNanos", "()J");
 
+    // getAppVsyncOffsetNanos was only added in API 21.
+    // Return gracefully if this device doesn't support it.
+    if (getAppVsyncOffsetNanos == 0 || env->ExceptionOccurred()) {
+        env->ExceptionClear();
+        return;
+    }
     const long appVsyncOffsetNanos = env->CallLongMethod(display, getAppVsyncOffsetNanos);
 
     jmethodID getPresentationDeadlineNanos = env->GetMethodID(
@@ -181,6 +188,8 @@ bool Swappy::swapInternal(EGLDisplay display, EGLSurface surface) {
 
     if (updateSwapInterval()) {
         swapIntervalChangedCallbacks();
+        TRACE_INT("mPipelineMode", mPipelineMode);
+        TRACE_INT("mAutoSwapInterval", mAutoSwapInterval);
     }
 
     updateSwapDuration(std::chrono::steady_clock::now() - mSwapTime);
@@ -223,10 +232,12 @@ void Swappy::setAutoSwapInterval(bool enabled) {
 
     std::lock_guard<std::mutex> lock(swappy->mFrameDurationsMutex);
     swappy->mAutoSwapIntervalEnabled = enabled;
+    TRACE_INT("mAutoSwapIntervalEnabled", swappy->mAutoSwapIntervalEnabled);
 
     // non pipeline mode is not supported when auto mode is disabled
     if (!enabled) {
         swappy->mPipelineMode = true;
+        TRACE_INT("mPipelineMode", swappy->mPipelineMode);
     }
 }
 
@@ -239,8 +250,10 @@ void Swappy::setAutoPipelineMode(bool enabled) {
 
     std::lock_guard<std::mutex> lock(swappy->mFrameDurationsMutex);
     swappy->mPipelineModeAutoMode = enabled;
+    TRACE_INT("mPipelineModeAutoMode", swappy->mPipelineModeAutoMode);
     if (!enabled) {
         swappy->mPipelineMode = true;
+        TRACE_INT("mPipelineMode", swappy->mPipelineMode);
     }
 }
 
@@ -278,11 +291,8 @@ void Swappy::recordFrameStart(EGLDisplay display, EGLSurface surface) {
         return;
     }
 
-    if (swappy->mFrameStatistics) {
+    if (swappy->mFrameStatistics)
         swappy->mFrameStatistics->capture(display, surface);
-    } else {
-        ALOGE("stats are not enabled");
-    }
 }
 
 void Swappy::getStats(Swappy_Stats *stats) {
@@ -292,16 +302,22 @@ void Swappy::getStats(Swappy_Stats *stats) {
         return;
     }
 
-    if (swappy->mFrameStatistics) {
+    if (swappy->mFrameStatistics)
         *stats = swappy->mFrameStatistics->getStats();
-    } else {
-        ALOGE("stats are not enabled");
-    }
 }
 
 Swappy *Swappy::getInstance() {
     std::lock_guard<std::mutex> lock(sInstanceMutex);
     return sInstance.get();
+}
+
+bool Swappy::isEnabled() {
+    Swappy *swappy = getInstance();
+    if (!swappy) {
+        ALOGE("Failed to get Swappy instance in getStats");
+        return false;
+    }
+    return swappy->enabled();
 }
 
 void Swappy::destroyInstance() {
@@ -386,34 +402,32 @@ Swappy::Swappy(JavaVM *vm,
         return;
     }
 
-    mChoreographerFilter = std::make_unique<ChoreographerFilter>(refreshPeriod,
-                                                               sfOffset - appOffset,
-                                                               [this]() { return wakeClient(); });
-
-    mChoreographerThread = ChoreographerThread::createChoreographerThread(
-                    ChoreographerThread::Type::Swappy,
-                    vm,
-                    [this]{ handleChoreographer(); });
-
-    Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
-
-    ALOGI("Initialized Swappy with refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld",
-          refreshPeriod.count(), appOffset.count(), sfOffset.count());
-
     std::lock_guard<std::mutex> lock(mEglMutex);
     mEgl = EGL::create(refreshPeriod);
     if (!mEgl) {
         ALOGE("Failed to load EGL functions");
-        exit(0);
+        mDisableSwappy = true;
+        return;
     }
+    mChoreographerFilter = std::make_unique<ChoreographerFilter>(refreshPeriod,
+                                                                 sfOffset - appOffset,
+                                                                 [this]() { return wakeClient(); });
 
+    mChoreographerThread = ChoreographerThread::createChoreographerThread(
+        ChoreographerThread::Type::Swappy,
+        vm,
+        [this]{ handleChoreographer(); });
+    Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
     mAutoSwapIntervalThreshold = (1e9f / mRefreshPeriod.count()) / 20; // 20FPS
     mFrameDurations.reserve(mFrameDurationSamples);
+    ALOGI("Initialized Swappy with refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld" ,
+          (long long)refreshPeriod.count(), (long long)appOffset.count(),
+          (long long)sfOffset.count());
 }
 
 void Swappy::onSettingsChanged() {
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
-    int32_t newSwapInterval = std::round(float(Settings::getInstance()->getSwapIntervalNS()) /
+    int32_t newSwapInterval = ::round(float(Settings::getInstance()->getSwapIntervalNS()) /
                                float(mRefreshPeriod.count()));
     if (mSwapInterval != newSwapInterval || mAutoSwapInterval != newSwapInterval) {
         mSwapInterval = newSwapInterval;
@@ -421,6 +435,8 @@ void Swappy::onSettingsChanged() {
         mFrameDurations.clear();
         mFrameDurationsSum = {};
     }
+    TRACE_INT("mSwapInterval", mSwapInterval);
+    TRACE_INT("mAutoSwapInterval", mAutoSwapInterval);
 }
 
 void Swappy::handleChoreographer() {
@@ -607,7 +623,7 @@ bool Swappy::updateSwapInterval() {
     // are exactly at the edge.
     lowerBound -= FRAME_HYSTERESIS;
 
-    auto div_result = std::div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
+    auto div_result = ::div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
                                mRefreshPeriod.count());
     auto framesPerRefresh = div_result.quot;
     auto framesPerRefreshRemainder = div_result.rem;

@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,27 +14,15 @@
  * limitations under the License.
  */
 
-#include "protobuf_util.h"
 
-#ifdef PROTOBUF_NANO
+#include "tuningfork/protobuf_util.h"
+#include "tuningfork/protobuf_nano_util.h"
+
 #include <pb_encode.h>
 #include <pb_decode.h>
-#endif
 
 namespace tuningfork {
 
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BINARY(byte)  \
-  (byte & 0x80 ? '1' : '0'), \
-  (byte & 0x40 ? '1' : '0'), \
-  (byte & 0x20 ? '1' : '0'), \
-  (byte & 0x10 ? '1' : '0'), \
-  (byte & 0x08 ? '1' : '0'), \
-  (byte & 0x04 ? '1' : '0'), \
-  (byte & 0x02 ? '1' : '0'), \
-  (byte & 0x01 ? '1' : '0')
-
-#ifdef PROTOBUF_NANO
 bool VectorStream::Read(pb_istream_t *stream, uint8_t *buf, size_t count) {
     VectorStream* str = (VectorStream*)(stream->state);
     if (buf==NULL) {
@@ -52,7 +42,7 @@ bool VectorStream::Read(pb_istream_t *stream, uint8_t *buf, size_t count) {
     return n==count;
 }
 bool VectorStream::Write(pb_ostream_t *stream, const uint8_t *buf, size_t count) {
-    if(buf==NULL)
+    if (buf==NULL || count==0)
         return true;
     VectorStream* str = (VectorStream*)(stream->state);
     auto vec = str->vec;
@@ -62,6 +52,44 @@ bool VectorStream::Write(pb_ostream_t *stream, const uint8_t *buf, size_t count)
     std::copy(buf, buf+count, &(*vec)[sz]);
     return true;
 }
-#endif
+bool ByteStream::Read(pb_istream_t *stream, uint8_t *buf, size_t count) {
+    ByteStream* str = (ByteStream*)(stream->state);
+    if (buf==NULL) {
+        if(count > str->size - str->it) {
+            str->it = str->size;
+            return false;
+        }
+        else {
+            str->it += count;
+            return true;
+        }
+    }
+    auto p = &str->vec[str->it];
+    auto n = std::min(count, str->size - str->it);
+    std::copy(p, p + n, buf);
+    str->it += n;
+    return n==count;
+}
+bool ByteStream::Write(pb_ostream_t *stream, const uint8_t *buf, size_t count) {
+    if (buf==NULL || count==0)
+        return true;
+    ByteStream* str = (ByteStream*)(stream->state);
+    int b = buf[0];
+    auto sz = str->size;
+    if(str->vec)
+        str->vec = static_cast<uint8_t*>(::realloc(str->vec, sz+count));
+    else
+        str->vec = static_cast<uint8_t*>(::malloc(sz+count));
+    std::copy(buf, buf+count, &str->vec[sz]);
+    return true;
+}
 
 } // namespace tuningfork {
+
+extern "C" void CProtobufSerialization_Dealloc(CProtobufSerialization* c) {
+    if(c->bytes) {
+        ::free(c->bytes);
+        c->bytes = nullptr;
+        c->size = 0;
+    }
+}

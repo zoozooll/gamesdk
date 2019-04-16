@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -21,6 +23,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <memory>
 
 namespace tuningfork {
 
@@ -36,7 +39,7 @@ public:
 
     Prong(InstrumentationKey instrumentation_key = 0,
           const SerializedAnnotation &annotation = {},
-          const Settings::Histogram& histogram_settings = {})
+          const TFHistogram& histogram_settings = {})
         : instrumentation_key_(instrumentation_key), annotation_(annotation),
           last_time_ns_(std::chrono::steady_clock::time_point::min()),
           histogram_(histogram_settings) {}
@@ -62,20 +65,27 @@ public:
         return histogram_.Count();
     }
 
+    void SetInstrumentKey(InstrumentationKey key) {
+        instrumentation_key_ = key;
+    }
+
     friend class ClearcutSerializer;
 };
 
 // Simple fixed-size cache
 class ProngCache {
     std::vector<std::unique_ptr<Prong>> prongs_;
+    int max_num_instrumentation_keys_;
 public:
     ProngCache(size_t size, int max_num_instrumentation_keys,
-               const std::vector<Settings::Histogram>& histogram_settings,
+               const std::vector<TFHistogram>& histogram_settings,
                const std::function<SerializedAnnotation(uint64_t)>& seralizeId);
 
     Prong *Get(uint64_t compound_id);
 
     void Clear();
+
+    void SetInstrumentKeys(const std::vector<InstrumentationKey>& instrument_keys);
 
     friend class ClearcutSerializer;
 

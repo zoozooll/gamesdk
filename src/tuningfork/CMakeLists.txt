@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 include("../protobuf/protobuf.cmake")
-set( MODPB64_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../external/modp_b64")
+set( MODPB64_DIR "${EXTERNAL_ROOT}/modp_b64")
+set( JSON11_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/json11")
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections,-s")
@@ -14,7 +15,7 @@ endfunction()
 protobuf_generate_nano_c( ${CMAKE_CURRENT_SOURCE_DIR}/proto
   proto/tuningfork.proto
   proto/tuningfork_clearcut_log.proto
-  proto/eng_tuningfork.proto)
+  proto/example_tuningfork.proto)
 
 include_directories(${PROTOBUF_NANO_SRC_DIR})
 include_directories( ../../include )
@@ -33,19 +34,26 @@ set( TUNINGFORK_SRCS
   tuningfork_c.cpp
   clearcutserializer.cpp
   protobuf_util.cpp
+  annotation_util.cpp
+  tuningfork_extra.cpp
+  tuningfork_utils.cpp
+  fpdownload.cpp
+  ${JSON11_DIR}/json11.cpp
   ${MODPB64_DIR}/modp_b64.cc
   ${PROTO_GENS_DIR}/nano/tuningfork.pb.c
   ${PROTO_GENS_DIR}/nano/tuningfork_clearcut_log.pb.c
-  ${PROTO_GENS_DIR}/nano/eng_tuningfork.pb.c)
+  ${PROTO_GENS_DIR}/nano/example_tuningfork.pb.c)
 
-add_library( tuningfork-static
+add_library( tuningfork_static
   STATIC ${TUNINGFORK_SRCS} ${PROTOBUF_NANO_SRCS})
-set_target_properties( tuningfork-static PROPERTIES
+set_target_properties( tuningfork_static PROPERTIES
   COMPILE_OPTIONS "-DPROTOBUF_NANO" )
 
 add_library( tuningfork
   SHARED ${TUNINGFORK_SRCS} ${PROTOBUF_NANO_SRCS})
 set_target_properties( tuningfork PROPERTIES COMPILE_OPTIONS "-DPROTOBUF_NANO" )
 target_link_libraries( tuningfork
+  android
+  GLESv2
   log)
 extra_tf_link_options( tuningfork )

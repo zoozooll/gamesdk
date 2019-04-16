@@ -45,8 +45,10 @@ android {
         }
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_PLATFORM=android-24', '-DANDROID_TOOLCHAIN=clang',
-                          "-DANDROID_STL=${stlType}", '-DSAMPLE_NAME=' + project.getName()
+                arguments "-DANDROID_PLATFORM=android-24"
+                arguments "-DANDROID_TOOLCHAIN=clang"
+                arguments "-DANDROID_STL=${stlType}"
+                arguments "-DSAMPLE_NAME=" + project.getName()
             }
         }
     }
@@ -55,7 +57,6 @@ android {
             path 'CMakeLists.txt'
         }
     }
-    
     buildTypes {
         release {
             minifyEnabled false
@@ -63,8 +64,6 @@ android {
                     'proguard-rules.pro'
         }
     }
-    
-    
 }
 
 dependencies {

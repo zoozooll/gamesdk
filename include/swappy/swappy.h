@@ -33,6 +33,11 @@ extern "C" {
 // Initialize Swappy, getting the required Android parameters from the display subsystem via JNI
 void Swappy_init(JNIEnv *env, jobject jactivity);
 
+// Returns true if Swappy was successfully initialized.
+// Returns false if either the 'swappy.disable' system property is not 'false'
+//  or the required OpenGL extensions are not available for Swappy to work.
+bool Swappy_isEnabled();
+
 // Destroy resources and stop all threads that swappy has created
 void Swappy_destroy();
 

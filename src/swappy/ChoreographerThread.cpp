@@ -16,7 +16,6 @@
 
 #define LOG_TAG "ChoreographerThread"
 
-#include <android/choreographer.h>
 #include <android/looper.h>
 #include <jni.h>
 
@@ -24,10 +23,15 @@
 #include "Thread.h"
 #include "CpuInfo.h"
 
+#include <condition_variable>
+#include <cstring>
+#include <cstdlib>
+
 #include <sched.h>
 #include <pthread.h>
 #include <unistd.h>
 
+#include "ChoreographerShim.h"
 #include "Log.h"
 #include "Trace.h"
 
@@ -57,11 +61,10 @@ private:
     void looperThread();
     void scheduleNextFrameCallback() override REQUIRES(mWaitingMutex);
 
-    PFN_AChoreographer_getInstance mAChoreographer_getInstance;
-    PFN_AChoreographer_postFrameCallback mAChoreographer_postFrameCallback;
-    PFN_AChoreographer_postFrameCallbackDelayed mAChoreographer_postFrameCallbackDelayed;
-
-    void *mLibAndroid;
+    PFN_AChoreographer_getInstance mAChoreographer_getInstance = nullptr;
+    PFN_AChoreographer_postFrameCallback mAChoreographer_postFrameCallback = nullptr;
+    PFN_AChoreographer_postFrameCallbackDelayed mAChoreographer_postFrameCallbackDelayed = nullptr;
+    void *mLibAndroid = nullptr;
     std::thread mThread;
     std::condition_variable mWaitingCondition;
     ALooper *mLooper GUARDED_BY(mWaitingMutex) = nullptr;
@@ -110,6 +113,9 @@ NDKChoreographerThread::~NDKChoreographerThread()
 {
     ALOGI("Destroying NDKChoreographerThread");
 
+    if (mLibAndroid != nullptr)
+      dlclose(mLibAndroid);
+
     if (!mLooper) {
         return;
     }
@@ -155,8 +161,7 @@ void NDKChoreographerThread::looperThread()
         }
     }
 
-    const auto tid = pthread_gettid_np(pthread_self());
-
+    const auto tid = gettid();
     ALOGI("Setting '%s' thread [%d-0x%x] affinity mask to 0x%x.",
           name, tid, tid, to_mask(cpu_set));
     sched_setaffinity(tid, sizeof(cpu_set), &cpu_set);

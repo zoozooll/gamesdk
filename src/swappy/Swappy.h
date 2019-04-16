@@ -84,6 +84,7 @@ class Swappy {
     static void enableStats(bool enabled);
     static void recordFrameStart(EGLDisplay display, EGLSurface surface);
     static void getStats(Swappy_Stats *stats);
+    static bool isEnabled();
     static void destroyInstance();
 
 private:

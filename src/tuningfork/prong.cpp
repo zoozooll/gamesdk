@@ -1,4 +1,6 @@
 /*
+ * Copyright 2018 The Android Open Source Project
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,7 +16,8 @@
 
 #include "prong.h"
 
-#include <android/log.h>
+#define LOG_TAG "TuningFork"
+#include "Log.h"
 
 #include <string>
 #include <sstream>
@@ -23,15 +26,16 @@ namespace tuningfork {
 
 // Allocate all the prongs up front
 ProngCache::ProngCache(size_t size, int max_num_instrumentation_keys,
-                       const std::vector<Settings::Histogram> &histogram_settings,
+                       const std::vector<TFHistogram> &histogram_settings,
                        const std::function<SerializedAnnotation(uint64_t)> &seralizeId)
-    : prongs_(size) {
+    : prongs_(size), max_num_instrumentation_keys_(max_num_instrumentation_keys) {
     // Allocate all the prongs
     InstrumentationKey ikey = 0;
     for (int i = 0; i < size; ++i) {
         auto &p = prongs_[i];
         SerializedAnnotation annotation = seralizeId(i);
-        p = std::make_unique<Prong>(ikey, annotation, histogram_settings[ikey]);
+        auto& h = histogram_settings[ikey<histogram_settings.size()?ikey:0];
+        p = std::make_unique<Prong>(ikey, annotation, h);
         ++ikey;
         if (ikey >= max_num_instrumentation_keys)
             ikey = 0;
@@ -40,9 +44,8 @@ ProngCache::ProngCache(size_t size, int max_num_instrumentation_keys,
 
 Prong *ProngCache::Get(uint64_t compound_id) {
     if (compound_id >= prongs_.size()) {
-        __android_log_print(ANDROID_LOG_WARN, "TuningFork",
-                            "You have overrun the number of histograms (are your "
-                                "Settings correct?)");
+        ALOGW("You have overrun the number of histograms (are your "
+              "Settings correct?)");
         return nullptr;
     }
     return prongs_[compound_id].get();
@@ -52,6 +55,17 @@ void ProngCache::Clear() {
     for (auto &p: prongs_) {
         if (p->histogram_.Count() > 0)
             p->histogram_.Clear();
+    }
+}
+
+void ProngCache::SetInstrumentKeys(const std::vector<InstrumentationKey>& instrument_keys) {
+    auto nAnnotations = prongs_.size()/max_num_instrumentation_keys_;
+    for (int j=0; j<nAnnotations; ++j) {
+        for (int i=0; i<instrument_keys.size(); ++i) {
+            auto k = instrument_keys[i];
+            auto& p = prongs_[i + j*max_num_instrumentation_keys_];
+            p->SetInstrumentKey(k);
+        }
     }
 }
 
