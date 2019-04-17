@@ -65,7 +65,9 @@ enum TFErrorCode {
     TFERROR_NO_CLEARCUT = 17,
     TFERROR_NO_FIDELITY_PARAMS_IN_APK = 18, // No dev_tuningfork_fidelityparams_#.bin found
                                            //  in assets/tuningfork.
-    TFERROR_COULDNT_SAVE_OR_DELETE_FPS = 19
+    TFERROR_COULDNT_SAVE_OR_DELETE_FPS = 19,
+    TFERROR_PREVIOUS_UPLOAD_PENDING = 20,
+    TFERROR_UPLOAD_TOO_FREQUENT = 21
 };
 
 struct TFHistogram {
@@ -155,6 +157,13 @@ TFErrorCode TuningFork_startTrace(TFInstrumentKey key, TFTraceHandle* handle);
 // Returns TFERROR_INVALID_TRACE_HANDLE if the handle is invalid.
 // Returns TFERROR_OK on success.
 TFErrorCode TuningFork_endTrace(TFTraceHandle h);
+
+// Force upload of the current histograms.
+// Returns TFERROR_OK if the upload could be initiated.
+// Returns TFERROR_PREVIOUS_UPLOAD_PENDING if there is a previous upload blocking this
+//  one.
+// Returns TFERROR_UPLOAD_TOO_FREQUENT if less than a minute has elapsed since the previous upload.
+TFErrorCode TuningFork_flush();
 
 #ifdef __cplusplus
 }

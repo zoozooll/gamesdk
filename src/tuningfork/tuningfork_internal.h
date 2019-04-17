@@ -141,4 +141,6 @@ TFErrorCode EndTrace(TraceHandle h);
 
 TFErrorCode SetUploadCallback(ProtoCallback cbk);
 
+TFErrorCode Flush();
+
 } // namespace tuningfork
