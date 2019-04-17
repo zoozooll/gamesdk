@@ -53,5 +53,4 @@ task buildTuningForkBinFiles(type: Exec) {
             "../../../../third_party/protobuf-3.0.0/install/linux-x86/bin/protoc"
 }
 
-tasks.test.dependsOn("buildTuningForkBinFiles")
-tasks.build.dependsOn("buildTuningForkBinFiles")
+tasks.preBuild.dependsOn("buildTuningForkBinFiles")
