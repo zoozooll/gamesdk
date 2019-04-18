@@ -40,8 +40,7 @@ SwappyCommon::SwappyCommon(JavaVM* vm,
                          std::chrono::nanoseconds refreshPeriod,
                          std::chrono::nanoseconds appOffset,
                          std::chrono::nanoseconds sfOffset)
-        : mRefreshPeriod(refreshPeriod),
-          mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
+        : mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
                                                                      sfOffset - appOffset,
                                                                      [this]() { return wakeClient(); })),
           mChoreographerThread(ChoreographerThread::createChoreographerThread(
@@ -49,6 +48,7 @@ SwappyCommon::SwappyCommon(JavaVM* vm,
                   vm,
                   [this]{ mChoreographerFilter->onChoreographer(); })),
           mSwapDuration(std::chrono::nanoseconds(0)),
+          mRefreshPeriod(refreshPeriod),
           mSwapInterval(1),
           mAutoSwapInterval(1)
 {
