@@ -16,15 +16,22 @@
 
 package com.prefabulated.bouncyball;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.os.Build;
 import android.os.Bundle;
+import android.view.Display;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
+import androidx.annotation.RequiresApi;
 import androidx.preference.Preference;
 import androidx.preference.ListPreference;
 import androidx.preference.PreferenceFragmentCompat;
@@ -36,9 +43,21 @@ public class SettingsFragment
         implements SharedPreferences.OnSharedPreferenceChangeListener {
     private ListPreference mSwapIntervalPreference;
     private String mSwapIntervalKey;
+    private Display.Mode mCurrentMode;
+    private int mDisplayWidth;
 
+    @TargetApi(Build.VERSION_CODES.M)
+    private boolean isModeValid(Display.Mode mode) {
+        return mode.getPhysicalHeight() == mCurrentMode.getPhysicalHeight() &&
+                mode.getPhysicalWidth() == mCurrentMode.getPhysicalWidth();
+    }
+
+    @TargetApi(Build.VERSION_CODES.M)
     @Override
     public void onCreatePreferences(Bundle bundle, String s) {
+        Display display = getActivity().getWindowManager().getDefaultDisplay();
+        mCurrentMode = display.getMode();
+
         mSwapIntervalKey = getResources().getString(R.string.swap_interval_key);
         addPreferencesFromResource(R.xml.preferences);
 
@@ -51,18 +70,38 @@ public class SettingsFragment
             }
         }
 
-        // fill the swap interval list based on the screen refresh rate
-        float refreshRate = getActivity().getWindowManager().getDefaultDisplay().getRefreshRate();
-        int numEntries = (int)(refreshRate / 20 + 1);
+        // fill the swap interval list based on the screen refresh rate(s)
+        TreeSet<Integer> fpsSet = new TreeSet<Integer>();
+        if (Build.VERSION.SDK_INT >= 21) {
+            Display.Mode[] supportedModes =
+                    getActivity().getWindowManager().getDefaultDisplay().getSupportedModes();
+            for (Display.Mode mode : supportedModes) {
+                if (isModeValid(mode)) {
+                    float refreshRate = mode.getRefreshRate();
+                    for (int interval = 1; refreshRate / interval >= 20; interval++) {
+                        fpsSet.add((int) refreshRate / interval);
+                    }
+                }
+            }
+        } else {
+            float refreshRate =
+                    getActivity().getWindowManager().getDefaultDisplay().getRefreshRate();
+            for (int interval = 1; refreshRate / interval >= 20; interval++) {
+                fpsSet.add((int)refreshRate / interval);
+            }
+        }
+
+        int numEntries = fpsSet.size();
         String[] entries = new String[numEntries];
         String[] entryValues = new String[numEntries];
 
-        for(int interval = 0; interval < numEntries - 1; interval++) {
-            float fps = refreshRate / (interval + 1);
+        Iterator<Integer> fpsSetIterator = fpsSet.descendingIterator();
+        for(int i = 0; i < numEntries; i++) {
+            float fps = fpsSetIterator.next();
             float ms =  1000 / fps;
 
-            entries[interval] = String.format(Locale.US, "%.2fms (%.0ffps)", ms, fps);
-            entryValues[interval] = Float.toString(ms);
+            entries[i] = String.format(Locale.US, "%.2fms (%.0ffps)", ms, fps);
+            entryValues[i] = Float.toString(ms);
         }
 
         entries[numEntries - 1] = String.format(Locale.US, "No pacing");
