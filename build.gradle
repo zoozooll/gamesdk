@@ -176,7 +176,13 @@ def getOutPath() {
 }
 
 def getPackagePath() {
-    return new File("../package").getCanonicalPath()
+    def outputBaseDir = "../package";
+    def distDir = System.getenv('DIST_DIR');
+    if (distDir != null) {
+        // Running in build server, use DIST_DIR for artifacts
+        outputBaseDir = distDir;
+    }
+    return new File(outputBaseDir).getCanonicalPath();
 }
 
 def getTempPath() {
