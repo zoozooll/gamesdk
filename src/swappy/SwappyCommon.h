@@ -22,6 +22,7 @@
 #include <mutex>
 #include <vector>
 #include <list>
+#include <atomic>
 
 #include "swappy/swappy.h"
 #include "swappy/swappy_extra.h"

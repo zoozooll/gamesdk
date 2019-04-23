@@ -254,7 +254,7 @@ bool SwappyCommon::updateSwapInterval() {
     // are exactly at the edge.
     lowerBound -= FRAME_HYSTERESIS;
 
-    auto div_result = std::div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
+    auto div_result = div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
                                mRefreshPeriod.count());
     auto framesPerRefresh = div_result.quot;
     auto framesPerRefreshRemainder = div_result.rem;
@@ -362,7 +362,7 @@ void SwappyCommon::setAutoPipelineMode(bool enabled) {
 
 void SwappyCommon::onSettingsChanged() {
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
-    int32_t newSwapInterval = std::round(float(Settings::getInstance()->getSwapIntervalNS()) /
+    int32_t newSwapInterval = round(float(Settings::getInstance()->getSwapIntervalNS()) /
                                          float(mRefreshPeriod.count()));
     if (mSwapInterval != newSwapInterval || mAutoSwapInterval != newSwapInterval) {
         mSwapInterval = newSwapInterval;
