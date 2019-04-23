@@ -216,7 +216,8 @@ JavaChoreographerThread::JavaChoreographerThread(JavaVM *vm,
     JNIEnv *env;
     mJVM->AttachCurrentThread(&env, nullptr);
 
-    jclass choreographerCallbackClass = env->FindClass("com/google/swappy/ChoreographerCallback");
+    jclass choreographerCallbackClass =
+            env->FindClass("com/google/androidgamesdk/ChoreographerCallback");
 
     jmethodID constructor = env->GetMethodID(
             choreographerCallbackClass,
@@ -233,7 +234,8 @@ JavaChoreographerThread::JavaChoreographerThread(JavaVM *vm,
             "terminate",
             "()V");
 
-    jobject choreographerCallback = env->NewObject(choreographerCallbackClass, constructor, reinterpret_cast<jlong>(this));
+    jobject choreographerCallback =
+            env->NewObject(choreographerCallbackClass, constructor, reinterpret_cast<jlong>(this));
 
     mJobj = env->NewGlobalRef(choreographerCallback);
 }
@@ -268,8 +270,10 @@ void JavaChoreographerThread::onChoreographer(jlong cookie) {
 extern "C" {
 
 JNIEXPORT void JNICALL
-Java_com_google_swappy_ChoreographerCallback_nOnChoreographer(JNIEnv * /* env */, jobject /* this */,
-                                                              jlong cookie, jlong frameTimeNanos) {
+Java_com_google_androidgamesdk_ChoreographerCallback_nOnChoreographer(JNIEnv * /*env*/,
+                                                                      jobject /*this*/,
+                                                                      jlong cookie,
+                                                                      jlong /*frameTimeNanos*/) {
     JavaChoreographerThread::onChoreographer(cookie);
 }
 
@@ -363,7 +367,7 @@ bool ChoreographerThread::isChoreographerCallbackClassLoaded(JavaVM *vm)
     JNIEnv *env;
     vm->AttachCurrentThread(&env, nullptr);
 
-    env->FindClass("com/google/swappy/ChoreographerCallback");
+    env->FindClass("com/google/androidgamesdk/ChoreographerCallback");
     if (env->ExceptionCheck()) {
         env->ExceptionClear();
         return false;
