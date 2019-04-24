@@ -19,6 +19,9 @@ add_library( swappyVk_static
              STATIC
 
              SwappyVk.cpp
+             SwappyVkBase.cpp
+             SwappyVkFallback.cpp
+             SwappyVkGoogleDisplayTiming.cpp
              ${ANDROID_NDK}/sources/third_party/vulkan/src/common/vulkan_wrapper.cpp
 
              # Add new source files here
