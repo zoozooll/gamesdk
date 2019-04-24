@@ -272,6 +272,9 @@ Java_com_tuningfork_demoapp_TFTestActivity_start(JNIEnv */*env*/, jclass /*clz*/
 JNIEXPORT void JNICALL
 Java_com_tuningfork_demoapp_TFTestActivity_stop(JNIEnv */*env*/, jclass /*clz*/ ) {
     Renderer::getInstance()->stop();
+    // Call flush here to upload any histograms when the app goes to the background.
+    auto ret = TuningFork_flush();
+    ALOGI("TuningFork_flush returned %d", ret);
 }
 
 }

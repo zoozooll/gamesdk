@@ -164,13 +164,16 @@ public:
 
     void SetUploadCallback(void(*cbk)(const CProtobufSerialization*));
 
+    TFErrorCode Flush();
+
+    TFErrorCode Flush(TimePoint t_ns);
+
 private:
     Prong *TickNanos(uint64_t compound_id, TimePoint t);
 
     Prong *TraceNanos(uint64_t compound_id, Duration dt);
 
-    void CheckForSubmit(TimePoint t_ns, Prong *prong,
-                        const std::vector<InstrumentationKey>& instrument_keys);
+    TFErrorCode CheckForSubmit(TimePoint t_ns, Prong *prong);
 
     bool ShouldSubmit(TimePoint t_ns, Prong *prong);
 
@@ -311,6 +314,14 @@ TFErrorCode SetUploadCallback(void(*cbk)(const CProtobufSerialization*)) {
     }
 }
 
+TFErrorCode Flush() {
+    if (!s_impl) {
+        return TFERROR_TUNINGFORK_NOT_INITIALIZED;
+    } else {
+        return s_impl->Flush();
+    }
+}
+
 // Return the set annotation id or -1 if it could not be set
 uint64_t TuningForkImpl::SetCurrentAnnotation(const ProtobufSerialization &annotation) {
     current_annotation_ = annotation;
@@ -407,7 +418,7 @@ TFErrorCode TuningForkImpl::FrameTick(InstrumentationKey key) {
     auto t = time_provider_->NowNs();
     auto p = TickNanos(compound_id, t);
     if (p)
-        CheckForSubmit(t, p, ikeys_);
+        CheckForSubmit(t, p);
     trace_->endSection();
     return TFERROR_OK;
 }
@@ -418,7 +429,7 @@ TFErrorCode TuningForkImpl::FrameDeltaTimeNanos(InstrumentationKey key, Duration
     if (err!=TFERROR_OK) return err;
     auto p = TraceNanos(compound_id, dt);
     if (p)
-        CheckForSubmit(time_provider_->NowNs(), p, ikeys_);
+        CheckForSubmit(time_provider_->NowNs(), p);
     return TFERROR_OK;
 }
 
@@ -461,21 +472,12 @@ bool TuningForkImpl::ShouldSubmit(TimePoint t_ns, Prong *prong) {
     return false;
 }
 
-void TuningForkImpl::CheckForSubmit(TimePoint t_ns, Prong *prong,
-                        const std::vector<InstrumentationKey>& instrument_keys) {
+TFErrorCode TuningForkImpl::CheckForSubmit(TimePoint t_ns, Prong *prong) {
+    TFErrorCode ret_code = TFERROR_OK;
     if (ShouldSubmit(t_ns, prong)) {
-        current_prong_cache_->SetInstrumentKeys(instrument_keys);
-        if (upload_thread_.Submit(current_prong_cache_)) {
-            if (current_prong_cache_ == prong_caches_[0].get()) {
-                prong_caches_[1]->Clear();
-                current_prong_cache_ = prong_caches_[1].get();
-            } else {
-                prong_caches_[0]->Clear();
-                current_prong_cache_ = prong_caches_[0].get();
-            }
-        }
-        last_submit_time_ns_ = t_ns;
+        ret_code = Flush(t_ns);
     }
+    return ret_code;
 }
 
 void TuningForkImpl::InitHistogramSettings() {
@@ -497,13 +499,43 @@ void TuningForkImpl::InitHistogramSettings() {
     ALOGV("TFHistograms");
     for(uint32_t i=0; i< settings_.histograms.size(); ++i) {
         auto& h = settings_.histograms[i];
-        ALOGV("ikey: %d min: %f max: %f nbkts: %d", h.instrument_key, h.bucket_min, h.bucket_max, h.n_buckets);
+        ALOGV("ikey: %d min: %f max: %f nbkts: %d", h.instrument_key, h.bucket_min, h.bucket_max,
+              h.n_buckets);
     }
 }
 
 void TuningForkImpl::InitAnnotationRadixes() {
     annotation_util::SetUpAnnotationRadixes(annotation_radix_mult_,
                                             settings_.aggregation_strategy.annotation_enum_size);
+}
+
+TFErrorCode TuningForkImpl::Flush() {
+    auto t = time_provider_->NowNs();
+    // Only allow manual submission a maximum of once per minute
+    auto dt = t - last_submit_time_ns_;
+    if (dt > std::chrono::seconds(60))
+        return Flush(t);
+    else
+        return TFERROR_UPLOAD_TOO_FREQUENT;
+}
+
+TFErrorCode TuningForkImpl::Flush(TimePoint t_ns) {
+    TFErrorCode ret_code;
+    current_prong_cache_->SetInstrumentKeys(ikeys_);
+    if (upload_thread_.Submit(current_prong_cache_)) {
+        if (current_prong_cache_ == prong_caches_[0].get()) {
+            prong_caches_[1]->Clear();
+            current_prong_cache_ = prong_caches_[1].get();
+        } else {
+            prong_caches_[0]->Clear();
+            current_prong_cache_ = prong_caches_[0].get();
+        }
+        ret_code = TFERROR_OK;
+    } else {
+        ret_code = TFERROR_PREVIOUS_UPLOAD_PENDING;
+    }
+    last_submit_time_ns_ = t_ns;
+    return ret_code;
 }
 
 } // namespace tuningfork {
