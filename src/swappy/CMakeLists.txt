@@ -16,6 +16,7 @@ set ( SOURCE_LOCATION .)
 
 include_directories( ../../include )
 include_directories( ../common )
+include_directories( ${ANDROID_NDK}/sources/third_party/vulkan/src/common )
 
 message( STATUS "Building swappy_static to ${CMAKE_CURRENT_BINARY_DIR}/build" )
 add_library( swappy_static
@@ -33,6 +34,11 @@ add_library( swappy_static
              ${SOURCE_LOCATION}/Swappy_c.cpp
              ${SOURCE_LOCATION}/Swappy.cpp
              ${SOURCE_LOCATION}/SwappyCommon.cpp
+             ${ANDROID_NDK}/sources/third_party/vulkan/src/common/vulkan_wrapper.cpp
+             ${SOURCE_LOCATION}/SwappyVk.cpp
+             ${SOURCE_LOCATION}/SwappyVkBase.cpp
+             ${SOURCE_LOCATION}/SwappyVkFallback.cpp
+             ${SOURCE_LOCATION}/SwappyVkGoogleDisplayTiming.cpp
 
              # Add new source files here
              )

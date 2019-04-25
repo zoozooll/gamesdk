@@ -70,7 +70,7 @@ void SwappyVkBase::doSetSwapInterval(VkSwapchainKHR swapchain,
     mInterval = interval;
 }
 
-void SwappyVkBase::initGoogExtention() {
+void SwappyVkBase::initGoogExtension() {
     mpfnGetRefreshCycleDurationGOOGLE =
             reinterpret_cast<PFN_vkGetRefreshCycleDurationGOOGLE>(
                     mpfnGetDeviceProcAddr(mDevice, "vkGetRefreshCycleDurationGOOGLE"));

@@ -26,7 +26,7 @@
  * It is expected that one concrete class will be instantiated per VkDevice, and that all
  * VkSwapchainKHR's for a given VkDevice will share the same instance.
  *
- * Base class members are used by the derived classes to unify the behavior across implementaitons:
+ * Base class members are used by the derived classes to unify the behavior across implementations:
  *  @mThread - Thread used for getting Choreographer events.
  *  @mTreadRunning - Used to signal the tread to exit
  *  @mNextPresentID - unique ID for frame presentation.
@@ -152,7 +152,7 @@ protected:
     static constexpr int MAX_SAMPLES = 5;
     static constexpr int MAX_CALLBACKS_BEFORE_IDLE = 10;
 
-    void initGoogExtention();
+    void initGoogExtension();
     void startChoreographerThread();
     void stopChoreographerThread();
     static void *looperThreadWrapper(void *data);

@@ -310,8 +310,7 @@ def sdkCopy(buildInfo, outFolder, all = true, staticToo = false,
     if (staticToo) {
         def staticsFolder = joinPath(getOutPath(), buildKey)
         def staticLibsBuildFolder = joinPath(buildFolder, 'libs', buildKey)
-        def staticLibs = ['libswappy_static.a',
-                          'libswappyVk_static.a']
+        def staticLibs = ['libswappy_static.a']
         if (all)
             staticLibs += 'libtuningfork_static.a'
         repackArchives(staticsFolder, staticLibs, 'libgamesdk.a')
