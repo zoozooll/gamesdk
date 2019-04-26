@@ -52,7 +52,7 @@
   * - If, for some reason, an application can't keep up with its chosen swap interval (e.g. it's
   *   designed for 30FPS on a premium device and is now running on a slow device; or it's running on
   *   a 120Hz display), this algorithm may not be able to make up for this (i.e. smooth rendering at
-  *   a targetted frame rate may not be possible with an application that can't render fast enough).
+  *   a targeted frame rate may not be possible with an application that can't render fast enough).
   *
   ***************************************************************************************************/
 class SwappyVkGoogleDisplayTiming : public SwappyVkBase

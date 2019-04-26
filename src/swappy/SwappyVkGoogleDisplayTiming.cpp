@@ -25,7 +25,7 @@ SwappyVkGoogleDisplayTiming::SwappyVkGoogleDisplayTiming(VkPhysicalDevice physic
                                                          void             *libVulkan) :
     SwappyVkBase(physicalDevice, device, k16_6msec, 1, swappyVk, libVulkan)
 {
-    initGoogExtention();
+    initGoogExtension();
     startChoreographerThread();
 }
 
