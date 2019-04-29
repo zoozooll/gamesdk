@@ -27,6 +27,7 @@ include_directories(${PROTO_GENS_DIR})
 
 set( TUNINGFORK_SRCS
   clearcut_backend.cpp
+  crash_handler.cpp
   histogram.cpp
   prong.cpp
   uploadthread.cpp
