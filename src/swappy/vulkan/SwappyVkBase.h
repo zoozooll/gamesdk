@@ -60,6 +60,8 @@
 #include "Trace.h"
 #include "ChoreographerShim.h"
 
+namespace swappy {
+
 #define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, "SwappyVk", __VA_ARGS__)
 #define ALOGW(...) __android_log_print(ANDROID_LOG_WARN, "SwappyVk", __VA_ARGS__)
 #define ALOGI(...) __android_log_print(ANDROID_LOG_INFO, "SwappyVk", __VA_ARGS__)
@@ -100,7 +102,6 @@ public:
                  VkDevice         device,
                  uint64_t         refreshDur,
                  uint32_t         interval,
-                 SwappyVk         &swappyVk,
                  void             *libVulkan);
 
     virtual ~SwappyVkBase();
@@ -113,13 +114,12 @@ public:
                                     const VkPresentInfoKHR* pPresentInfo) = 0;
 
     void doSetSwapInterval(VkSwapchainKHR swapchain,
-                           uint32_t       interval);
+                           uint64_t       swap_ns);
 protected:
     VkPhysicalDevice mPhysicalDevice;
     VkDevice         mDevice;
     uint64_t         mRefreshDur;
     uint32_t         mInterval;
-    SwappyVk         &mSwappyVk;
     void             *mLibVulkan;
     bool             mInitialized;
     pthread_t mThread = 0;
@@ -162,3 +162,5 @@ protected:
     void calcRefreshRate(uint64_t currentTime);
     void postChoreographerCallback();
 };
+
+}  // namespace swappy

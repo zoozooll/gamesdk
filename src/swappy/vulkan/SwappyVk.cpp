@@ -18,6 +18,8 @@
 #include "SwappyVkFallback.h"
 #include "SwappyVkGoogleDisplayTiming.h"
 
+namespace swappy {
+
 // Note: The API functions is at the botton of the file.  Those functions call methods of the
 // singleton SwappyVk class.  Those methods call virtual methods of the abstract SwappyVkBase
 // class, which is actually implemented by one of the derived/concrete classes:
@@ -61,9 +63,9 @@ public:
                                  VkDevice         device,
                                  VkSwapchainKHR   swapchain,
                                  uint64_t*        pRefreshDuration);
-    void SetSwapInterval(VkDevice       device,
-                         VkSwapchainKHR swapchain,
-                         uint32_t       interval);
+    void SetSwapIntervalNS(VkDevice       device,
+                           VkSwapchainKHR swapchain,
+                           uint64_t       swap_ns);
     VkResult QueuePresent(VkQueue                 queue,
                           const VkPresentInfoKHR* pPresentInfo);
     void DestroySwapchain(VkDevice                device,
@@ -156,11 +158,11 @@ bool SwappyVk::GetRefreshCycleDuration(VkPhysicalDevice physicalDevice,
         // determine which derived class to use to implement the rest of the API
         if (doesPhysicalDeviceHaveGoogleDisplayTiming[physicalDevice]) {
             pImplementation = std::make_shared<SwappyVkGoogleDisplayTiming>
-                    (physicalDevice, device, getInstance(), mLibVulkan);
+                    (physicalDevice, device, mLibVulkan);
             ALOGV("SwappyVk initialized for VkDevice %p using VK_GOOGLE_display_timing on Android", device);
         } else {
             pImplementation = std::make_shared<SwappyVkFallback>
-                    (physicalDevice, device, getInstance(), mLibVulkan);
+                    (physicalDevice, device, mLibVulkan);
             ALOGV("SwappyVk initialized for VkDevice %p using Android fallback", device);
         }
 
@@ -182,15 +184,15 @@ bool SwappyVk::GetRefreshCycleDuration(VkPhysicalDevice physicalDevice,
 /**
  * Generic/Singleton implementation of swappyVkSetSwapInterval.
  */
-void SwappyVk::SetSwapInterval(VkDevice       device,
-                               VkSwapchainKHR swapchain,
-                               uint32_t       interval)
+void SwappyVk::SetSwapIntervalNS(VkDevice       device,
+                                 VkSwapchainKHR swapchain,
+                                 uint64_t       swap_ns)
 {
     auto& pImplementation = perDeviceImplementation[device];
     if (!pImplementation) {
         return;
     }
-    pImplementation->doSetSwapInterval(swapchain, interval);
+    pImplementation->doSetSwapInterval(swapchain, swap_ns);
 }
 
 
@@ -241,6 +243,7 @@ void SwappyVk::DestroySwapchain(VkDevice                device,
     perSwapchainImplementation[swapchain] = nullptr;
 }
 
+}  // namespace swappy
 
 /***************************************************************************************************
  *
@@ -258,7 +261,7 @@ void SwappyVk_determineDeviceExtensions(
     char**                 pRequiredExtensions)
 {
     TRACE_CALL();
-    SwappyVk& swappy = SwappyVk::getInstance();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
     swappy.swappyVkDetermineDeviceExtensions(physicalDevice,
                                              availableExtensionCount, pAvailableExtensions,
                                              pRequiredExtensionCount, pRequiredExtensions);
@@ -270,7 +273,7 @@ void SwappyVk_setQueueFamilyIndex(
         uint32_t    queueFamilyIndex)
 {
     TRACE_CALL();
-    SwappyVk& swappy = SwappyVk::getInstance();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
     swappy.SetQueueFamilyIndex(device, queue, queueFamilyIndex);
 }
 
@@ -281,18 +284,18 @@ bool SwappyVk_initAndGetRefreshCycleDuration(
         uint64_t*        pRefreshDuration)
 {
     TRACE_CALL();
-    SwappyVk& swappy = SwappyVk::getInstance();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
     return swappy.GetRefreshCycleDuration(physicalDevice, device, swapchain, pRefreshDuration);
 }
 
 void SwappyVk_setSwapInterval(
         VkDevice       device,
         VkSwapchainKHR swapchain,
-        uint32_t       interval)
+        uint64_t       swap_ns)
 {
     TRACE_CALL();
-    SwappyVk& swappy = SwappyVk::getInstance();
-    swappy.SetSwapInterval(device, swapchain, interval);
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
+    swappy.SetSwapIntervalNS(device, swapchain, swap_ns);
 }
 
 VkResult SwappyVk_queuePresent(
@@ -300,7 +303,7 @@ VkResult SwappyVk_queuePresent(
         const VkPresentInfoKHR* pPresentInfo)
 {
     TRACE_CALL();
-    SwappyVk& swappy = SwappyVk::getInstance();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
     return swappy.QueuePresent(queue, pPresentInfo);
 }
 
@@ -309,7 +312,7 @@ void SwappyVk_destroySwapchain(
         VkSwapchainKHR          swapchain)
 {
     TRACE_CALL();
-    SwappyVk& swappy = SwappyVk::getInstance();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
     swappy.DestroySwapchain(device, swapchain);
 }
 

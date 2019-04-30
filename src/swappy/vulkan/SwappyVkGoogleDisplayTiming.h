@@ -18,6 +18,8 @@
 
 #include "SwappyVkBase.h"
 
+namespace swappy {
+
  /***************************************************************************************************
   *
   * Per-Device concrete/derived class for using VK_GOOGLE_display_timing.
@@ -60,7 +62,6 @@ class SwappyVkGoogleDisplayTiming : public SwappyVkBase
 public:
     SwappyVkGoogleDisplayTiming(VkPhysicalDevice physicalDevice,
                                 VkDevice         device,
-                                SwappyVk         &swappyVk,
                                 void             *libVulkan);
 
     ~SwappyVkGoogleDisplayTiming();
@@ -94,3 +95,5 @@ private:
 
     static constexpr int MAX_PENDING_FENCES = 1;
 };
+
+}  // namespace swappy

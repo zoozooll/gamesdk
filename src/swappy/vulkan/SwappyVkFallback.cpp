@@ -16,6 +16,8 @@
 
 #include "SwappyVkFallback.h"
 
+namespace swappy {
+
  /***************************************************************************************************
  *
  * Per-Device concrete/derived class for the "Android fallback" path (uses
@@ -28,9 +30,8 @@
  */
 SwappyVkFallback::SwappyVkFallback(VkPhysicalDevice physicalDevice,
                                    VkDevice         device,
-                                   SwappyVk         &swappyVk,
                                    void             *libVulkan) :
-    SwappyVkBase(physicalDevice, device, 0, 1, swappyVk, libVulkan)
+    SwappyVkBase(physicalDevice, device, 0, 1, libVulkan)
 {
     startChoreographerThread();
 }
@@ -77,3 +78,5 @@ VkResult SwappyVkFallback::doQueuePresent(VkQueue                 queue,
     mTargetFrameID = mFrameID + mInterval;
     return mpfnQueuePresentKHR(queue, pPresentInfo);
 }
+
+}  // namespace swappy
