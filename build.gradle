@@ -40,10 +40,6 @@ task prepare_proto(dependsOn: prepare_proto_before) {
             commandLine "python"
             args = ["ab_info.py"]
         }
-        exec {
-            commandLine "dpkg-query"
-            args = ["--list", "*env*"]
-        }
     }
 }
 
