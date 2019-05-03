@@ -1482,7 +1482,7 @@ static void demo_prepare_buffers(struct demo *demo) {
                                            &demo->refresh_duration));
 
     // Refresh rate of this demo is locked to 30 FPS.
-    SwappyVk_setSwapInterval(demo->device, demo->swapchain, SWAPPY_SWAP_30FPS);
+    SwappyVk_setSwapIntervalNS(demo->device, demo->swapchain, SWAPPY_SWAP_30FPS);
 
     if (NULL != presentModes) {
         free(presentModes);
