@@ -16,14 +16,18 @@
 
 #include "SwappyVkBase.h"
 
+namespace swappy {
+
 SwappyVkBase::SwappyVkBase(VkPhysicalDevice physicalDevice,
                            VkDevice         device,
                            uint64_t         refreshDur,
                            uint32_t         interval,
-                           SwappyVk         &swappyVk,
                            void             *libVulkan) :
-    mPhysicalDevice(physicalDevice), mDevice(device), mRefreshDur(refreshDur),
-    mInterval(interval), mSwappyVk(swappyVk), mLibVulkan(libVulkan),
+    mPhysicalDevice(physicalDevice),
+    mDevice(device),
+    mRefreshDur(refreshDur),
+    mInterval(interval),
+    mLibVulkan(libVulkan),
     mInitialized(false)
 {
     InitVulkan();
@@ -66,8 +70,8 @@ SwappyVkBase::~SwappyVkBase() {
 }
 
 void SwappyVkBase::doSetSwapInterval(VkSwapchainKHR swapchain,
-                                     uint32_t       interval) {
-    mInterval = interval;
+                                     uint64_t       swap_ns) {
+    mInterval = swap_ns / mRefreshDur;
 }
 
 void SwappyVkBase::initGoogExtension() {
@@ -171,3 +175,5 @@ void SwappyVkBase::calcRefreshRate(uint64_t currentTime) {
         mRefreshDur = mSumRefreshTime / mSamples;
     }
 }
+
+}  // namespace swappy

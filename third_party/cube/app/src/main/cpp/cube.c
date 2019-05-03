@@ -1480,16 +1480,9 @@ static void demo_prepare_buffers(struct demo *demo) {
 
     assert(SwappyVk_initAndGetRefreshCycleDuration(demo->gpu, demo->device, demo->swapchain,
                                            &demo->refresh_duration));
-    if (demo->refresh_duration > (16 * MILLION)) {
-        // Likely a 60Hz display--need a swap interval of 2 for 30FPS:
-        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 2);
-    } else if (demo->refresh_duration > (10 * MILLION)) {
-        // Likely a 90Hz display--need a swap interval of 3 for 30FPS:
-        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 3);
-    } else {
-        // Likely a 120Hz display--need a swap interval of 4 for 30FPS:
-        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 4);
-    }
+
+    // Refresh rate of this demo is locked to 30 FPS.
+    SwappyVk_setSwapInterval(demo->device, demo->swapchain, SWAPPY_SWAP_30FPS);
 
     if (NULL != presentModes) {
         free(presentModes);

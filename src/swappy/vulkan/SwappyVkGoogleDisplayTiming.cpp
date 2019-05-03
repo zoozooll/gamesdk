@@ -16,14 +16,15 @@
 
 #include "SwappyVkGoogleDisplayTiming.h"
 
+namespace swappy {
+
  /**
  * Concrete/derived class that sits on top of VK_GOOGLE_display_timing
  */
 SwappyVkGoogleDisplayTiming::SwappyVkGoogleDisplayTiming(VkPhysicalDevice physicalDevice,
                                                          VkDevice         device,
-                                                         SwappyVk         &swappyVk,
                                                          void             *libVulkan) :
-    SwappyVkBase(physicalDevice, device, k16_6msec, 1, swappyVk, libVulkan)
+    SwappyVkBase(physicalDevice, device, k16_6msec, 1, libVulkan)
 {
     initGoogExtension();
     startChoreographerThread();
@@ -338,3 +339,5 @@ void SwappyVkGoogleDisplayTiming::checkPastPresentTiming(VkSwapchainKHR swapchai
     }
     free(past);
 }
+
+}  // namespace swappy

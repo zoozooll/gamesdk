@@ -25,6 +25,8 @@
 
 #include "SwappyVkBase.h"
 
+namespace swappy {
+
 /**
  * Concrete/derived class that sits on top of the Vulkan API
  */
@@ -33,7 +35,6 @@ class SwappyVkFallback : public SwappyVkBase
 public:
     SwappyVkFallback(VkPhysicalDevice physicalDevice,
                      VkDevice         device,
-                     SwappyVk         &swappyVk,
                      void             *libVulkan);
 
     ~SwappyVkFallback();
@@ -45,3 +46,5 @@ public:
                                     uint32_t                queueFamilyIndex,
                                     const VkPresentInfoKHR* pPresentInfo) override;
 };
+
+}  // namespace swappy
