@@ -380,7 +380,7 @@ std::unique_ptr<ChoreographerThread>
         return std::make_unique<NoChoreographerThread>(onChoreographer);
     }
 
-    if (getSDKVersion(vm) >= 24) {
+    if (vm == nullptr || getSDKVersion(vm) >= 24) {
         ALOGI("Using NDK Choreographer");
         return std::make_unique<NDKChoreographerThread>(onChoreographer);
     }
