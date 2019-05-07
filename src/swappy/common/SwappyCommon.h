@@ -35,7 +35,7 @@ namespace swappy {
 using namespace std::chrono_literals;
 
 // Common part between OpenGL and Vulkan implementations.
-class SwappyCommon {
+class SwappyCommon final {
 public:
     // callbacks to be called during pre/post swap
     struct SwapHandlers {
@@ -47,6 +47,8 @@ public:
                 std::chrono::nanoseconds refreshPeriod,
                 std::chrono::nanoseconds appOffset,
                 std::chrono::nanoseconds sfOffset);
+
+    ~SwappyCommon();
 
     uint64_t getSwapIntervalNS();
 
