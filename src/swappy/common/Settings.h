@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <memory>
 
 namespace swappy {
 
@@ -37,6 +38,8 @@ class Settings {
 
     static Settings *getInstance();
 
+    static void reset();
+
     using Listener = std::function<void()>;
     void addListener(Listener listener);
 
@@ -50,6 +53,8 @@ class Settings {
 
   private:
     void notifyListeners();
+
+    static std::unique_ptr<Settings> instance;
 
     mutable std::mutex mMutex;
     std::vector<Listener> mListeners GUARDED_BY(mMutex);

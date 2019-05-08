@@ -18,15 +18,21 @@
 
 #define LOG_TAG "Settings"
 
-#include <memory>
-
 #include "Log.h"
 
 namespace swappy {
 
+std::unique_ptr<Settings> Settings::instance;
+
 Settings *Settings::getInstance() {
-    static auto settings = std::make_unique<Settings>(ConstructorTag{});
-    return settings.get();
+    if (!instance) {
+        instance = std::make_unique<Settings>(ConstructorTag{});
+    }
+    return instance.get();
+}
+
+void Settings::reset() {
+    instance.reset();
 }
 
 void Settings::addListener(Listener listener) {

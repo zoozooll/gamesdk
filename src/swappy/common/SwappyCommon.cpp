@@ -58,6 +58,14 @@ SwappyCommon::SwappyCommon(JavaVM* vm,
     mFrameDurations.reserve(mFrameDurationSamples);
 }
 
+SwappyCommon::~SwappyCommon() {
+    // destroy all threads first before the other members of this class
+    mChoreographerFilter.reset();
+    mChoreographerThread.reset();
+
+    Settings::reset();
+}
+
 std::chrono::nanoseconds SwappyCommon::wakeClient() {
     std::lock_guard<std::mutex> lock(mWaitingMutex);
     ++mCurrentFrame;
@@ -89,8 +97,7 @@ bool SwappyCommon::waitForNextFrame(const SwapHandlers& h) {
     int lateFrames = 0;
     bool presentationTimeIsNeeded;
 
-    std::chrono::nanoseconds cpuTime = std::chrono::steady_clock::now() - mStartFrameTime;
-    std::chrono::nanoseconds gpuTime;
+    const std::chrono::nanoseconds cpuTime = std::chrono::steady_clock::now() - mStartFrameTime;
 
     preWaitCallbacks();
 
@@ -105,15 +112,13 @@ bool SwappyCommon::waitForNextFrame(const SwapHandlers& h) {
             waitOneFrame();
         }
 
-        gpuTime = h.getPrevFrameGpuTime();
-
         mPresentationTime += lateFrames * mRefreshPeriod;
         presentationTimeIsNeeded = true;
     } else {
         presentationTimeIsNeeded = false;
-        gpuTime = h.getPrevFrameGpuTime();
-
     }
+
+    const std::chrono::nanoseconds gpuTime = h.getPrevFrameGpuTime();
     addFrameDuration({cpuTime, gpuTime});
     postWaitCallbacks();
 
