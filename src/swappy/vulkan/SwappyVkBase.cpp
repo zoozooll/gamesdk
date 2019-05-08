@@ -16,17 +16,15 @@
 
 #include "SwappyVkBase.h"
 
+#define LOG_TAG "SwappyVkBase"
+
 namespace swappy {
 
 SwappyVkBase::SwappyVkBase(VkPhysicalDevice physicalDevice,
                            VkDevice         device,
-                           uint64_t         refreshDur,
-                           uint32_t         interval,
                            void             *libVulkan) :
     mPhysicalDevice(physicalDevice),
     mDevice(device),
-    mRefreshDur(refreshDur),
-    mInterval(interval),
     mLibVulkan(libVulkan),
     mInitialized(false)
 {
@@ -39,39 +37,7 @@ SwappyVkBase::SwappyVkBase(VkPhysicalDevice physicalDevice,
             reinterpret_cast<PFN_vkQueuePresentKHR>(
                 mpfnGetDeviceProcAddr(mDevice, "vkQueuePresentKHR"));
 
-    mLibAndroid = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
-    if (mLibAndroid == nullptr) {
-        ALOGE("FATAL: cannot open libandroid.so: %s", strerror(errno));
-        abort();
-    }
-
-    mAChoreographer_getInstance =
-            reinterpret_cast<PFN_AChoreographer_getInstance >(
-                dlsym(mLibAndroid, "AChoreographer_getInstance"));
-
-    mAChoreographer_postFrameCallback =
-            reinterpret_cast<PFN_AChoreographer_postFrameCallback >(
-                    dlsym(mLibAndroid, "AChoreographer_postFrameCallback"));
-
-    mAChoreographer_postFrameCallbackDelayed =
-            reinterpret_cast<PFN_AChoreographer_postFrameCallbackDelayed >(
-                    dlsym(mLibAndroid, "AChoreographer_postFrameCallbackDelayed"));
-    if (!mAChoreographer_getInstance ||
-        !mAChoreographer_postFrameCallback ||
-        !mAChoreographer_postFrameCallbackDelayed) {
-        ALOGE("FATAL: cannot get AChoreographer symbols");
-        abort();
-    }
-}
-
-SwappyVkBase::~SwappyVkBase() {
-    if(mLibAndroid)
-        dlclose(mLibAndroid);
-}
-
-void SwappyVkBase::doSetSwapInterval(VkSwapchainKHR swapchain,
-                                     uint64_t       swap_ns) {
-    mInterval = swap_ns / mRefreshDur;
+    initGoogExtension();
 }
 
 void SwappyVkBase::initGoogExtension() {
@@ -83,97 +49,257 @@ void SwappyVkBase::initGoogExtension() {
                     mpfnGetDeviceProcAddr(mDevice, "vkGetPastPresentationTimingGOOGLE"));
 }
 
-void SwappyVkBase::startChoreographerThread() {
-    std::unique_lock<std::mutex> lock(mWaitingMutex);
-    // create a new ALooper thread to get Choreographer events
-    mTreadRunning = true;
-    pthread_create(&mThread, NULL, looperThreadWrapper, this);
-    mWaitingCondition.wait(lock, [&]() { return mChoreographer != nullptr; });
+void SwappyVkBase::doSetSwapInterval(VkSwapchainKHR swapchain, uint64_t swap_ns) {
+    Settings::getInstance()->setSwapIntervalNS(swap_ns);
 }
 
-void SwappyVkBase::stopChoreographerThread() {
-    if (mLooper) {
-        ALooper_acquire(mLooper);
-        mTreadRunning = false;
-        ALooper_wake(mLooper);
-        ALooper_release(mLooper);
-        pthread_join(mThread, NULL);
+VkResult SwappyVkBase::initializeVkSyncObjects(VkQueue   queue,
+                                               uint32_t  queueFamilyIndex) {
+    if (mCommandPool.find(queue) != mCommandPool.end()) {
+        return VK_SUCCESS;
+    }
+
+    VkSync sync;
+
+    const VkCommandPoolCreateInfo cmd_pool_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .pNext = NULL,
+        .queueFamilyIndex = queueFamilyIndex,
+        .flags = 0,
+    };
+
+    VkResult res = vkCreateCommandPool(mDevice, &cmd_pool_info, NULL, &mCommandPool[queue]);
+    if (res) {
+        ALOGE("vkCreateCommandPool failed %d", res);
+        return res;
+    }
+    const VkCommandBufferAllocateInfo present_cmd_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = NULL,
+        .commandPool = mCommandPool[queue],
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1,
+    };
+
+    for(int i = 0; i < MAX_PENDING_FENCES; i++) {
+        VkFenceCreateInfo fence_ci = {
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0
+        };
+        res = vkCreateFence(mDevice, &fence_ci, NULL, &sync.fence);
+        if (res) {
+            ALOGE("failed to create fence: %d", res);
+            return res;
+        }
+
+        VkSemaphoreCreateInfo semaphore_ci = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0
+        };
+        res = vkCreateSemaphore(mDevice, &semaphore_ci, NULL, &sync.semaphore);
+        if (res) {
+            ALOGE("failed to create semaphore: %d", res);
+            return res;
+        }
+
+        res = vkAllocateCommandBuffers(mDevice, &present_cmd_info, &sync.command);
+        if (res) {
+            ALOGE("vkAllocateCommandBuffers failed %d", res);
+            return res;
+        }
+
+        const VkCommandBufferBeginInfo cmd_buf_info = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .pNext = NULL,
+                .flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+                .pInheritanceInfo = NULL,
+        };
+        res = vkBeginCommandBuffer(sync.command, &cmd_buf_info);
+        if (res) {
+            ALOGE("vkAllocateCommandBuffers failed %d", res);
+            return res;
+        }
+
+        VkEventCreateInfo event_info = {
+                .sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO,
+                .pNext = NULL,
+                .flags = 0,
+        };
+        res = vkCreateEvent(mDevice, &event_info, NULL, &sync.event);
+        if (res) {
+            ALOGE("vkCreateEvent failed %d", res);
+            return res;
+        }
+
+        vkCmdSetEvent(sync.command, sync.event, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+        res = vkEndCommandBuffer(sync.command);
+        if (res) {
+            ALOGE("vkCreateEvent failed %d", res);
+            return res;
+        }
+
+        mFreeSync[queue].push_back(sync);
+    }
+
+    // Create a thread that will wait for the fences
+    mThreads.emplace(queue, std::make_unique<ThreadContext>(
+            std::thread(std::bind(&SwappyVkBase::waitForFenceThreadMain, this, queue))));
+
+    return VK_SUCCESS;
+}
+
+void SwappyVkBase::destroyVkSyncObjects() {
+    for (auto it = mThreads.begin(); it != mThreads.end(); it++) {
+        {
+            std::lock_guard<std::mutex> lock(it->second->lock);
+            it->second->running = false;
+            it->second->condition.notify_one();
+        }
+        it->second->thread.join();
+    }
+
+    for (auto it = mPendingSync.begin(); it != mPendingSync.end(); it++) {
+        while (mPendingSync[it->first].size() > 0) {
+            VkSync sync = mPendingSync[it->first].front();
+            mPendingSync[it->first].pop_front();
+            if (!sync.fenceSignaled) {
+                vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE, UINT64_MAX);
+                vkResetFences(mDevice, 1, &sync.fence);
+            }
+            mFreeSync[it->first].push_back(sync);
+        }
+
+        while (mFreeSync[it->first].size() > 0) {
+            VkSync sync = mFreeSync[it->first].front();
+            mFreeSync[it->first].pop_front();
+            vkFreeCommandBuffers(mDevice, mCommandPool[it->first], 1, &sync.command);
+            vkDestroyEvent(mDevice, sync.event, NULL);
+            vkDestroySemaphore(mDevice, sync.semaphore, NULL);
+            vkDestroyFence(mDevice, sync.fence, NULL);
+        }
+
+        vkDestroyCommandPool(mDevice, mCommandPool[it->first], NULL);
     }
 }
 
-void *SwappyVkBase::looperThreadWrapper(void *data) {
-    SwappyVkBase *me = reinterpret_cast<SwappyVkBase *>(data);
-    return me->looperThread();
+bool SwappyVkBase::lastFrameIsCompleted(VkQueue queue) {
+    std::lock_guard<std::mutex> lock(mThreads[queue]->lock);
+    if (mPendingSync[queue].size() < MAX_PENDING_FENCES) {
+        return true;
+    }
+
+    VkSync& sync = mPendingSync[queue].front();
+
+    // Waiter thread updates the pending time when the fence has signaled.
+    if (!sync.fenceSignaled) {
+        return false;
+    }
+
+    mPendingSync[queue].pop_front();
+    mFreeSync[queue].push_back(sync);
+    return true;
 }
 
-void *SwappyVkBase::looperThread() {
-    int outFd, outEvents;
-    void *outData;
-
-    mLooper = ALooper_prepare(0);
-    if (!mLooper) {
-        ALOGE("ALooper_prepare failed");
-        return NULL;
+VkResult SwappyVkBase::injectFence(VkQueue                 queue,
+                                          const VkPresentInfoKHR* pPresentInfo,
+                                          VkSemaphore*            pSemaphore) {
+    // If we cross the swap interval threshold, we don't pace at all.
+    // In this case we might not have a free fence, so just don't use the fence.
+    if (mFreeSync[queue].size() == 0) {
+        return VK_SUCCESS;
     }
 
-    mChoreographer = mAChoreographer_getInstance();
-    if (!mChoreographer) {
-        ALOGE("AChoreographer_getInstance failed");
-        return NULL;
-    }
-    mWaitingCondition.notify_all();
+    VkSync sync = mFreeSync[queue].front();
+    mFreeSync[queue].pop_front();
 
-    while (mTreadRunning) {
-        ALooper_pollAll(-1, &outFd, &outEvents, &outData);
-    }
+    VkPipelineStageFlags pipe_stage_flags;
+    VkSubmitInfo submit_info;
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.pNext = NULL;
+    submit_info.pWaitDstStageMask = &pipe_stage_flags;
+    pipe_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    submit_info.waitSemaphoreCount = pPresentInfo->waitSemaphoreCount;
+    submit_info.pWaitSemaphores = pPresentInfo->pWaitSemaphores;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &sync.command;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &sync.semaphore;
+    VkResult res = vkQueueSubmit(queue, 1, &submit_info, sync.fence);
+    *pSemaphore = sync.semaphore;
 
-    return NULL;
+    std::lock_guard<std::mutex> lock(mThreads[queue]->lock);
+    sync.fenceSignaled = false;
+    mPendingSync[queue].push_back(sync);
+    mThreads[queue]->hasPendingWork = true;
+    mThreads[queue]->condition.notify_all();
+
+    return res;
 }
 
-void SwappyVkBase::frameCallback(long frameTimeNanos, void *data) {
-    SwappyVkBase *me = reinterpret_cast<SwappyVkBase *>(data);
-    me->onDisplayRefresh(frameTimeNanos);
-}
+void SwappyVkBase::waitForFenceThreadMain(VkQueue queue) {
+    ThreadContext& thread = *mThreads[queue];
 
-void SwappyVkBase::onDisplayRefresh(long frameTimeNanos) {
-    std::lock_guard<std::mutex> lock(mWaitingMutex);
-    struct timespec currTime;
-    clock_gettime(CLOCK_MONOTONIC, &currTime);
-    uint64_t currentTime =
-            ((uint64_t) currTime.tv_sec * kBillion) + (uint64_t) currTime.tv_nsec;
+    while (true) {
+        std::list<VkSync>::iterator pendingSyncIterator;
+        bool remainingSyncs = true;
+        {
+            std::lock_guard<std::mutex> lock(thread.lock);
+            // Wait for new fence object
+            thread.condition.wait(thread.lock, [&]() REQUIRES(thread.lock) {
+                return thread.hasPendingWork || !thread.running;
+            });
 
-    calcRefreshRate(currentTime);
-    mLastframeTimeNanos = currentTime;
-    mFrameID++;
-    mWaitingCondition.notify_all();
+            thread.hasPendingWork = false;
 
-    // queue the next frame callback
-    if (mCallbacksBeforeIdle > 0) {
-        mCallbacksBeforeIdle--;
-        mAChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+            if (!thread.running) {
+                break;
+            }
+
+            pendingSyncIterator = mPendingSync[queue].begin();
+            while (pendingSyncIterator != mPendingSync[queue].end() &&
+                    pendingSyncIterator->fenceSignaled) {
+                ++pendingSyncIterator;
+            }
+            remainingSyncs = pendingSyncIterator != mPendingSync[queue].end();
+        }
+
+        while (remainingSyncs) {
+            VkSync *sync;
+            {  // Get the sync object with a lock
+                std::lock_guard<std::mutex> lock(thread.lock);
+                sync = &(*pendingSyncIterator);
+            }
+
+            const auto startTime = std::chrono::steady_clock::now();
+            VkResult result = vkWaitForFences(mDevice, 1, &sync->fence, VK_TRUE, UINT64_MAX);
+            if (result) {
+                ALOGE("Failed to wait for fence %d", result);
+            }
+            auto pendingTime = std::chrono::steady_clock::now() - startTime;
+
+            vkResetFences(mDevice, 1, &sync->fence);
+
+            {  // Advance the iterator
+                std::lock_guard<std::mutex> lock(thread.lock);
+                sync->pendingTime = pendingTime;
+                sync->fenceSignaled = true;
+                ++pendingSyncIterator;
+                remainingSyncs = pendingSyncIterator != mPendingSync[queue].end();
+            }
+        }
     }
 }
 
-void SwappyVkBase::postChoreographerCallback() {
-    if (mCallbacksBeforeIdle == 0) {
-        mAChoreographer_postFrameCallbackDelayed(mChoreographer, frameCallback, this, 1);
+std::chrono::nanoseconds SwappyVkBase::getLastFenceTime(VkQueue queue) {
+    std::lock_guard<std::mutex> lock(mThreads[queue]->lock);
+    // Last fence is either the first one pending or the last one that was free.
+    if (mPendingSync[queue].size() && mPendingSync[queue].front().pendingTime != 0ns) {
+        return mPendingSync[queue].begin()->pendingTime;
     }
-    mCallbacksBeforeIdle = MAX_CALLBACKS_BEFORE_IDLE;
-}
-
-void SwappyVkBase::calcRefreshRate(uint64_t currentTime) {
-    long refresh_nano = currentTime - mLastframeTimeNanos;
-
-    if (mRefreshDur != 0 || mLastframeTimeNanos == 0) {
-        return;
-    }
-
-    mSumRefreshTime += refresh_nano;
-    mSamples++;
-
-    if (mSamples == MAX_SAMPLES) {
-        mRefreshDur = mSumRefreshTime / mSamples;
-    }
+    return mFreeSync[queue].back().pendingTime;
 }
 
 }  // namespace swappy
