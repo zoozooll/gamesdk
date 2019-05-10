@@ -8,8 +8,17 @@ import org.gradle.api.Project;
 
 defaultTasks 'cleanPath', 'archiveZip'
 
+def platformString() {
+    if (OperatingSystem.current().isMacOsX())
+        return "mac";
+    else if (OperatingSystem.current().isLinux())
+        return "linux-x86";
+    else
+        throw new GradleException("Only MacOsX and Linux are supported")
+}
+
 def protobufInstallDir() {
-    return new File("./third_party/protobuf-3.0.0/install/linux-x86").getCanonicalPath()
+    return new File("$projectDir/third_party/protobuf-3.0.0/install/" + platformString()).getPath()
 }
 
 def joinPath(String first, String... more) {
@@ -62,6 +71,7 @@ allprojects {
 }
 
 abstract class Toolchain {
+    protected Project project_;
     protected String androidVersion_;
     protected String ndkVersion_;
     abstract String getAndroidNDKPath();
@@ -93,22 +103,24 @@ abstract class Toolchain {
     }
 }
 class SpecificToolchain extends Toolchain {
-    SpecificToolchain(String androidVersion, String ndkVersion) {
+    SpecificToolchain(Project project, String androidVersion, String ndkVersion) {
+        project_ = project
         androidVersion_ = androidVersion
         ndkVersion_ = ndkVersion
     }
     public String getAndroidNDKPath() {
-        return new File("../prebuilts/ndk/" + ndkVersion_).getCanonicalPath()
+        return new File("${project_.projectDir}/../prebuilts/ndk/" + ndkVersion_).getPath()
     }
     public String getCMakePath() {
-        return new File("../prebuilts/cmake/linux-x86/bin/cmake").getCanonicalPath()
+        return new File("${project_.projectDir}/../prebuilts/cmake/"
+                        + project_.platformString() + "/bin/cmake").getPath()
     }
     public String getNinjaPath() {
-        return new File("../prebuilts/cmake/linux-x86/bin/ninja").getCanonicalPath()
+        return new File("${project_.projectDir}/../prebuilts/cmake/"
+                        + project_.platformString() + "/bin/ninja").getPath()
     }
 }
 class LocalToolchain extends Toolchain {
-    Project project_;
     String sdkPath_;
     String ndkPath_;
     String cmakePath_;
@@ -155,7 +167,8 @@ class LocalToolchain extends Toolchain {
             return tool;
         }
         def osname = OperatingSystem.current().isWindows() ? name + '.exe' : name
-        def tools = project_.fileTree( dir: project_.joinPath(sdkPath_, 'cmake'), include: ['**/bin/'+osname] )
+        def tools = project_.fileTree( dir: project_.joinPath(sdkPath_, 'cmake'),
+                                      include: ['**/bin/'+osname] )
         if (tools==null || tools.size() == 0) {
             throw new GradleException('No ' + osname + ' found in ' + sdkPath_ + '/cmake')
         }
@@ -164,32 +177,32 @@ class LocalToolchain extends Toolchain {
 }
 
 def getBuildPath() {
-    return new File("./build").getCanonicalPath()
+    return new File("$projectDir/build").getPath()
 }
 
 def getOutPath() {
-    return new File("../out").getCanonicalPath()
+    return new File("$projectDir/../out").getPath()
 }
 
 def getPackagePath() {
-    def outputBaseDir = "../package";
+    def outputBaseDir = "$projectDir/../package";
     def distDir = System.getenv('DIST_DIR');
     if (distDir != null) {
         // Running in build server, use DIST_DIR for artifacts
         outputBaseDir = distDir;
     }
-    return new File(outputBaseDir).getCanonicalPath();
+    return new File(outputBaseDir).getPath();
 }
 
 def getTempPath() {
-    return new File("../.temp").getCanonicalPath()
+    return new File("$projectDir/../.temp").getPath()//.getAbsolutePath()
 }
 
 def getExternalPath() {
-    def f =  new File("../external/");
+    def f =  new File("$projectDir/../external/");
     if ( !f.exists() )
-        f = new File("../../../external/");
-    return f.getCanonicalPath()
+        f = new File("$projectDir/../../../external/");
+    return f.getPath()
 }
 
 def useNinja() {
@@ -259,7 +272,7 @@ def buildNativeModules(arch, Toolchain toolchain, stl, threadChecks, buildtf, su
 def buildNativeModules(arch, androidVersion, ndkVersion, stl, threadChecks,
                        buildtf) {
     return buildNativeModules(arch,
-                              new SpecificToolchain(androidVersion, ndkVersion),
+                              new SpecificToolchain(project, androidVersion, ndkVersion),
                               stl, threadChecks, buildtf)
 }
 
