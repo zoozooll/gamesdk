@@ -72,28 +72,6 @@ public:
     virtual VkResult doQueuePresent(VkQueue queue,
                                     uint32_t queueFamilyIndex,
                                     const VkPresentInfoKHR *pPresentInfo) override;
-
-private:
-    void calculateNextDesiredPresentTime(VkSwapchainKHR swapchain);
-    void checkPastPresentTiming(VkSwapchainKHR swapchain);
-
-    VkResult initializeVkSyncObjects(VkQueue queue, uint32_t queueFamilyIndex);
-    void destroyVkSyncObjects();
-
-    void waitForFenceChoreographer(VkQueue queue);
-
-    struct VkSync {
-        VkFence fence;
-        VkSemaphore semaphore;
-        VkCommandBuffer command;
-        VkEvent event;
-    };
-
-    std::map<VkQueue, std::list<VkSync>> mFreeSync;
-    std::map<VkQueue, std::list<VkSync>> mPendingSync;
-    std::map<VkQueue, VkCommandPool> mCommandPool;
-
-    static constexpr int MAX_PENDING_FENCES = 1;
 };
 
 }  // namespace swappy

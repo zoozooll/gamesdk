@@ -54,9 +54,8 @@
 #include <mutex>
 #include <list>
 
-#include <android/looper.h>
-#include <android/log.h>
-
+#include "SwappyCommon.h"
+#include "Settings.h"
 #include "Trace.h"
 #include "ChoreographerShim.h"
 
@@ -76,9 +75,6 @@ constexpr uint32_t k16_6msec = 16666666;
 constexpr uint32_t kTooCloseToVsyncBoundary     = 3000000;
 constexpr uint32_t kTooFarAwayFromVsyncBoundary = 7000000;
 constexpr uint32_t kNudgeWithinVsyncBoundaries  = 2000000;
-
-// Forward declarations:
-class SwappyVk;
 
 // AChoreographer is supported from API 24. To allow compilation for minSDK < 24
 // and still use AChoreographer for SDK >= 24 we need runtime support to call
@@ -100,11 +96,7 @@ class SwappyVkBase
 public:
     SwappyVkBase(VkPhysicalDevice physicalDevice,
                  VkDevice         device,
-                 uint64_t         refreshDur,
-                 uint32_t         interval,
                  void             *libVulkan);
-
-    virtual ~SwappyVkBase();
 
     virtual bool doGetRefreshCycleDuration(VkSwapchainKHR swapchain,
                                            uint64_t*      pRefreshDuration) = 0;
@@ -115,52 +107,58 @@ public:
 
     void doSetSwapInterval(VkSwapchainKHR swapchain,
                            uint64_t       swap_ns);
+
+     VkResult injectFence(VkQueue                 queue,
+                          const VkPresentInfoKHR* pPresentInfo,
+                          VkSemaphore*            pSemaphore);
 protected:
+    struct VkSync {
+        VkFence fence;
+        VkSemaphore semaphore;
+        VkCommandBuffer command;
+        VkEvent event;
+        bool fenceSignaled = false;
+        std::chrono::nanoseconds pendingTime = {};
+    };
+
+    struct ThreadContext {
+        ThreadContext(std::thread t) : thread(std::move(t)) {}
+
+        std::thread thread;
+        bool running GUARDED_BY(lock) = true;
+        bool hasPendingWork GUARDED_BY(lock);
+        std::mutex lock;
+        std::condition_variable_any condition;
+    };
+
     VkPhysicalDevice mPhysicalDevice;
     VkDevice         mDevice;
-    uint64_t         mRefreshDur;
-    uint32_t         mInterval;
-    void             *mLibVulkan;
+    void*            mLibVulkan;
     bool             mInitialized;
-    pthread_t mThread = 0;
-    ALooper *mLooper = nullptr;
-    bool mTreadRunning = false;
-    AChoreographer *mChoreographer = nullptr;
-    std::mutex mWaitingMutex;
-    std::condition_variable mWaitingCondition;
+
     uint32_t mNextPresentID = 0;
-    uint64_t mNextDesiredPresentTime = 0;
     uint32_t mNextPresentIDToCheck = 2;
 
-    PFN_vkGetDeviceProcAddr mpfnGetDeviceProcAddr = nullptr;
-    PFN_vkQueuePresentKHR   mpfnQueuePresentKHR = nullptr;
-    PFN_vkGetRefreshCycleDurationGOOGLE mpfnGetRefreshCycleDurationGOOGLE = nullptr;
+    PFN_vkGetDeviceProcAddr               mpfnGetDeviceProcAddr               = nullptr;
+    PFN_vkQueuePresentKHR                 mpfnQueuePresentKHR                 = nullptr;
+    PFN_vkGetRefreshCycleDurationGOOGLE   mpfnGetRefreshCycleDurationGOOGLE   = nullptr;
     PFN_vkGetPastPresentationTimingGOOGLE mpfnGetPastPresentationTimingGOOGLE = nullptr;
 
-    void *mLibAndroid = nullptr;
-    PFN_AChoreographer_getInstance mAChoreographer_getInstance = nullptr;
-    PFN_AChoreographer_postFrameCallback mAChoreographer_postFrameCallback = nullptr;
-    PFN_AChoreographer_postFrameCallbackDelayed mAChoreographer_postFrameCallbackDelayed = nullptr;
+    std::map<VkQueue, std::list<VkSync>>              mFreeSync;
+    std::map<VkQueue, std::list<VkSync>>              mPendingSync;
+    std::map<VkQueue, VkCommandPool>                  mCommandPool;
+    std::map<VkQueue, std::unique_ptr<ThreadContext>> mThreads;
 
-    long mFrameID = 0;
-    long mTargetFrameID = 0;
-    uint64_t mLastframeTimeNanos = 0;
-    long mSumRefreshTime = 0;
-    long mSamples = 0;
-    long mCallbacksBeforeIdle = 0;
+    std::unique_ptr<SwappyCommon> mCommonBase;
 
-    static constexpr int MAX_SAMPLES = 5;
-    static constexpr int MAX_CALLBACKS_BEFORE_IDLE = 10;
+    static constexpr int MAX_PENDING_FENCES = 1;
 
     void initGoogExtension();
-    void startChoreographerThread();
-    void stopChoreographerThread();
-    static void *looperThreadWrapper(void *data);
-    void *looperThread();
-    static void frameCallback(long frameTimeNanos, void *data);
-    void onDisplayRefresh(long frameTimeNanos);
-    void calcRefreshRate(uint64_t currentTime);
-    void postChoreographerCallback();
+    VkResult initializeVkSyncObjects(VkQueue queue, uint32_t queueFamilyIndex);
+    void destroyVkSyncObjects();
+    bool lastFrameIsCompleted(VkQueue queue);
+    std::chrono::nanoseconds getLastFenceTime(VkQueue queue);
+    void waitForFenceThreadMain(VkQueue queue);
 };
 
 }  // namespace swappy
