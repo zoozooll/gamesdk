@@ -27,17 +27,12 @@
 
 namespace swappy {
 
-/**
- * Concrete/derived class that sits on top of the Vulkan API
- */
 class SwappyVkFallback : public SwappyVkBase
 {
 public:
     SwappyVkFallback(VkPhysicalDevice physicalDevice,
                      VkDevice         device,
                      void             *libVulkan);
-
-    ~SwappyVkFallback();
 
     virtual bool doGetRefreshCycleDuration(VkSwapchainKHR swapchain,
                                            uint64_t*      pRefreshDuration) override;

@@ -16,67 +16,73 @@
 
 #include "SwappyVkFallback.h"
 
+#define LOG_TAG "SwappyVkFallback"
+
 namespace swappy {
 
- /***************************************************************************************************
- *
- * Per-Device concrete/derived class for the "Android fallback" path (uses
- * Choreographer to try to get presents to occur at the desired time).
- *
- ***************************************************************************************************/
-
-/**
- * Concrete/derived class that sits on top of the Vulkan API
- */
 SwappyVkFallback::SwappyVkFallback(VkPhysicalDevice physicalDevice,
                                    VkDevice         device,
                                    void             *libVulkan) :
-    SwappyVkBase(physicalDevice, device, 0, 1, libVulkan)
-{
-    startChoreographerThread();
-}
-
-SwappyVkFallback::~SwappyVkFallback() {
-    stopChoreographerThread();
-}
+    SwappyVkBase(physicalDevice, device, libVulkan) {}
 
 bool SwappyVkFallback::doGetRefreshCycleDuration(VkSwapchainKHR swapchain,
-                                                 uint64_t*      pRefreshDuration)
-{
-    std::unique_lock<std::mutex> lock(mWaitingMutex);
-    mWaitingCondition.wait(lock, [&]() {
-        if (mRefreshDur == 0) {
-            postChoreographerCallback();
-            return false;
-        }
-        return true;
-    });
+                                                 uint64_t*      pRefreshDuration) {
+    // TODO(adyabr): get the app/sf offsets
+    // TODO(adyabr): how to get the refresh duration here ?
+    mCommonBase = std::make_unique<SwappyCommon>(nullptr, 16600000ns, 0ns, 0ns);
 
-    *pRefreshDuration = mRefreshDur;
+    // Since we don't have presentation timing, we cannot achieve pipelining.
+    mCommonBase->setAutoPipelineMode(false);
 
-    double refreshRate = mRefreshDur;
-    refreshRate = 1.0 / (refreshRate / 1000000000.0);
-    ALOGI("Returning refresh duration of %" PRIu64 " nsec (approx %f Hz)", mRefreshDur, refreshRate);
+    *pRefreshDuration = mCommonBase->getRefreshPeriod().count();
+
+    double refreshRate = 1000000000.0 / *pRefreshDuration;
+    ALOGI("Returning refresh duration of %" PRIu64 " nsec (approx %f Hz)",
+        *pRefreshDuration, refreshRate);
+
     return true;
 }
 
 VkResult SwappyVkFallback::doQueuePresent(VkQueue                 queue,
                                           uint32_t                queueFamilyIndex,
-                                          const VkPresentInfoKHR* pPresentInfo)
-{
-    {
-        std::unique_lock<std::mutex> lock(mWaitingMutex);
-
-        mWaitingCondition.wait(lock, [&]() {
-            if (mFrameID < mTargetFrameID) {
-                postChoreographerCallback();
-                return false;
-            }
-            return true;
-        });
+                                          const VkPresentInfoKHR* pPresentInfo) {
+    VkResult result = initializeVkSyncObjects(queue, queueFamilyIndex);
+    if (result) {
+        return result;
     }
-    mTargetFrameID = mFrameID + mInterval;
-    return mpfnQueuePresentKHR(queue, pPresentInfo);
+
+    const SwappyCommon::SwapHandlers handlers = {
+        .lastFrameIsComplete = std::bind(&SwappyVkFallback::lastFrameIsCompleted, this, queue),
+        .getPrevFrameGpuTime = std::bind(&SwappyVkFallback::getLastFenceTime, this, queue),
+    };
+
+    // Inject the fence first and wait for it in onPreSwap() as we don't want to submit a frame
+    // before rendering is completed.
+    VkSemaphore semaphore;
+    result = injectFence(queue, pPresentInfo, &semaphore);
+    if (result) {
+        ALOGE("Failed to vkQueueSubmit %d", result);
+        return result;
+    }
+
+    mCommonBase->onPreSwap(handlers);
+
+    VkPresentInfoKHR replacementPresentInfo = {
+        pPresentInfo->sType,
+        nullptr,
+        1,
+        &semaphore,
+        pPresentInfo->swapchainCount,
+        pPresentInfo->pSwapchains,
+        pPresentInfo->pImageIndices,
+        pPresentInfo->pResults
+    };
+
+    result = mpfnQueuePresentKHR(queue, pPresentInfo);
+
+    mCommonBase->onPostSwap(handlers);
+
+    return result;
 }
 
 }  // namespace swappy
