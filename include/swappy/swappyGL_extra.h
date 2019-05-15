@@ -23,7 +23,6 @@
 
 #define MAX_FRAME_BUCKETS 6
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,7 +31,7 @@ extern "C" {
 // call the function below.
 // This function *must* be called before the first Swappy_swap() call.
 // Afterwards, call this function every choreographer tick.
-void Swappy_onChoreographer(int64_t frameTimeNanos);
+void SwappyGL_onChoreographer(int64_t frameTimeNanos);
 
 // Pass callbacks to be called each frame to trace execution
 struct SwappyTracer {
@@ -45,7 +44,7 @@ struct SwappyTracer {
     void (*swapIntervalChanged)(void*);
 
 };
-void Swappy_injectTracer(const SwappyTracer *t);
+void SwappyGL_injectTracer(const SwappyTracer *t);
 
 // Toggle auto-swap interval detection on/off
 // By default, Swappy will adjust the swap interval based on actual frame rendering time.
@@ -53,12 +52,12 @@ void Swappy_injectTracer(const SwappyTracer *t);
 // Swappy_setSwapIntervalNS. This will temporarily override Swappy's frame timings but, unless
 // Swappy_setAutoSwapInterval(false) is called, the timings will continue to be be updated
 // dynamically, so the swap interval may change.
-void Swappy_setAutoSwapInterval(bool enabled);
+void SwappyGL_setAutoSwapInterval(bool enabled);
 
 // Toggle auto-pipeline mode on/off
 // By default, if auto-swap interval is on, auto-pipelining is on and Swappy will try to reduce
 // latency by scheduling cpu and gpu work in the same pipeline stage, if it fits.
-void Swappy_setAutoPipelineMode(bool enabled);
+void SwappyGL_setAutoPipelineMode(bool enabled);
 
 // Toggle statistics collection on/off
 // By default, stats collection is off and there is no overhead related to stats.
@@ -67,9 +66,9 @@ void Swappy_setAutoPipelineMode(bool enabled);
 // do any CPU related work.
 // Stats will be logged to logcat with a 'FrameStatistics' tag.
 // An app can get the stats by calling Swappy_getStats.
-void Swappy_enableStats(bool enabled);
+void SwappyGL_enableStats(bool enabled);
 
-struct Swappy_Stats {
+struct SwappyStats {
     // total frames swapped by swappy
     uint64_t totalFrames;
 
@@ -100,9 +99,9 @@ struct Swappy_Stats {
     uint64_t latencyFrames[MAX_FRAME_BUCKETS];
 };
 
-void Swappy_recordFrameStart(EGLDisplay display, EGLSurface surface);
+void SwappyGL_recordFrameStart(EGLDisplay display, EGLSurface surface);
 
-void Swappy_getStats(Swappy_Stats *);
+void SwappyGL_getStats(SwappyStats *);
 
 #ifdef __cplusplus
 };

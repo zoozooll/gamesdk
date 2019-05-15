@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include "swappy/swappy.h"
+#include "swappy/swappyGL.h"
 #include "Log.h"
 
 namespace samples {
@@ -37,11 +37,11 @@ void Settings::addListener(Listener listener) {
 
 void Settings::setPreference(std::string key, std::string value) {
     if (key == "refresh_period") {
-        Swappy_setRefreshPeriod(std::stoll(value));
+        SwappyGL_setRefreshPeriod(std::stoll(value));
     } else if (key == "swap_interval") {
-        Swappy_setSwapIntervalNS(std::stoi(value) * 1e6);
+        SwappyGL_setSwapIntervalNS(std::stoi(value) * 1e6);
     } else if (key == "use_affinity") {
-        Swappy_setUseAffinity(value == "true");
+        SwappyGL_setUseAffinity(value == "true");
     } else if (key == "hot_pocket") {
         std::lock_guard<std::mutex> lock(mMutex);
         mHotPocket = (value == "true");
@@ -55,15 +55,15 @@ void Settings::setPreference(std::string key, std::string value) {
 }
 
 std::chrono::nanoseconds Settings::getRefreshPeriod() const {
-    return std::chrono::nanoseconds(Swappy_getRefreshPeriodNanos());
+    return std::chrono::nanoseconds(SwappyGL_getRefreshPeriodNanos());
 }
 
 int32_t Settings::getSwapIntervalNS() const {
-    return Swappy_getSwapIntervalNS();
+    return SwappyGL_getSwapIntervalNS();
 }
 
 bool Settings::getUseAffinity() const {
-    return Swappy_getUseAffinity();
+    return SwappyGL_getUseAffinity();
 }
 
 bool Settings::getHotPocket() const {

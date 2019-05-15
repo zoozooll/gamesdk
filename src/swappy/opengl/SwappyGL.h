@@ -20,8 +20,8 @@
 #include <chrono>
 #include <mutex>
 
-#include "swappy/swappy.h"
-#include "swappy/swappy_extra.h"
+#include "swappy/swappyGL.h"
+#include "swappy/swappyGL_extra.h"
 
 #include "SwappyCommon.h"
 #include "EGL.h"
@@ -34,17 +34,17 @@ using EGLSurface = void *;
 
 using namespace std::chrono_literals;
 
-class Swappy {
+class SwappyGL {
   private:
     // Allows construction with std::unique_ptr from a static method, but disallows construction
     // outside of the class since no one else can construct a ConstructorTag
     struct ConstructorTag {};
   public:
-    Swappy(JavaVM *vm,
-           std::chrono::nanoseconds refreshPeriod,
-           std::chrono::nanoseconds appOffset,
-           std::chrono::nanoseconds sfOffset,
-           ConstructorTag);
+    SwappyGL(JavaVM *vm,
+             std::chrono::nanoseconds refreshPeriod,
+             std::chrono::nanoseconds appOffset,
+             std::chrono::nanoseconds sfOffset,
+             ConstructorTag);
 
     static void init(JNIEnv *env, jobject jactivity);
 
@@ -63,7 +63,7 @@ class Swappy {
 
     static void enableStats(bool enabled);
     static void recordFrameStart(EGLDisplay display, EGLSurface surface);
-    static void getStats(Swappy_Stats *stats);
+    static void getStats(SwappyStats *stats);
     static bool isEnabled();
     static void destroyInstance();
 
@@ -73,7 +73,7 @@ private:
                      std::chrono::nanoseconds appOffset,
                      std::chrono::nanoseconds sfOffset);
 
-    static Swappy *getInstance();
+    static SwappyGL *getInstance();
 
     bool enabled() const { return !mDisableSwappy; }
 
@@ -93,7 +93,7 @@ private:
     bool mDisableSwappy = false;
 
     static std::mutex sInstanceMutex;
-    static std::unique_ptr<Swappy> sInstance;
+    static std::unique_ptr<SwappyGL> sInstance;
 
     std::mutex mEglMutex;
     std::shared_ptr<EGL> mEgl;

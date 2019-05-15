@@ -24,8 +24,8 @@
 #include <list>
 #include <atomic>
 
-#include "swappy/swappy.h"
-#include "swappy/swappy_extra.h"
+#include "swappy/swappyGL.h"
+#include "swappy/swappyGL_extra.h"
 #include "Thread.h"
 #include "ChoreographerFilter.h"
 #include "ChoreographerThread.h"

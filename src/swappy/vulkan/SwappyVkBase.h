@@ -40,7 +40,7 @@
 #pragma once
 
 #define SWAPPYVK_USE_WRAPPER
-#include <swappyVk/SwappyVk.h>
+#include <swappy/swappyVk.h>
 
 #include <unistd.h>
 #include <pthread.h>

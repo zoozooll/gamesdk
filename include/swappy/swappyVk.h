@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef SWAPPYVK_H
-#define SWAPPYVK_H
+// Vulkan part of swappy
+
+#pragma once
+
+#include "swappy_common.h"
 
 #if (defined ANDROID) && (defined SWAPPYVK_USE_WRAPPER)
 #include <vulkan_wrapper.h>
@@ -26,12 +29,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// TODO: merge with the constants at include/swappy.h
-// Swap interval constant helpers:
-#define SWAPPY_SWAP_60FPS (16666667L)
-#define SWAPPY_SWAP_30FPS (33333333L)
-#define SWAPPY_SWAP_20FPS (50000000L)
 
 /**
  * Determine any Vulkan device extensions that must be enabled for a new
@@ -196,5 +193,3 @@ void SwappyVk_destroySwapchain(
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif //SWAPPYVK_H

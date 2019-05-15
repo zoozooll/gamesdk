@@ -59,7 +59,7 @@
 #include "linmath.h"
 #include "object_type_string_helper.h"
 
-#include <swappyVk/SwappyVk.h>
+#include <swappy/swappyVk.h>
 
 #include "gettime.h"
 #include "inttypes.h"

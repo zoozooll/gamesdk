@@ -23,7 +23,7 @@
 #include <map>
 #include <vector>
 
-#include <swappy/swappy_extra.h>
+#include <swappy/swappyGL_extra.h>
 
 using TimePoint = std::chrono::steady_clock::time_point;
 using namespace std::chrono_literals;
@@ -40,7 +40,7 @@ public:
 
     void capture(EGLDisplay dpy, EGLSurface surface);
 
-    Swappy_Stats getStats();
+    SwappyStats getStats();
 
 private:
     static constexpr int MAX_FRAME_LAG = 10;
@@ -67,7 +67,7 @@ private:
     EGLnsecsANDROID mPrevFrameTime = 0;
 
     std::mutex mMutex;
-    Swappy_Stats mStats GUARDED_BY(mMutex)= {};
+    SwappyStats mStats GUARDED_BY(mMutex)= {};
 };
 
 } //namespace swappy

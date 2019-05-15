@@ -38,9 +38,10 @@ add_library( swappy_static
              ${SOURCE_LOCATION_COMMON}/Thread.cpp
              ${SOURCE_LOCATION_COMMON}/SwappyCommon.cpp
              ${SOURCE_LOCATION_OPENGL}/EGL.cpp
-             ${SOURCE_LOCATION_OPENGL}/Swappy_c.cpp
-             ${SOURCE_LOCATION_OPENGL}/Swappy.cpp
+             ${SOURCE_LOCATION_OPENGL}/swappyGL_c.cpp
+             ${SOURCE_LOCATION_OPENGL}/SwappyGL.cpp
              ${ANDROID_NDK}/sources/third_party/vulkan/src/common/vulkan_wrapper.cpp
+             ${SOURCE_LOCATION_VULKAN}/swappyVk_c.cpp
              ${SOURCE_LOCATION_VULKAN}/SwappyVk.cpp
              ${SOURCE_LOCATION_VULKAN}/SwappyVkBase.cpp
              ${SOURCE_LOCATION_VULKAN}/SwappyVkFallback.cpp
@@ -56,7 +57,7 @@ add_library( swappy
 
              SHARED
 
-             ${SOURCE_LOCATION_OPENGL}/Swappy_c.cpp)
+             ${SOURCE_LOCATION_OPENGL}/swappyGL_c.cpp)
                             # Looks like I need to specify at least one file to build,
                             # the result .so size suggests it's including the rest of the
                             # source files from the library
