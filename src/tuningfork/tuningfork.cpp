@@ -34,6 +34,7 @@
 #include "clearcutserializer.h"
 #include "clearcut_backend.h"
 #include "annotation_util.h"
+#include "crash_handler.h"
 
 /* Annotations come into tuning fork as a serialized protobuf. The protobuf can only have
  * enums in it. We form an integer annotation id from the annotation interpreted as a mixed-radix
@@ -80,6 +81,7 @@ std::unique_ptr<MonoTimeProvider> s_mono_time_provider = std::make_unique<MonoTi
 
 class TuningForkImpl {
 private:
+    CrashHandler crash_handler_;
     Settings settings_;
     std::unique_ptr<ProngCache> prong_caches_[2];
     ProngCache *current_prong_cache_;
@@ -132,7 +134,14 @@ public:
         current_prong_cache_ = prong_caches_[0].get();
         live_traces_.resize(max_num_prongs_);
         for (auto &t: live_traces_) t = TimePoint::min();
-
+        auto crash_callback = [this]()->bool {
+            std::stringstream ss;
+            ss << std::this_thread::get_id();
+            TFErrorCode ret = this->Flush();
+            ALOGI("Flush result : %d", ret);
+            return true;
+        };
+        crash_handler_.Init(crash_callback);
         ALOGI("TuningFork initialized");
     }
 
