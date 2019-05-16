@@ -40,8 +40,7 @@ void ToCProtobufSerialization(const tuningfork::ProtobufSerialization& pbs,
 
 extern "C" {
 
-// TuningFork_init must be called before any other functions
-TFErrorCode TuningFork_init(const TFSettings *settings, JNIEnv* env, jobject context) {
+TFErrorCode TuningFork_init_internal(const TFSettings *settings, JNIEnv* env, jobject context) {
     if (settings) {
         return tuningfork::Init(*settings, env, context);
     } else {
@@ -105,6 +104,10 @@ TFErrorCode TuningFork_endTrace(TFTraceHandle h) {
 
 TFErrorCode TuningFork_flush() {
     return tuningfork::Flush();
+}
+
+void TUNINGFORK_VERSION_SYMBOL() {
+    // Intentionally empty
 }
 
 } // extern "C" {
