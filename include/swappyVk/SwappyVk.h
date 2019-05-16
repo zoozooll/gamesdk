@@ -149,7 +149,7 @@ bool SwappyVk_initAndGetRefreshCycleDuration(
  *  (IN)  swap_ns   - The duration of that each presented image should be
  *                    visible in nanoseconds
  */
-void SwappyVk_setSwapInterval(
+void SwappyVk_setSwapIntervalNS(
         VkDevice       device,
         VkSwapchainKHR swapchain,
         uint64_t       swap_ns);

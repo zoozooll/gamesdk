@@ -288,7 +288,7 @@ bool SwappyVk_initAndGetRefreshCycleDuration(
     return swappy.GetRefreshCycleDuration(physicalDevice, device, swapchain, pRefreshDuration);
 }
 
-void SwappyVk_setSwapInterval(
+void SwappyVk_setSwapIntervalNS(
         VkDevice       device,
         VkSwapchainKHR swapchain,
         uint64_t       swap_ns)
