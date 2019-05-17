@@ -20,6 +20,8 @@
 
 #include "swappy_common.h"
 
+#include "jni.h"
+
 #if (defined ANDROID) && (defined SWAPPYVK_USE_WRAPPER)
 #include <vulkan_wrapper.h>
 #else
@@ -102,6 +104,8 @@ void SwappyVk_setQueueFamilyIndex(
  * Initialize SwappyVk for a given device and swapchain, and obtain the
  * approximate time duration between vertical-blanking periods.
  *
+ * Uses JNI to query AppVsyncOffset and PresentationDeadline.
+ *
  * If your application presents to more than one swapchain at a time, you must
  * call this for each swapchain before calling swappyVkSetSwapInterval() for it.
  *
@@ -116,6 +120,8 @@ void SwappyVk_setQueueFamilyIndex(
  *
  * Parameters:
  *
+ *  (IN)  env - JNIEnv that is assumed to be from AttachCurrentThread function
+ *  (IN)  jactivity - NativeActivity object handle, used for JNI
  *  (IN)  physicalDevice   - The VkPhysicalDevice associated with the swapchain
  *  (IN)  device    - The VkDevice associated with the swapchain
  *  (IN)  swapchain - The VkSwapchainKHR the application wants Swappy to swap
@@ -127,6 +133,8 @@ void SwappyVk_setQueueFamilyIndex(
  *                    otherwise false if an error.
  */
 bool SwappyVk_initAndGetRefreshCycleDuration(
+        JNIEnv*          env,
+        jobject          jactivity,
         VkPhysicalDevice physicalDevice,
         VkDevice         device,
         VkSwapchainKHR   swapchain,

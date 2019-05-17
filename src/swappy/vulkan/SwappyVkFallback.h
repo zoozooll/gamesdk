@@ -30,7 +30,9 @@ namespace swappy {
 class SwappyVkFallback : public SwappyVkBase
 {
 public:
-    SwappyVkFallback(VkPhysicalDevice physicalDevice,
+    SwappyVkFallback(JNIEnv           *env,
+                     jobject          jactivity,
+                     VkPhysicalDevice physicalDevice,
                      VkDevice         device,
                      void             *libVulkan);
 

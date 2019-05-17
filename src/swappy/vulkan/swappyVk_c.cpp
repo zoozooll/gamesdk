@@ -20,8 +20,6 @@
 
 #include "SwappyVk.h"
 
-using namespace swappy;
-
 extern "C" {
 
 void SwappyVk_determineDeviceExtensions(
@@ -49,6 +47,8 @@ void SwappyVk_setQueueFamilyIndex(
 }
 
 bool SwappyVk_initAndGetRefreshCycleDuration(
+        JNIEnv           *env,
+        jobject          jactivity,
         VkPhysicalDevice physicalDevice,
         VkDevice         device,
         VkSwapchainKHR   swapchain,
@@ -56,7 +56,9 @@ bool SwappyVk_initAndGetRefreshCycleDuration(
 {
     TRACE_CALL();
     swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
-    return swappy.GetRefreshCycleDuration(physicalDevice, device, swapchain, pRefreshDuration);
+    return swappy.GetRefreshCycleDuration(env, jactivity,
+                                          physicalDevice, device, swapchain,
+                                          pRefreshDuration);
 }
 
 void SwappyVk_setSwapIntervalNS(

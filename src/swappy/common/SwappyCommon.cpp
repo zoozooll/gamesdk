@@ -36,26 +36,92 @@ using std::chrono::nanoseconds;
 constexpr std::chrono::nanoseconds SwappyCommon::FrameDuration::MAX_DURATION;
 constexpr std::chrono::nanoseconds SwappyCommon::FRAME_HYSTERESIS;
 
-SwappyCommon::SwappyCommon(JavaVM* vm,
-                         std::chrono::nanoseconds refreshPeriod,
-                         std::chrono::nanoseconds appOffset,
-                         std::chrono::nanoseconds sfOffset)
-        : mChoreographerFilter(std::make_unique<ChoreographerFilter>(refreshPeriod,
-                                                                     sfOffset - appOffset,
-                                                                     [this]() { return wakeClient(); })),
-          mChoreographerThread(ChoreographerThread::createChoreographerThread(
-                  ChoreographerThread::Type::Swappy,
-                  vm,
-                  [this]{ mChoreographerFilter->onChoreographer(); })),
-          mSwapDuration(std::chrono::nanoseconds(0)),
-          mRefreshPeriod(refreshPeriod),
+SwappyCommon::SwappyCommon(JNIEnv *env, jobject jactivity)
+        : mSwapDuration(std::chrono::nanoseconds(0)),
           mSwapInterval(1),
-          mAutoSwapInterval(1)
-{
+          mAutoSwapInterval(1),
+          mValid(false) {
+    jclass activityClass = env->FindClass("android/app/NativeActivity");
+    jclass windowManagerClass = env->FindClass("android/view/WindowManager");
+    jclass displayClass = env->FindClass("android/view/Display");
+
+    jmethodID getWindowManager = env->GetMethodID(
+            activityClass,
+            "getWindowManager",
+            "()Landroid/view/WindowManager;");
+
+    jmethodID getDefaultDisplay = env->GetMethodID(
+            windowManagerClass,
+            "getDefaultDisplay",
+            "()Landroid/view/Display;");
+
+    jobject wm = env->CallObjectMethod(jactivity, getWindowManager);
+    jobject display = env->CallObjectMethod(wm, getDefaultDisplay);
+
+    jmethodID getRefreshRate = env->GetMethodID(
+            displayClass,
+            "getRefreshRate",
+            "()F");
+
+    const float refreshRateHz = env->CallFloatMethod(display, getRefreshRate);
+
+    jmethodID getAppVsyncOffsetNanos = env->GetMethodID(
+            displayClass,
+            "getAppVsyncOffsetNanos", "()J");
+
+    // getAppVsyncOffsetNanos was only added in API 21.
+    // Return gracefully if this device doesn't support it.
+    if (getAppVsyncOffsetNanos == 0 || env->ExceptionOccurred()) {
+        ALOGE("Error while getting method: getAppVsyncOffsetNanos");
+        env->ExceptionClear();
+        return;
+    }
+    const long appVsyncOffsetNanos = env->CallLongMethod(display, getAppVsyncOffsetNanos);
+
+    jmethodID getPresentationDeadlineNanos = env->GetMethodID(
+        displayClass,
+        "getPresentationDeadlineNanos",
+        "()J");
+
+
+    if (getPresentationDeadlineNanos == 0 || env->ExceptionOccurred()) {
+        ALOGE("Error while getting method: getPresentationDeadlineNanos");
+        return;
+    }
+
+    const long vsyncPresentationDeadlineNanos = env->CallLongMethod(
+        display, getPresentationDeadlineNanos);
+
+    const long ONE_MS_IN_NS = 1000 * 1000;
+    const long ONE_S_IN_NS = ONE_MS_IN_NS * 1000;
+
+    const long vsyncPeriodNanos = static_cast<long>(ONE_S_IN_NS / refreshRateHz);
+    const long sfVsyncOffsetNanos =
+        vsyncPeriodNanos - (vsyncPresentationDeadlineNanos - ONE_MS_IN_NS);
+
+    JavaVM* vm;
+    env->GetJavaVM(&vm);
+
+    using std::chrono::nanoseconds;
+    mRefreshPeriod  = nanoseconds(vsyncPeriodNanos);
+    mAppVsyncOffset = nanoseconds(appVsyncOffsetNanos);
+    mSfVsyncOffset  = nanoseconds(sfVsyncOffsetNanos);
+
+    mChoreographerFilter = std::make_unique<ChoreographerFilter>(mRefreshPeriod,
+                                                                 mSfVsyncOffset - mAppVsyncOffset,
+                                                                 [this]() { return wakeClient(); });
+
+   mChoreographerThread = ChoreographerThread::createChoreographerThread(
+                                   ChoreographerThread::Type::Swappy,
+                                   vm,
+                                   [this]{ mChoreographerFilter->onChoreographer(); });
+
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
 
     mAutoSwapIntervalThreshold = (1e9f / mRefreshPeriod.count()) / 20; // 20FPS
     mFrameDurations.reserve(mFrameDurationSamples);
+
+    mValid = true;
 }
 
 SwappyCommon::~SwappyCommon() {
@@ -415,6 +481,5 @@ void SwappyCommon::waitOneFrame() {
     const int32_t target = mCurrentFrame + 1;
     mWaitingCondition.wait(lock, [&]() { return mCurrentFrame >= target; });
 }
-
 
 } // namespace swappy

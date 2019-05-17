@@ -94,7 +94,9 @@ using PFN_AChoreographer_postFrameCallbackDelayed = void (*)(AChoreographer* cho
 class SwappyVkBase
 {
 public:
-    SwappyVkBase(VkPhysicalDevice physicalDevice,
+    SwappyVkBase(JNIEnv           *env,
+                 jobject          jactivity,
+                 VkPhysicalDevice physicalDevice,
                  VkDevice         device,
                  void             *libVulkan);
 
@@ -108,9 +110,11 @@ public:
     void doSetSwapInterval(VkSwapchainKHR swapchain,
                            uint64_t       swap_ns);
 
-     VkResult injectFence(VkQueue                 queue,
-                          const VkPresentInfoKHR* pPresentInfo,
-                          VkSemaphore*            pSemaphore);
+    VkResult injectFence(VkQueue                 queue,
+                         const VkPresentInfoKHR* pPresentInfo,
+                         VkSemaphore*            pSemaphore);
+
+    bool isEnabled() { return mEnabled; }
 protected:
     struct VkSync {
         VkFence fence;
@@ -131,10 +135,12 @@ protected:
         std::condition_variable_any condition;
     };
 
+    SwappyCommon     mCommonBase;
     VkPhysicalDevice mPhysicalDevice;
     VkDevice         mDevice;
     void*            mLibVulkan;
     bool             mInitialized;
+    bool             mEnabled;
 
     uint32_t mNextPresentID = 0;
     uint32_t mNextPresentIDToCheck = 2;
@@ -148,8 +154,6 @@ protected:
     std::map<VkQueue, std::list<VkSync>>              mPendingSync;
     std::map<VkQueue, VkCommandPool>                  mCommandPool;
     std::map<VkQueue, std::unique_ptr<ThreadContext>> mThreads;
-
-    std::unique_ptr<SwappyCommon> mCommonBase;
 
     static constexpr int MAX_PENDING_FENCES = 1;
 

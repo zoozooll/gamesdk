@@ -43,11 +43,7 @@ public:
         std::function<std::chrono::nanoseconds()> getPrevFrameGpuTime;
     };
 
-    SwappyCommon(JavaVM *vm,
-                std::chrono::nanoseconds refreshPeriod,
-                std::chrono::nanoseconds appOffset,
-                std::chrono::nanoseconds sfOffset);
-
+    SwappyCommon(JNIEnv *env, jobject jactivity);
     ~SwappyCommon();
 
     uint64_t getSwapIntervalNS();
@@ -67,8 +63,12 @@ public:
     void setAutoSwapInterval(bool enabled);
     void setAutoPipelineMode(bool enabled);
 
-    std::chrono::nanoseconds getRefreshPeriod() { return mRefreshPeriod; }
     std::chrono::steady_clock::time_point getPresentationTime() { return mPresentationTime; }
+    std::chrono::nanoseconds getRefreshPeriod()    { return mRefreshPeriod; }
+    std::chrono::nanoseconds getAppVsyncOffset() { return mAppVsyncOffset; }
+    std::chrono::nanoseconds getSfVsyncOffset()  { return mSfVsyncOffset; }
+
+    bool isValid() { return mValid; }
 
 private:
     class FrameDuration {
@@ -154,7 +154,12 @@ private:
     std::chrono::steady_clock::time_point mCurrentFrameTimestamp = std::chrono::steady_clock::now();
     int32_t mCurrentFrame = 0;
     std::atomic<std::chrono::nanoseconds> mSwapDuration;
-    const std::chrono::nanoseconds mRefreshPeriod;
+
+    std::chrono::steady_clock::time_point mSwapTime;
+
+    std::chrono::nanoseconds mRefreshPeriod;
+    std::chrono::nanoseconds mAppVsyncOffset;
+    std::chrono::nanoseconds mSfVsyncOffset;
 
     std::mutex mFrameDurationsMutex;
     std::vector<FrameDuration> mFrameDurations GUARDED_BY(mFrameDurationsMutex);
@@ -186,7 +191,7 @@ private:
     bool mPresentationTimeNeeded;
     bool mPipelineMode = false;
 
-    std::chrono::steady_clock::time_point mSwapTime;
+    bool mValid;
 };
 
 } //namespace swappy
