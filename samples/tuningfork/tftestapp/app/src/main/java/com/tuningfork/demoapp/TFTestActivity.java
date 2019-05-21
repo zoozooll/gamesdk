@@ -31,7 +31,7 @@ public class TFTestActivity extends AppCompatActivity implements Choreographer.F
     static {
         System.loadLibrary("native-lib");
     }
-    public native void initTuningFork();
+    public native void initTuningFork(boolean initFromNewThread);
     public static native void resize(Surface surface, int width, int height);
     public static native void clearSurface();
     public static native void onChoreographer(long t);
@@ -52,7 +52,7 @@ public class TFTestActivity extends AppCompatActivity implements Choreographer.F
         addContentView(buttons, new ViewGroup.LayoutParams(view.getLayoutParams()));
 
         CheckGMS();
-        initTuningFork();
+        initTuningFork(false);
     }
 
     @Override
