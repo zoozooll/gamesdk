@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef SWAPPYVK_H
-#define SWAPPYVK_H
+// Vulkan part of swappy
+
+#pragma once
+
+#include "swappy_common.h"
 
 #if (defined ANDROID) && (defined SWAPPYVK_USE_WRAPPER)
 #include <vulkan_wrapper.h>
@@ -131,13 +134,7 @@ bool SwappyVk_initAndGetRefreshCycleDuration(
 
 
 /**
- * Tell Swappy the number of vertical-blanking intervals that each presented
- * image should be visible for.
- *
- * For example, if the refresh duration is approximately 16,666,666 nses (60Hz
- * display), and if the application wants to present at 30 frames-per-second
- * (FPS), the application would set the swap interval to 2.  For 30FPS on a 90Hz
- * display, set the swap interval to 3.
+  * Tell Swappy the duration of that each presented image should be visible.
  *
  * If your application presents to more than one swapchain at a time, you must
  * call this for each swapchain before presenting to it.
@@ -146,13 +143,13 @@ bool SwappyVk_initAndGetRefreshCycleDuration(
  *
  *  (IN)  device    - The VkDevice associated with the swapchain
  *  (IN)  swapchain - The VkSwapchainKHR the application wants Swappy to swap
- *  (IN)  interval  - The number of vertical-blanking intervals each image
- *                    should be visible
+ *  (IN)  swap_ns   - The duration of that each presented image should be
+ *                    visible in nanoseconds
  */
-void SwappyVk_setSwapInterval(
+void SwappyVk_setSwapIntervalNS(
         VkDevice       device,
         VkSwapchainKHR swapchain,
-        uint32_t       interval);
+        uint64_t       swap_ns);
 
 /**
  * Tell Swappy to present one or more images to corresponding swapchains.
@@ -196,5 +193,3 @@ void SwappyVk_destroySwapchain(
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif //SWAPPYVK_H

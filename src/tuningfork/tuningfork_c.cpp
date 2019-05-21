@@ -103,4 +103,8 @@ TFErrorCode TuningFork_endTrace(TFTraceHandle h) {
     return tuningfork::EndTrace(h);
 }
 
+TFErrorCode TuningFork_flush() {
+    return tuningfork::Flush();
+}
+
 } // extern "C" {

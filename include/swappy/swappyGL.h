@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+// OpenGL part of swappy
+
 #pragma once
+
+#include "swappy_common.h"
 
 #include <stdint.h>
 #include <EGL/egl.h>
@@ -25,35 +29,30 @@
 extern "C" {
 #endif
 
-// swap interval constant helpers
-#define SWAPPY_SWAP_60FPS (16666667L)
-#define SWAPPY_SWAP_30FPS (33333333L)
-#define SWAPPY_SWAP_20FPS (50000000L)
-
 // Initialize Swappy, getting the required Android parameters from the display subsystem via JNI
-void Swappy_init(JNIEnv *env, jobject jactivity);
+void SwappyGL_init(JNIEnv *env, jobject jactivity);
 
 // Returns true if Swappy was successfully initialized.
 // Returns false if either the 'swappy.disable' system property is not 'false'
 //  or the required OpenGL extensions are not available for Swappy to work.
-bool Swappy_isEnabled();
+bool SwappyGL_isEnabled();
 
 // Destroy resources and stop all threads that swappy has created
-void Swappy_destroy();
+void SwappyGL_destroy();
 
 // Replace calls to eglSwapBuffers with this. Swappy will wait for the previous frame's
 // buffer to be processed by the GPU before actually calling eglSwapBuffers.
-bool Swappy_swap(EGLDisplay display, EGLSurface surface);
+bool SwappyGL_swap(EGLDisplay display, EGLSurface surface);
 
 // Parameter setters
-void Swappy_setRefreshPeriod(uint64_t period_ns);
-void Swappy_setUseAffinity(bool tf);
-void Swappy_setSwapIntervalNS(uint64_t swap_ns);
+void SwappyGL_setRefreshPeriod(uint64_t period_ns);
+void SwappyGL_setUseAffinity(bool tf);
+void SwappyGL_setSwapIntervalNS(uint64_t swap_ns);
 
 // Parameter getters
-uint64_t Swappy_getRefreshPeriodNanos();
-uint64_t Swappy_getSwapIntervalNS();
-bool Swappy_getUseAffinity();
+uint64_t SwappyGL_getRefreshPeriodNanos();
+uint64_t SwappyGL_getSwapIntervalNS();
+bool SwappyGL_getUseAffinity();
 
 #ifdef __cplusplus
 };

@@ -22,6 +22,7 @@
 #include <sstream>
 #include <condition_variable>
 #include <jni.h>
+#include <unistd.h>
 #include <android/native_window_jni.h>
 
 #define LOG_TAG "tftestapp"
@@ -272,6 +273,17 @@ Java_com_tuningfork_demoapp_TFTestActivity_start(JNIEnv */*env*/, jclass /*clz*/
 JNIEXPORT void JNICALL
 Java_com_tuningfork_demoapp_TFTestActivity_stop(JNIEnv */*env*/, jclass /*clz*/ ) {
     Renderer::getInstance()->stop();
+    // Call flush here to upload any histograms when the app goes to the background.
+    auto ret = TuningFork_flush();
+    ALOGI("TuningFork_flush returned %d", ret);
 }
 
+JNIEXPORT void JNICALL
+Java_com_tuningfork_demoapp_TFTestActivity_raiseSignal(JNIEnv * env, jclass clz, jint signal) {
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
+    ALOGI("raiseSignal %d: [pid: %d], [tid: %d], [thread_id: %s])",
+            signal, getpid(), gettid(), ss.str().c_str());
+    raise(signal);
+}
 }

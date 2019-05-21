@@ -17,7 +17,7 @@
 
 #define LOG_TAG "TuningFork"
 #include "Log.h"
-#include "swappy/swappy_extra.h"
+#include "swappy/swappyGL_extra.h"
 
 #include <android/asset_manager_jni.h>
 #include <jni.h>

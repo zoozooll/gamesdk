@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-set( PROTOBUF_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-3.0.0/install/linux-x86")
+if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+  set( HOST_PLATFORM "mac")
+else()
+  set( HOST_PLATFORM "linux-x86")
+endif()
+set( PROTOBUF_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-3.0.0/install/${HOST_PLATFORM}")
+
 set( PROTOBUF_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-3.0.0/src")
 if( NOT DEFINED PROTOBUF_NANO_SRC_DIR)
   set( PROTOBUF_NANO_SRC_DIR "${EXTERNAL_ROOT}/nanopb-c")

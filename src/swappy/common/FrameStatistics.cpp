@@ -153,7 +153,7 @@ void FrameStatistics::logFrames() {
     previousLogTime = std::chrono::steady_clock::now();
 }
 
-Swappy_Stats FrameStatistics::getStats() {
+SwappyStats FrameStatistics::getStats() {
     std::lock_guard<std::mutex> lock(mMutex);
     return mStats;
 }

@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package com.google.demoapp;
+package com.tuningfork.demoapp;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -21,6 +21,9 @@ import android.view.Choreographer;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
+import android.view.ViewGroup;
+
 import com.google.android.gms.common.GoogleApiAvailability;
 
 public class TFTestActivity extends AppCompatActivity implements Choreographer.FrameCallback, SurfaceHolder.Callback {
@@ -34,6 +37,7 @@ public class TFTestActivity extends AppCompatActivity implements Choreographer.F
     public static native void onChoreographer(long t);
     public static native void start();
     public static native void stop();
+    public static native void raiseSignal(int signal);
 
     private SurfaceView view;
 
@@ -44,6 +48,8 @@ public class TFTestActivity extends AppCompatActivity implements Choreographer.F
         view = new SurfaceView(this);
         setContentView(view);
         view.getHolder().addCallback(this);
+        View buttons = getWindow().getLayoutInflater().inflate(R.layout.buttons, null);
+        addContentView(buttons, new ViewGroup.LayoutParams(view.getLayoutParams()));
 
         CheckGMS();
         initTuningFork();
@@ -83,6 +89,19 @@ public class TFTestActivity extends AppCompatActivity implements Choreographer.F
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         clearSurface();
+    }
+
+    public void OnClick_Crash(View view){
+        /**
+         * SIGILL 4
+         * SIGTRAP 5
+         * SIGABRT 6
+         * SIGBUS 7
+         * SIGFPE 8
+         * SIGSEGV 11
+         * */
+
+        raiseSignal(4);
     }
 
     private void CheckGMS() {

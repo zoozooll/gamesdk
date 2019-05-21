@@ -177,7 +177,7 @@ void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
     pthread_setname_np(pthread_self(), threadName.c_str());
 
     std::unique_lock<std::mutex> lock(mMutex);
-    while (mIsRunning) {
+    while (true) {
         auto timestamp = mLastTimestamp;
         auto workDuration = mWorkDuration;
         lock.unlock();
@@ -188,11 +188,13 @@ void ChoreographerFilter::threadMain(bool useAffinity, int32_t thread) {
         // background.
         if (!timer.addTimestamp(timestamp)) {
             lock.lock();
-            mCondition.wait(lock, [=]() { return mLastTimestamp != timestamp; });
+            mCondition.wait(lock, [=]() { return !mIsRunning || (mLastTimestamp != timestamp); });
             timestamp = mLastTimestamp;
             lock.unlock();
             timer.addTimestamp(timestamp);
         }
+
+        if (!mIsRunning) break;
 
         timer.sleep(-workDuration);
         {

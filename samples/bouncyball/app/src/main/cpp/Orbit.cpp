@@ -26,8 +26,8 @@
 #include "Log.h"
 #include "Settings.h"
 
-#include "swappy/swappy.h"
-#include "swappy/swappy_extra.h"
+#include "swappy/swappyGL.h"
+#include "swappy/swappyGL_extra.h"
 
 #include "Renderer.h"
 
@@ -51,7 +51,7 @@ void startFrameCallback(void *, int, long) {
 }
 
 void swapIntervalChangedCallback(void *) {
-    uint64_t swap_ns = Swappy_getSwapIntervalNS();
+    uint64_t swap_ns = SwappyGL_getSwapIntervalNS();
     ALOGI("Swappy changed swap interval to %.2fms", swap_ns / 1e6f);
 }
 
@@ -60,7 +60,7 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nInit(JNIEnv *env, jobject activi
     // Get the Renderer instance to create it
     Renderer::getInstance();
 
-    Swappy_init(env, activity);
+    SwappyGL_init(env, activity);
 
     SwappyTracer tracers;
     tracers.preWait = nullptr;
@@ -71,7 +71,7 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nInit(JNIEnv *env, jobject activi
     tracers.userData = nullptr;
     tracers.swapIntervalChanged = swapIntervalChangedCallback;
 
-    Swappy_injectTracer(&tracers);
+    SwappyGL_injectTracer(&tracers);
 }
 
 JNIEXPORT void JNICALL
@@ -109,7 +109,7 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nSetPreference(JNIEnv *env, jobje
 JNIEXPORT void JNICALL
 Java_com_prefabulated_bouncyball_OrbitActivity_nSetAutoSwapInterval(JNIEnv *env, jobject /* this */,
                                                               jboolean enabled) {
-    Swappy_setAutoSwapInterval(enabled);
+    SwappyGL_setAutoSwapInterval(enabled);
 }
 
 JNIEXPORT float JNICALL
@@ -130,16 +130,16 @@ Java_com_prefabulated_bouncyball_OrbitActivity_nGetSwappyStats(JNIEnv * /* env *
                                                                jint bin) {
     static bool enabled = false;
     if (!enabled) {
-        Swappy_enableStats(true);
+        SwappyGL_enableStats(true);
         enabled = true;
     }
 
     // stats are read one by one, query once per stat
-    static Swappy_Stats stats;
+    static SwappyStats stats;
     static int stat_idx = -1;
 
     if (stat_idx != stat) {
-        Swappy_getStats(&stats);
+        SwappyGL_getStats(&stats);
         stat_idx = stat;
     }
 
