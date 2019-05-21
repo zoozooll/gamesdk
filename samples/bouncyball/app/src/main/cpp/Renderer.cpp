@@ -26,8 +26,8 @@
 
 #include "Log.h"
 
-#include "swappy/swappy.h"
-#include "swappy/swappy_extra.h"
+#include "swappy/swappyGL.h"
+#include "swappy/swappyGL_extra.h"
 
 #include "Circle.h"
 using namespace std::chrono_literals;
@@ -214,7 +214,7 @@ void Renderer::draw(ThreadState *threadState) {
         return;
     }
 
-    Swappy_recordFrameStart(threadState->display, threadState->surface);
+    SwappyGL_recordFrameStart(threadState->display, threadState->surface);
 
     calculateFps();
 
@@ -245,7 +245,7 @@ void Renderer::draw(ThreadState *threadState) {
 
     Circle::draw(aspectRatio, circles, mWorkload);
 
-    Swappy_swap(threadState->display, threadState->surface);
+    SwappyGL_swap(threadState->display, threadState->surface);
 
     // If we're still started, request another frame
     requestDraw();

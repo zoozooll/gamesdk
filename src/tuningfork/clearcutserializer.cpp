@@ -61,7 +61,7 @@ bool ClearcutSerializer::writeAnnotation(pb_ostream_t* stream, const pb_field_t 
     const Prong* p = static_cast<const Prong*>(*arg);
     if(p->annotation_.size()>0) {
         pb_encode_tag_for_field(stream, field);
-        pb_encode_string(stream, &p->annotation_[0], p->annotation_.size());
+        pb_encode_string(stream, p->annotation_.data(), p->annotation_.size());
     }
     return true;
 }
@@ -147,7 +147,7 @@ bool ClearcutSerializer::writeFidelityParams(pb_ostream_t* stream, const pb_fiel
     const ProtobufSerialization* fp = static_cast<const ProtobufSerialization*>(*arg);
     if(fp->size()>0) {
         pb_encode_tag_for_field(stream, field);
-        pb_encode_string(stream, &(*fp)[0], fp->size());
+        pb_encode_string(stream, fp->data(), fp->size());
     }
     return true;
 }

@@ -16,6 +16,7 @@
 
 #include "tuningfork_utils.h"
 
+#include <cstdio>
 #include <sys/stat.h>
 #include <errno.h>
 
@@ -29,36 +30,54 @@ namespace tuningfork {
 
 namespace apk_utils {
 
+    class AssetManagerHelper {
+          AAssetManager* mgr_;
+          jobject jmgr_;
+          JNIEnv* env_;
+     public:
+          AssetManagerHelper(JNIEnv* env, jobject context) : mgr_(nullptr), jmgr_(nullptr),
+                                                             env_(env) {
+              jclass cls = env->FindClass("android/content/Context");
+              jmethodID get_assets = env->GetMethodID(cls, "getAssets",
+                                                      "()Landroid/content/res/AssetManager;");
+              if(get_assets==nullptr) {
+                ALOGE("No Context.getAssets() method");
+                return;
+              }
+              jmgr_ = env->CallObjectMethod(context, get_assets);
+              if (jmgr_ == nullptr) {
+                ALOGE("No java asset manager");
+                return;
+              }
+              mgr_ = AAssetManager_fromJava(env, jmgr_);
+              if (mgr_ == nullptr) {
+                ALOGE("No asset manager");
+                return;
+              }
+          }
+          AAsset* GetAsset(const char* name) {
+              if (mgr_)
+                  return AAssetManager_open(mgr_, name, AASSET_MODE_BUFFER);
+              else
+                  return nullptr;
+          }
+          ~AssetManagerHelper() {
+              env_->DeleteLocalRef(jmgr_);
+          }
+    };
+
     // Get an asset from this APK's asset directory.
     // Returns NULL if the asset could not be found.
     // Asset_close must be called once the asset is no longer needed.
-    AAsset* GetAsset(JNIEnv* env, jobject activity, const char* name) {
-        jclass cls = env->FindClass("android/content/Context");
-        jmethodID get_assets = env->GetMethodID(cls, "getAssets",
-                                                "()Landroid/content/res/AssetManager;");
-        if(get_assets==nullptr) {
-            ALOGE("No Context.getAssets() method");
-            return nullptr;
-        }
-        auto javaMgr = env->CallObjectMethod(activity, get_assets);
-        if (javaMgr == nullptr) {
-            ALOGE("No java asset manager");
-            return nullptr;
-        }
-        AAssetManager* mgr = AAssetManager_fromJava(env, javaMgr);
-        if (mgr == nullptr) {
-            ALOGE("No asset manager");
-            return nullptr;
-        }
-        AAsset* asset = AAssetManager_open(mgr, name,
-                                           AASSET_MODE_BUFFER);
+    AAsset* GetAsset(JNIEnv* env, jobject context, const char* name) {
+        AssetManagerHelper mgr(env, context);
+        AAsset* asset = mgr.GetAsset(name);
         if (asset == nullptr) {
             ALOGW("Can't find %s in APK", name);
             return nullptr;
         }
         return asset;
     }
-
 
     // Get the app's version code. Also fills packageNameStr with the package name
     //  if it is non-null.
@@ -120,11 +139,11 @@ namespace file_utils {
         struct stat buffer;
         return (stat(fname.c_str(), &buffer)==0);
     }
-    std::string GetAppCacheDir(JNIEnv* env, jobject activity) {
-        jclass activityClass = env->FindClass( "android/app/NativeActivity" );
-        jmethodID getCacheDir = env->GetMethodID( activityClass, "getCacheDir",
+    std::string GetAppCacheDir(JNIEnv* env, jobject context) {
+        jclass contextClass = env->GetObjectClass(context);
+        jmethodID getCacheDir = env->GetMethodID( contextClass, "getCacheDir",
             "()Ljava/io/File;" );
-        jobject cache_dir = env->CallObjectMethod( activity, getCacheDir );
+        jobject cache_dir = env->CallObjectMethod( context, getCacheDir );
 
         jclass fileClass = env->FindClass( "java/io/File" );
         jmethodID getPath = env->GetMethodID( fileClass, "getPath", "()Ljava/lang/String;" );
@@ -135,6 +154,11 @@ namespace file_utils {
         env->ReleaseStringUTFChars( path_string, path_chars );
 
         return temp_folder;
+    }
+    bool DeleteFile(const std::string& path) {
+        if (FileExists(path))
+            return remove(path.c_str())==0;
+        return false;
     }
 
 } // namespace file_utils

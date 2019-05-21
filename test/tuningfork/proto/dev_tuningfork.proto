@@ -25,3 +25,15 @@ enum LOD {
 message FidelityParams {
   optional LOD lod = 1;
 }
+
+message StringTest {
+  optional string value = 1;
+}
+
+message I64ArrTest {
+  repeated int64 value = 1;
+}
+
+message BytesTest {
+  optional bytes value = 1;
+}

@@ -36,7 +36,7 @@ static char s_clearcut_log_source[] = "TUNING_FORK";
 
 ClearcutBackend::~ClearcutBackend() {}
 
-bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
+TFErrorCode ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
 
     ALOGI("Process log");
 
@@ -52,18 +52,18 @@ bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
             break;
         case JNI_EVERSION:
             ALOGW("JNI Version is not supported, status : %d", envStatus);
-            return false;
+            return TFERROR_JNI_BAD_VERSION;
         case JNI_EDETACHED: {
             int attachStatus = vm_->AttachCurrentThread(&env, (void *) NULL);
             if (attachStatus != JNI_OK) {
                 ALOGW("Thread is not attached, status : %d", attachStatus);
-                return false;
+                return TFERROR_JNI_BAD_THREAD;
             }
         }
             break;
         default:
             ALOGW("JNIEnv is not OK, status : %d", envStatus);
-            return false;
+            return TFERROR_JNI_BAD_ENV;
     }
 
     //Cast to jbytearray
@@ -79,26 +79,28 @@ bool ClearcutBackend::Process(const ProtobufSerialization &evt_ser) {
     // Detach thread.
     vm_->DetachCurrentThread();
     ALOGI("Message was sent to clearcut");
-    return !hasException;
+    if (hasException)
+        return TFERROR_JNI_EXCEPTION;
+    return TFERROR_OK;
 }
 
-bool ClearcutBackend::Init(JNIEnv *env, jobject activity, ProtoPrint* proto_print) {
+TFErrorCode ClearcutBackend::Init(JNIEnv *env, jobject context, ProtoPrint* proto_print) {
     ALOGI("%s", "Start clearcut initialization...");
 
     proto_print_ = proto_print;
     env->GetJavaVM(&vm_);
     if(vm_ == nullptr) {
         ALOGE("%s", "JavaVM is null...");
-        return false;
+        return TFERROR_JNI_BAD_JVM;
     }
 
     try {
-        bool inited = InitWithClearcut(env, activity, false);
+        bool inited = InitWithClearcut(env, context, false);
         ALOGI("Clearcut status: %s available", inited ? "" : "not");
-        return  inited;
+        return  inited ? TFERROR_OK : TFERROR_NO_CLEARCUT;
     } catch (const std::exception& e) {
         ALOGI("Clearcut status: not available");
-        return false;
+        return TFERROR_NO_CLEARCUT;
     }
 
 }
@@ -155,21 +157,21 @@ bool ClearcutBackend::CheckException(JNIEnv *env) {
     return false;
 }
 
-bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject activity, bool anonymousLogging) {
+bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject context, bool anonymousLogging) {
     ALOGI("Start searching for clearcut...");
 
     // Get Application Context
-    jclass activityClass = env->GetObjectClass(activity);
+    jclass contextClass = env->GetObjectClass(context);
     if (CheckException(env)) return false;
-    jmethodID getContext = env->GetMethodID(
-            activityClass,
+    jmethodID getAppContext = env->GetMethodID(
+            contextClass,
             "getApplicationContext",
             "()Landroid/content/Context;");
     if (CheckException(env)) return false;
-    jobject context = env->CallObjectMethod(activity, getContext);
+    jobject appContext = env->CallObjectMethod(context, getAppContext);
 
     //Check if Google Play Services are available
-    bool available = IsGooglePlayServiceAvailable(env, context);
+    bool available = IsGooglePlayServiceAvailable(env, appContext);
     if (!available) {
         ALOGW("Google Play Service is not available");
         return false;
@@ -217,10 +219,11 @@ bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject activity, bool anony
     //Create logger instance
     jobject localClearcutLogger;
     if (anonymousLogging) {
-        localClearcutLogger = env->CallStaticObjectMethod(loggerClass, anonymousLogger, context,
-                                                          ccName);
+        localClearcutLogger = env->CallStaticObjectMethod(loggerClass, anonymousLogger,
+                                                          appContext, ccName);
     } else {
-        localClearcutLogger = env->NewObject(loggerClass, loggerConstructor, context, ccName, NULL);
+        localClearcutLogger = env->NewObject(loggerClass, loggerConstructor, appContext,
+                                             ccName, NULL);
     }
     if (CheckException(env)) return false;
 

@@ -26,9 +26,9 @@ namespace tuningfork {
 
 // Allocate all the prongs up front
 ProngCache::ProngCache(size_t size, int max_num_instrumentation_keys,
-                       const std::vector<Settings::Histogram> &histogram_settings,
+                       const std::vector<TFHistogram> &histogram_settings,
                        const std::function<SerializedAnnotation(uint64_t)> &seralizeId)
-    : prongs_(size) {
+    : prongs_(size), max_num_instrumentation_keys_(max_num_instrumentation_keys) {
     // Allocate all the prongs
     InstrumentationKey ikey = 0;
     for (int i = 0; i < size; ++i) {
@@ -55,6 +55,17 @@ void ProngCache::Clear() {
     for (auto &p: prongs_) {
         if (p->histogram_.Count() > 0)
             p->histogram_.Clear();
+    }
+}
+
+void ProngCache::SetInstrumentKeys(const std::vector<InstrumentationKey>& instrument_keys) {
+    auto nAnnotations = prongs_.size()/max_num_instrumentation_keys_;
+    for (int j=0; j<nAnnotations; ++j) {
+        for (int i=0; i<instrument_keys.size(); ++i) {
+            auto k = instrument_keys[i];
+            auto& p = prongs_[i + j*max_num_instrumentation_keys_];
+            p->SetInstrumentKey(k);
+        }
     }
 }
 

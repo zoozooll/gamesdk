@@ -131,7 +131,7 @@ public class ExternalProtoCompiler {
         "/dev/stdout",
         "-I",
         file.getName() + "=" + file.getAbsolutePath(), // That should be one line
-        file.getName());
+        file.getAbsolutePath());
   }
 
   private ImmutableList<String> encodeCommandLine(String message, File protoFile) {
@@ -140,7 +140,7 @@ public class ExternalProtoCompiler {
         "--encode=" + message,
         "-I",
         protoFile.getName() + "=" + protoFile.getAbsolutePath(), // That should be one line
-        protoFile.getName());
+        protoFile.getAbsolutePath());
   }
 
   private ImmutableList<String> decodeCommandLine(String message, File protoFile) {
@@ -149,6 +149,6 @@ public class ExternalProtoCompiler {
         "--decode=" + message,
         "-I",
         protoFile.getName() + "=" + protoFile.getAbsolutePath(), // That should be one line
-        protoFile.getName());
+        protoFile.getAbsolutePath());
   }
 }

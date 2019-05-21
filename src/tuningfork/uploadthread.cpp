@@ -32,8 +32,8 @@ namespace tuningfork {
 
 DebugBackend::~DebugBackend() {}
 
-bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
-    if (evt_ser.size() == 0) return false;
+TFErrorCode DebugBackend::Process(const ProtobufSerialization &evt_ser) {
+    if (evt_ser.size() == 0) return TFERROR_BAD_PARAMETER;
     auto encode_len = modp_b64_encode_len(evt_ser.size());
     std::vector<char> dest_buf(encode_len);
     // This fills the dest buffer with a null-terminated string. It returns the length of
@@ -42,7 +42,7 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
         evt_ser.size());
     if (n_encoded == -1 || encode_len != n_encoded+1) {
         ALOGW("Could not b64 encode protobuf");
-        return false;
+        return TFERROR_B64_ENCODE_FAILED;
     }
     std::string s(&dest_buf[0], n_encoded);
     // Split the serialization into <128-byte chunks to avoid logcat line
@@ -57,7 +57,7 @@ bool DebugBackend::Process(const ProtobufSerialization &evt_ser) {
         j += m;
         ALOGI("%s", str.str().c_str());
     }
-    return true;
+    return TFERROR_OK;
 }
 
 std::unique_ptr<DebugBackend> s_debug_backend = std::make_unique<DebugBackend>();
@@ -105,7 +105,8 @@ void UploadThread::Run() {
                                                extra_info_,
                                                evt_ser);
             if(upload_callback_) {
-                CProtobufSerialization cser = { evt_ser.data(), evt_ser.size(), nullptr};
+                CProtobufSerialization cser = { evt_ser.data(),
+                                          static_cast<uint32_t>(evt_ser.size()), nullptr};
                 upload_callback_(&cser);
             }
             backend_->Process(evt_ser);
@@ -158,7 +159,7 @@ std::string getSystemPropViaGet(const char* key) {
 }
 
 /* static */
-ExtraUploadInfo UploadThread::GetExtraUploadInfo(JNIEnv* env, jobject activity) {
+ExtraUploadInfo UploadThread::GetExtraUploadInfo(JNIEnv* env, jobject context) {
     ExtraUploadInfo extra_info;
     // Total memory
     std::string s = slurpFile("/proc/meminfo");
@@ -201,7 +202,7 @@ ExtraUploadInfo UploadThread::GetExtraUploadInfo(JNIEnv* env, jobject activity) 
         extra_info.cpu_max_freq_hz.push_back(freq*1000); // File is in kHz
     }
 
-    extra_info.apk_version_code = apk_utils::GetVersionCode(env, activity,
+    extra_info.apk_version_code = apk_utils::GetVersionCode(env, context,
         &extra_info.apk_package_name);
 
     extra_info.tuningfork_version = TUNINGFORK_PACKED_VERSION;

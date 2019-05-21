@@ -26,11 +26,11 @@ namespace tuningfork {
 
 class ClearcutBackend : public Backend {
 public:
-    // Return false if google play services are not available
-    bool Init(JNIEnv* env, jobject activity, ProtoPrint *proto_print);
+    // Return TFERROR_OK if google play services are available
+    TFErrorCode Init(JNIEnv* env, jobject context, ProtoPrint *proto_print);
 
     ~ClearcutBackend() override;
-    bool Process(const ProtobufSerialization &tuningfork_log_event) override;
+    TFErrorCode Process(const ProtobufSerialization &tuningfork_log_event) override;
 
 private:
     JavaVM* vm_;
@@ -40,7 +40,7 @@ private:
     ProtoPrint* proto_print_;
 
     bool IsGooglePlayServiceAvailable(JNIEnv* env, jobject context);
-    bool InitWithClearcut(JNIEnv* env, jobject activity, bool anonymousLogging);
+    bool InitWithClearcut(JNIEnv* env, jobject context, bool anonymousLogging);
     bool CheckException(JNIEnv* env); ///Need to check for exceptions after each JNI call
 };
 

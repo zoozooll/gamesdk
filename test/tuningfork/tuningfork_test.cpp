@@ -34,7 +34,6 @@ using namespace tuningfork;
 namespace tuningfork_test {
 
 using ::com::google::tuningfork::FidelityParams;
-using ::com::google::tuningfork::Settings;
 using ::com::google::tuningfork::Annotation;
 using ::logs::proto::tuningfork::TuningForkLogEvent;
 using ::logs::proto::tuningfork::TuningForkHistogram;
@@ -44,29 +43,32 @@ public:
     TestBackend(std::shared_ptr<std::condition_variable> cv_,
                       std::shared_ptr<std::mutex> mutex_) : cv(cv_), mutex(mutex_) {}
 
-    bool Process(const ProtobufSerialization &evt_ser) override {
+    TFErrorCode Process(const ProtobufSerialization &evt_ser) override {
         ALOGI("Process");
         {
             std::lock_guard<std::mutex> lock(*mutex);
-            TuningForkLogEvent evt;
-            Deserialize(evt_ser, evt);
-            result = evt.DebugString();
+            Deserialize(evt_ser, result);
         }
         cv->notify_all();
-        return true;
+        return TFERROR_OK;
     }
 
-    void clear() { result = ""; }
+    void clear() { result = {}; }
 
-    std::string result;
+    TuningForkLogEvent result;
     std::shared_ptr<std::condition_variable> cv;
     std::shared_ptr<std::mutex> mutex;
 };
 
 class TestParamsLoader : public ParamsLoader {
 public:
-    bool GetFidelityParams(ProtobufSerialization &fidelity_params, size_t timeout_ms) override {
-        return false;
+    TFErrorCode GetFidelityParams(JNIEnv* env, jobject context,
+                                  const ExtraUploadInfo& info,
+                                  const std::string& url_base,
+                                  const std::string& api_key,
+                                  ProtobufSerialization &fidelity_params,
+                                  std::string& experiment_id, uint32_t timeout_ms) override {
+        return TFERROR_NO_FIDELITY_PARAMS;
     }
 };
 
@@ -90,50 +92,46 @@ std::shared_ptr<std::mutex> rmutex = std::make_shared<std::mutex>();
 TestBackend testBackend(cv, rmutex);
 TestParamsLoader paramsLoader;
 TestTimeProvider timeProvider;
+ExtraUploadInfo extra_upload_info = {};
 
-struct HistogramSettings {
-    float start, end;
-    int nBuckets;
-};
-Settings TestSettings(Settings::AggregationStrategy::Submission method, int n_ticks, int n_keys,
+TFSettings TestSettings(TFAggregationStrategy::TFSubmissionPolicy method, int n_ticks, int n_keys,
                       std::vector<int> annotation_size,
-                      const std::vector<HistogramSettings>& hists = {}) {
+                      const std::vector<TFHistogram>& hists = {}) {
     // Make sure we set all required fields
-    Settings s;
-    s.mutable_aggregation_strategy()->set_method(method);
-    s.mutable_aggregation_strategy()->set_intervalms_or_count(n_ticks);
-    s.mutable_aggregation_strategy()->set_max_instrumentation_keys(n_keys);
-    for(int i=0;i<annotation_size.size();++i)
-        s.mutable_aggregation_strategy()->add_annotation_enum_size(annotation_size[i]);
-    int i=0;
-    for(auto& h: hists) {
-        auto sh = s.add_histograms();
-        sh->set_bucket_min(h.start);
-        sh->set_bucket_max(h.end);
-        sh->set_n_buckets(h.nBuckets);
-        sh->set_instrument_key(i++);
-    }
+    TFSettings s;
+    s.aggregation_strategy.method = method;
+    s.aggregation_strategy.intervalms_or_count = n_ticks;
+    s.aggregation_strategy.max_instrumentation_keys = n_keys;
+    s.aggregation_strategy.n_annotation_enum_size = annotation_size.size();
+    auto n_ann_bytes = sizeof(uint32_t)*annotation_size.size();
+    s.aggregation_strategy.annotation_enum_size = (uint32_t*)malloc(n_ann_bytes);
+    memcpy(s.aggregation_strategy.annotation_enum_size, annotation_size.data(), n_ann_bytes);
+    s.n_histograms = hists.size();
+    auto n_hist_bytes = sizeof(TFHistogram)*hists.size();
+    s.histograms = (TFHistogram*)malloc(n_hist_bytes);
+    memcpy(s.histograms, hists.data(), n_hist_bytes);
     return s;
 }
 const Duration test_wait_time = std::chrono::seconds(1);
-std::string TestEndToEnd() {
+const TuningForkLogEvent& TestEndToEnd() {
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
-    auto settings = TestSettings(Settings::AggregationStrategy::TICK_BASED, NTICKS - 1, 1, {});
-    tuningfork::Init(Serialize(settings), &testBackend, &paramsLoader, &timeProvider);
+    auto settings = TestSettings(TFAggregationStrategy::TICK_BASED, NTICKS - 1, 1, {});
+    tuningfork::Init(settings, extra_upload_info, &testBackend, &paramsLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSCPU);
     // Wait for the upload thread to complete writing the string
     EXPECT_TRUE(cv->wait_for(lock, test_wait_time)==std::cv_status::no_timeout) << "Timeout";
+
     return testBackend.result;
 }
 
-std::string TestEndToEndWithAnnotation() {
+const TuningForkLogEvent& TestEndToEndWithAnnotation() {
     testBackend.clear();
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     // {3} is the number of values in the Level enum in tuningfork_extensions.proto
-    auto settings = TestSettings(Settings::AggregationStrategy::TICK_BASED, NTICKS - 1, 2, {3});
-    tuningfork::Init(Serialize(settings), &testBackend, &paramsLoader, &timeProvider);
+    auto settings = TestSettings(TFAggregationStrategy::TICK_BASED, NTICKS - 1, 2, {3});
+    tuningfork::Init(settings, extra_upload_info, &testBackend, &paramsLoader, &timeProvider);
     Annotation ann;
     ann.set_level(com::google::tuningfork::LEVEL_1);
     tuningfork::SetCurrentAnnotation(Serialize(ann));
@@ -145,12 +143,13 @@ std::string TestEndToEndWithAnnotation() {
     return testBackend.result;
 }
 
-std::string TestEndToEndTimeBased() {
+const TuningForkLogEvent& TestEndToEndTimeBased() {
     testBackend.clear();
     const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
     TestTimeProvider timeProvider(std::chrono::milliseconds(100)); // Tick in 100ms intervals
-    auto settings = TestSettings(Settings::AggregationStrategy::TIME_BASED, 10100, 1, {}, {{50,150,10}});
-    tuningfork::Init(Serialize(settings), &testBackend, &paramsLoader, &timeProvider);
+    auto settings = TestSettings(TFAggregationStrategy::TIME_BASED, 10100, 1, {},
+                                 {{TFTICK_SYSCPU, 50,150,10}});
+    tuningfork::Init(settings, extra_upload_info, &testBackend, &paramsLoader, &timeProvider);
     std::unique_lock<std::mutex> lock(*rmutex);
     for (int i = 0; i < NTICKS; ++i)
         tuningfork::FrameTick(TFTICK_SYSCPU);
@@ -159,46 +158,55 @@ std::string TestEndToEndTimeBased() {
     return testBackend.result;
 }
 
-std::string TestEndToEndWithStaticHistogram() {
-    testBackend.clear();
-    const int NTICKS = 101; // note the first tick doesn't add anything to the histogram
-    TestTimeProvider timeProvider(std::chrono::milliseconds(100)); // Tick in 100ms intervals
-    auto settings = TestSettings(Settings::AggregationStrategy::TIME_BASED,
-                                 10100, 1, {}, {{98, 102, 10}});
-    tuningfork::Init(Serialize(settings), &testBackend, &paramsLoader, &timeProvider);
-    std::unique_lock<std::mutex> lock(*rmutex);
-    for (int i = 0; i < NTICKS; ++i)
-        tuningfork::FrameTick(TFTICK_SYSCPU);
-    // Wait for the upload thread to complete writing the string
-    EXPECT_TRUE(cv->wait_for(lock, test_wait_time)==std::cv_status::no_timeout) << "Timeout";
-    return testBackend.result;
+void CheckEvent(const std::string& name, const TuningForkLogEvent& result,
+                const TuningForkLogEvent& expected) {
+    EXPECT_EQ(result.histograms_size(), expected.histograms_size()) << name << ": N histograms";
+    auto n_hist = result.histograms_size();
+    for(int i=0;i<n_hist;++i) {
+        auto& a = result.histograms(i);
+        auto& b = expected.histograms(i);
+        EXPECT_EQ(a.instrument_id(), b.instrument_id()) << name << ": histogram " << i << " id";
+        ASSERT_EQ(a.counts_size(), b.counts_size()) << name << ": histogram " << i << " counts";
+        for(int c=0;c<a.counts_size(); ++c) {
+            EXPECT_EQ(a.counts(c), b.counts(c)) << name << ": histogram " << i << " count " << c;
+        }
+        ASSERT_EQ(a.has_annotation(), b.has_annotation()) << name << ": annotation";
+        if(a.has_annotation()) {
+            EXPECT_EQ(a.annotation(), b.annotation()) << name << ": annotation value";
+        }
+    }
 }
 
 TEST(TuningForkTest, EndToEnd) {
-  EXPECT_EQ(TestEndToEnd(), "histograms {\n  instrument_id: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 100\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n}\n") << "Base test failed";
+    auto& result = TestEndToEnd();
+    TuningForkLogEvent expected = {};
+    auto h = expected.add_histograms();
+    h->set_instrument_id(TFTICK_SYSCPU);
+    for(int i=0;i<32;++i)
+        h->add_counts(i==11?100:0);
+    CheckEvent("Base", result, expected);
 }
+
 TEST(TuningForkTest, TestEndToEndWithAnnotation) {
-  EXPECT_EQ(TestEndToEndWithAnnotation(), "histograms {\n  instrument_id: 1\n  annotation: \"\\010\\001\"\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 100\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n}\n") << "Annotation test failed";
+    auto& result = TestEndToEndWithAnnotation();
+    TuningForkLogEvent expected = {};
+    auto h = expected.add_histograms();
+    h->set_instrument_id(TFTICK_SYSGPU);
+    for(int i=0;i<32;++i)
+        h->add_counts(i==11?100:0);
+    char ann[] = "\010\001";
+    h->set_annotation(ann);
+    CheckEvent("Annotation", result, expected);
 }
+
 TEST(TuningForkTest, TestEndToEndTimeBased) {
-  EXPECT_EQ(TestEndToEndTimeBased(), "histograms {\n  instrument_id: 0\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 100\n  counts: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n}\n") << "Base test failed";
-}
-TEST(TuningForkTest, TestEndToEndWithStaticHistogram) {
-  EXPECT_EQ(TestEndToEndWithStaticHistogram(), "histograms {\n  instrument_id: 0\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n  counts: 0\n  counts: 100\n  counts: 0\n  counts: 0\n"
-            "  counts: 0\n  counts: 0\n  counts: 0\n}\n") << "Base test failed";
+    auto& result = TestEndToEndTimeBased();
+    TuningForkLogEvent expected = {};
+    auto h = expected.add_histograms();
+    h->set_instrument_id(TFTICK_SYSCPU);
+    for(int i=0;i<12;++i)
+        h->add_counts(i==6?100:0);
+    CheckEvent("TimeBased", result, expected);
 }
 
 } // namespace tuningfork_test

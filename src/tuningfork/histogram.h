@@ -38,7 +38,7 @@ public:
     static constexpr int kDefaultNumBuckets = 30;
 
     explicit Histogram(float start_ms = 0, float end_ms = 0, int num_buckets_between = kDefaultNumBuckets);
-    explicit Histogram(const Settings::Histogram&);
+    explicit Histogram(const TFHistogram&);
 
     // Add a sample delta time
     void Add(Sample dt_ms);
@@ -55,6 +55,11 @@ public:
     // Use the data we have to construct the bucket ranges. This is called automatically after
     //  sizeAtWhichToRange samples have been collected, if we are auto-ranging.
     void CalcBucketsFromSamples();
+
+    // Only to be used for testing
+    void SetCounts(const std::vector<uint32_t>& counts) {
+        buckets_ = counts;
+    }
 
     friend class ClearcutSerializer;
 };

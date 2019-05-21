@@ -28,7 +28,7 @@ namespace apk_utils {
     // Get an asset from this APK's asset directory.
     // Returns NULL if the asset could not be found.
     // Asset_close must be called once the asset is no longer needed.
-    AAsset* GetAsset(JNIEnv* env, jobject activity, const char* name);
+    AAsset* GetAsset(JNIEnv* env, jobject context, const char* name);
 
     // Get the app's version code. Also fills packageNameStr, if not null, with
     // the package name.
@@ -44,8 +44,10 @@ namespace file_utils {
 
     bool FileExists(const std::string& fname);
 
-    // Call NativeActivity.getCacheDir via JNI
-    std::string GetAppCacheDir(JNIEnv* env, jobject activity);
+    bool DeleteFile(const std::string& path);
+
+    // Call NativeContext.getCacheDir via JNI
+    std::string GetAppCacheDir(JNIEnv* env, jobject context);
 
 } // namespace file_utils
 

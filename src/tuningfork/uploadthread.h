@@ -49,15 +49,17 @@ private:
     // Returns true if we submitted, false if we are waiting for a previous submit to complete
     bool Submit(const ProngCache *prongs);
 
-    void SetCurrentFidelityParams(const ProtobufSerialization &fp) {
+    void SetCurrentFidelityParams(const ProtobufSerialization &fp,
+                                  const std::string& experiment_id) {
         current_fidelity_params_ = fp;
+        extra_info_.experiment_id = experiment_id;
     }
 
     void SetUploadCallback(ProtoCallback upload_callback) {
         upload_callback_ = upload_callback;
     }
 
-    static ExtraUploadInfo GetExtraUploadInfo(JNIEnv* env, jobject activity);
+    static ExtraUploadInfo GetExtraUploadInfo(JNIEnv* env, jobject context);
 
  private:
     void UpdateGLVersion();

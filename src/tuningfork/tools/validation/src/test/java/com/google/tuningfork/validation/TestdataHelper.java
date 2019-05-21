@@ -55,7 +55,7 @@ public class TestdataHelper {
   }
 
   public static InputStream openStream(String fileName) {
-    InputStream is = TestdataHelper.class.getResourceAsStream(FOLDER + fileName);
+    InputStream is = TestdataHelper.class.getClassLoader().getResourceAsStream(FOLDER + fileName);
     checkArgument(is != null, "Testdata file '%s' not found.", fileName);
     return is;
   }

@@ -42,7 +42,7 @@ bool VectorStream::Read(pb_istream_t *stream, uint8_t *buf, size_t count) {
     return n==count;
 }
 bool VectorStream::Write(pb_ostream_t *stream, const uint8_t *buf, size_t count) {
-    if(buf==NULL)
+    if (buf==NULL || count==0)
         return true;
     VectorStream* str = (VectorStream*)(stream->state);
     auto vec = str->vec;
@@ -52,14 +52,44 @@ bool VectorStream::Write(pb_ostream_t *stream, const uint8_t *buf, size_t count)
     std::copy(buf, buf+count, &(*vec)[sz]);
     return true;
 }
-
-void CProtobufSerialization_Free(CProtobufSerialization* ser) {
-    if(ser && ser->dealloc && ser->bytes) {
-        ser->dealloc(ser->bytes);
-        ser->bytes = 0;
-        ser->size = 0;
-        ser->dealloc = 0;
+bool ByteStream::Read(pb_istream_t *stream, uint8_t *buf, size_t count) {
+    ByteStream* str = (ByteStream*)(stream->state);
+    if (buf==NULL) {
+        if(count > str->size - str->it) {
+            str->it = str->size;
+            return false;
+        }
+        else {
+            str->it += count;
+            return true;
+        }
     }
+    auto p = &str->vec[str->it];
+    auto n = std::min(count, str->size - str->it);
+    std::copy(p, p + n, buf);
+    str->it += n;
+    return n==count;
+}
+bool ByteStream::Write(pb_ostream_t *stream, const uint8_t *buf, size_t count) {
+    if (buf==NULL || count==0)
+        return true;
+    ByteStream* str = (ByteStream*)(stream->state);
+    int b = buf[0];
+    auto sz = str->size;
+    if(str->vec)
+        str->vec = static_cast<uint8_t*>(::realloc(str->vec, sz+count));
+    else
+        str->vec = static_cast<uint8_t*>(::malloc(sz+count));
+    std::copy(buf, buf+count, &str->vec[sz]);
+    return true;
 }
 
 } // namespace tuningfork {
+
+extern "C" void CProtobufSerialization_Dealloc(CProtobufSerialization* c) {
+    if(c->bytes) {
+        ::free(c->bytes);
+        c->bytes = nullptr;
+        c->size = 0;
+    }
+}

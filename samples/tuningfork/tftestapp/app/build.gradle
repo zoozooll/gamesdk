@@ -3,10 +3,10 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 28
     defaultConfig {
-        applicationId "com.google.tuningfork"
+        applicationId "com.tuningfork.demoapp"
         minSdkVersion 16
         targetSdkVersion 28
-        versionCode 1
+        versionCode 16
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
@@ -37,9 +37,20 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 }
 
-task buildTuningForkBinFiles(type: Exec) {
-    exec {
-        workingDir 'src/main/assets/tuningfork'
-        commandLine 'make'
-    }
+task createJar(type: GradleBuild) {
+    buildFile = '../../../../src/tuningfork/tools/validation/build.gradle'
+    tasks = ['createJar']
 }
+
+task buildTuningForkBinFiles(type: Exec) {
+    dependsOn createJar
+    commandLine "java",
+            "-jar",
+            "../../../../src/tuningfork/tools/validation/build/libs/TuningforkApkValidationTool.jar",
+            "--tuningforkPath",
+            "src/main/assets/tuningfork",
+            "--protoCompiler",
+            "../../../../third_party/protobuf-3.0.0/install/linux-x86/bin/protoc"
+}
+
+tasks.preBuild.dependsOn("buildTuningForkBinFiles")

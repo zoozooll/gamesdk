@@ -59,7 +59,7 @@
 #include "linmath.h"
 #include "object_type_string_helper.h"
 
-#include <swappyVk/SwappyVk.h>
+#include <swappy/swappyVk.h>
 
 #include "gettime.h"
 #include "inttypes.h"
@@ -1480,16 +1480,9 @@ static void demo_prepare_buffers(struct demo *demo) {
 
     assert(SwappyVk_initAndGetRefreshCycleDuration(demo->gpu, demo->device, demo->swapchain,
                                            &demo->refresh_duration));
-    if (demo->refresh_duration > (16 * MILLION)) {
-        // Likely a 60Hz display--need a swap interval of 2 for 30FPS:
-        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 2);
-    } else if (demo->refresh_duration > (10 * MILLION)) {
-        // Likely a 90Hz display--need a swap interval of 3 for 30FPS:
-        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 3);
-    } else {
-        // Likely a 120Hz display--need a swap interval of 4 for 30FPS:
-        SwappyVk_setSwapInterval(demo->device, demo->swapchain, 4);
-    }
+
+    // Refresh rate of this demo is locked to 30 FPS.
+    SwappyVk_setSwapIntervalNS(demo->device, demo->swapchain, SWAPPY_SWAP_30FPS);
 
     if (NULL != presentModes) {
         free(presentModes);
@@ -3340,7 +3333,7 @@ static void demo_init_vk(struct demo *demo) {
         char **swappy_required_extension_names;
         SwappyVk_determineDeviceExtensions(demo->gpu, device_extension_count, device_extensions,
                                           &swappy_required_extension_count, NULL);
-        swappy_required_extension_names = malloc(swappy_required_extension_count);
+        swappy_required_extension_names = malloc(swappy_required_extension_count * sizeof(char*));
         for (uint32_t i = 0; i < swappy_required_extension_count; i++) {
             swappy_required_extension_names[i] = malloc(VK_MAX_EXTENSION_NAME_SIZE + 1);
         }

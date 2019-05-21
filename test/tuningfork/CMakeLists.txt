@@ -22,6 +22,10 @@ protobuf_generate_full_cpp( ${CMAKE_CURRENT_SOURCE_DIR}/proto
   proto/tuningfork_clearcut_log.proto
   proto/dev_tuningfork.proto
 )
+protobuf_generate_nano_c( ${CMAKE_CURRENT_SOURCE_DIR}/proto
+  proto/dev_tuningfork.proto
+  proto/tuningfork_clearcut_log.proto
+)
 
 message( STATUS "B CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 add_subdirectory("../../src/tuningfork"
@@ -44,6 +48,9 @@ add_executable(tuningfork_test
   histogram_test.cpp
   tuningfork_test.cpp
   annotation_test.cpp
+  serialization_test.cpp
+  ${PGENS_DIR}/nano/tuningfork_clearcut_log.pb.c
+  ${PGENS_DIR}/nano/dev_tuningfork.pb.c
   ${PGENS_DIR}/full/dev_tuningfork.pb.cc
   ${PGENS_DIR}/full/tuningfork.pb.cc
   ${PGENS_DIR}/full/tuningfork_clearcut_log.pb.cc
@@ -51,11 +58,13 @@ add_executable(tuningfork_test
 add_library( protobuf-static
   STATIC ${PROTOBUF_LITE_SRCS} ${PROTOBUF_SRCS}
 )
-target_compile_options(protobuf-static PUBLIC "-Wno-tautological-constant-compare" "-Wno-enum-compare-switch")
+target_compile_options(protobuf-static PUBLIC "-Wno-tautological-constant-compare"
+                                              "-Wno-enum-compare-switch")
 
 target_link_libraries(tuningfork_test
   gtest
   tuningfork_static
   protobuf-static
   log
+  GLESv2
 )

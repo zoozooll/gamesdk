@@ -60,7 +60,7 @@ void WriteBase128IntToStream(uint64_t x, std::vector<uint8_t> &bytes) {
 }
 
 AnnotationId DecodeAnnotationSerialization(const SerializedAnnotation &ser,
-                                           const std::vector<int>& radix_mult) {
+                                           const std::vector<uint32_t>& radix_mult) {
     AnnotationId result = 0;
     for (int i = 0; i < ser.size(); ++i) {
         int key = GetKeyIndex(ser[i]);
@@ -90,30 +90,30 @@ AnnotationId DecodeAnnotationSerialization(const SerializedAnnotation &ser,
     return result;
 }
 
-int SerializeAnnotationId(uint64_t id, SerializedAnnotation& ser,
-                          const std::vector<int>& radix_mult) {
-  int err = 0;
-  uint64_t x = id;
-  for (int i = 0; i < radix_mult.size(); ++i) {
-    auto r = ::div(x, radix_mult[i]);
-    int value = r.rem;
-    if (value > 0) {
-      int key = (i + 1) << 3;
-      ser.push_back(key);
-      WriteBase128IntToStream(value, ser);
+ErrorCode SerializeAnnotationId(uint64_t id, SerializedAnnotation& ser,
+                          const std::vector<uint32_t>& radix_mult) {
+    int err = 0;
+    uint64_t x = id;
+    for (int i = 0; i < radix_mult.size(); ++i) {
+        auto r = ::lldiv(x, (uint64_t)radix_mult[i]);
+        int value = r.rem;
+        if (value > 0) {
+            int key = (i + 1) << 3;
+            ser.push_back(key);
+            WriteBase128IntToStream(value, ser);
+        }
+        x = r.quot;
     }
-    x = r.quot;
-  }
-  return err;
+    return NO_ERROR;
 }
 
-void SetUpAnnotationRadixes( std::vector<int>& radix_mult,
-                             const std::vector<int>& enum_sizes) {
+void SetUpAnnotationRadixes( std::vector<uint32_t>& radix_mult,
+                             const std::vector<uint32_t>& enum_sizes) {
     ALOGV("Settings::annotation_enum_size");
     for(int i=0; i< enum_sizes.size();++i) {
-      ALOGV("%d", enum_sizes[i]);
+        ALOGV("%d", enum_sizes[i]);
     }
-    int n = enum_sizes.size();
+    auto n = enum_sizes.size();
     if (n == 0) {
         // With no annotations, we just have 1 possible prong per key
         radix_mult.resize(1);
