@@ -223,6 +223,13 @@ void SwappyVk_setAutoSwapInterval(bool enabled);
  */
 void SwappyVk_setAutoPipelineMode(bool enabled);
 
+/**
+ * The fence timeout parameter can be set for devices with faulty
+ * drivers. Its default value is 50,000,000.
+ */
+void SwappyVk_setFenceTimeoutNS(uint64_t fence_timeout_ns);
+uint64_t SwappyVk_getFenceTimeoutNS();
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -184,4 +184,16 @@ void SwappyVk::SetAutoPipelineMode(bool enabled) {
     }
 }
 
+void SwappyVk::SetFenceTimeout(std::chrono::nanoseconds t) {
+    for(auto i : perDeviceImplementation) {
+        i.second->setFenceTimeout(t);
+    }
+}
+std::chrono::nanoseconds SwappyVk::GetFenceTimeout() const {
+    auto it = perDeviceImplementation.begin();
+    if (it != perDeviceImplementation.end())
+        return it->second->getFenceTimeout();
+    return std::chrono::nanoseconds(0);
+}
+
 }  // namespace swappy

@@ -215,6 +215,24 @@ void SwappyGL::destroyInstance() {
     sInstance.reset();
 }
 
+void SwappyGL::setFenceTimeout(std::chrono::nanoseconds t) {
+    SwappyGL *swappy = getInstance();
+    if (!swappy) {
+        ALOGE("Failed to get SwappyGL instance in setFenceTimeout");
+        return;
+    }
+    swappy->mCommonBase.setFenceTimeout(t);
+}
+
+std::chrono::nanoseconds SwappyGL::getFenceTimeout() {
+    SwappyGL *swappy = getInstance();
+    if (!swappy) {
+        ALOGE("Failed to get SwappyGL instance in getFenceTimeout");
+        return std::chrono::nanoseconds(0);
+    }
+    return swappy->mCommonBase.getFenceTimeout();
+}
+
 EGL *SwappyGL::getEgl() {
     static thread_local EGL *egl = nullptr;
     if (!egl) {
@@ -241,7 +259,7 @@ SwappyGL::SwappyGL(JNIEnv *env, jobject jactivity, ConstructorTag)
     }
 
     std::lock_guard<std::mutex> lock(mEglMutex);
-    mEgl = EGL::create(mCommonBase.getRefreshPeriod());
+    mEgl = EGL::create(mCommonBase.getRefreshPeriod(), mCommonBase.getFenceTimeout());
     if (!mEgl) {
         ALOGE("Failed to load EGL functions");
         mEnableSwappy = false;

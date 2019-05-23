@@ -101,4 +101,16 @@ void SwappyVk_setAutoPipelineMode(bool enabled) {
     swappy.SetAutoPipelineMode(enabled);
 }
 
+void SwappyVk_setFenceTimeoutNS(uint64_t fence_timeout_ns) {
+    TRACE_CALL();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
+    swappy.SetFenceTimeout(std::chrono::nanoseconds(fence_timeout_ns));
+}
+
+uint64_t SwappyVk_getFenceTimeoutNS() {
+    TRACE_CALL();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
+    return swappy.GetFenceTimeout().count();
+}
+
 }  // extern "C"

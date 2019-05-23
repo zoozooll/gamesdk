@@ -119,6 +119,9 @@ public:
     void setAutoSwapInterval(bool enabled);
     void setAutoPipelineMode(bool enabled);
 
+    void setFenceTimeout(std::chrono::nanoseconds duration);
+    std::chrono::nanoseconds getFenceTimeout() const;
+
 protected:
     struct VkSync {
         VkFence fence;

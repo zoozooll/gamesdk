@@ -48,11 +48,13 @@ bool SwappyGL_swap(EGLDisplay display, EGLSurface surface);
 void SwappyGL_setRefreshPeriod(uint64_t period_ns);
 void SwappyGL_setUseAffinity(bool tf);
 void SwappyGL_setSwapIntervalNS(uint64_t swap_ns);
+void SwappyGL_setFenceTimeoutNS(uint64_t fence_timeout_ns);
 
 // Parameter getters
 uint64_t SwappyGL_getRefreshPeriodNanos();
 uint64_t SwappyGL_getSwapIntervalNS();
 bool SwappyGL_getUseAffinity();
+uint64_t SwappyGL_getFenceTimeoutNS();
 
 #ifdef __cplusplus
 };

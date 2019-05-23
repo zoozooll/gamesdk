@@ -62,6 +62,9 @@ class SwappyGL {
     static bool isEnabled();
     static void destroyInstance();
 
+    static void setFenceTimeout(std::chrono::nanoseconds t);
+    static std::chrono::nanoseconds getFenceTimeout();
+
 private:
     static SwappyGL *getInstance();
 

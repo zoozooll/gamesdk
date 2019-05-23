@@ -96,4 +96,12 @@ bool SwappyGL_isEnabled() {
     return SwappyGL::isEnabled();
 }
 
+void SwappyGL_setFenceTimeoutNS(uint64_t t) {
+    SwappyGL::setFenceTimeout(std::chrono::nanoseconds(t));
+}
+
+uint64_t SwappyGL_getFenceTimeoutNS() {
+    return SwappyGL::getFenceTimeout().count();
+}
+
 } // extern "C" {

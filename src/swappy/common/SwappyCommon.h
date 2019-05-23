@@ -70,6 +70,8 @@ public:
 
     bool isValid() { return mValid; }
 
+    std::chrono::nanoseconds getFenceTimeout() const { return mFenceTimeout; }
+    void setFenceTimeout(std::chrono::nanoseconds t) { mFenceTimeout = t; }
 private:
     class FrameDuration {
     public:
@@ -192,6 +194,8 @@ private:
     bool mPipelineMode = false;
 
     bool mValid;
+
+    std::chrono::nanoseconds mFenceTimeout = std::chrono::nanoseconds(50ms);
 };
 
 } //namespace swappy
