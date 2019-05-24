@@ -107,7 +107,10 @@ TFErrorCode TuningFork_flush() {
 }
 
 void TUNINGFORK_VERSION_SYMBOL() {
-    // Intentionally empty
+    // Intentionally empty: this function is used to ensure that the proper
+    // version of the library is linked against the proper headers.
+    // In case of mismatch, a linker error will be triggered because of an
+    // undefined symbol, as the name of the function depends on the version.
 }
 
 } // extern "C" {
