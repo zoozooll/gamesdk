@@ -252,6 +252,14 @@ VkResult SwappyVkBase::injectFence(VkQueue                 queue,
     return res;
 }
 
+void SwappyVkBase::setAutoSwapInterval(bool enabled) {
+    mCommonBase.setAutoSwapInterval(enabled);
+}
+
+void SwappyVkBase::setAutoPipelineMode(bool enabled) {
+    mCommonBase.setAutoPipelineMode(enabled);
+}
+
 void SwappyVkBase::waitForFenceThreadMain(VkQueue queue) {
     ThreadContext& thread = *mThreads[queue];
 

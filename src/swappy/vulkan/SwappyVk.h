@@ -75,6 +75,9 @@ public:
     void DestroySwapchain(VkDevice                device,
                           VkSwapchainKHR          swapchain);
 
+    void SetAutoSwapInterval(bool enabled);
+    void SetAutoPipelineMode(bool enabled);
+
 private:
     std::map<VkPhysicalDevice, bool> doesPhysicalDeviceHaveGoogleDisplayTiming;
     std::map<VkDevice, std::shared_ptr<SwappyVkBase>> perDeviceImplementation;

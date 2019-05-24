@@ -115,6 +115,10 @@ public:
                          VkSemaphore*            pSemaphore);
 
     bool isEnabled() { return mEnabled; }
+
+    void setAutoSwapInterval(bool enabled);
+    void setAutoPipelineMode(bool enabled);
+
 protected:
     struct VkSync {
         VkFence fence;

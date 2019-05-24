@@ -89,4 +89,16 @@ void SwappyVk_destroySwapchain(
     swappy.DestroySwapchain(device, swapchain);
 }
 
+void SwappyVk_setAutoSwapInterval(bool enabled) {
+    TRACE_CALL();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
+    swappy.SetAutoSwapInterval(enabled);
+}
+
+void SwappyVk_setAutoPipelineMode(bool enabled) {
+    TRACE_CALL();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
+    swappy.SetAutoPipelineMode(enabled);
+}
+
 }  // extern "C"

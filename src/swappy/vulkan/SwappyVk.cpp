@@ -172,4 +172,16 @@ void SwappyVk::DestroySwapchain(VkDevice                device,
     perSwapchainImplementation[swapchain] = nullptr;
 }
 
+void SwappyVk::SetAutoSwapInterval(bool enabled) {
+    for (auto i : perSwapchainImplementation) {
+        i.second->setAutoSwapInterval(enabled);
+    }
+}
+
+void SwappyVk::SetAutoPipelineMode(bool enabled) {
+    for (auto i : perSwapchainImplementation) {
+        i.second->setAutoPipelineMode(enabled);
+    }
+}
+
 }  // namespace swappy
