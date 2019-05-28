@@ -524,6 +524,11 @@ struct demo {
 
     uint32_t current_buffer;
     uint32_t queue_family_count;
+
+    struct {
+        JavaVM* vm;
+        jobject jactivity;
+    } swappy_init_data;
 };
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -1478,8 +1483,14 @@ static void demo_prepare_buffers(struct demo *demo) {
         demo->next_present_id = 1;
     }
 
-    assert(SwappyVk_initAndGetRefreshCycleDuration(demo->gpu, demo->device, demo->swapchain,
-                                           &demo->refresh_duration));
+    JavaVM* vm = demo->swappy_init_data.vm;
+    assert(vm);
+    JNIEnv *env;
+    (*vm)->AttachCurrentThread(vm, &env, NULL);
+    assert(SwappyVk_initAndGetRefreshCycleDuration(env,
+                                                   demo->swappy_init_data.jactivity,
+                                                   demo->gpu, demo->device, demo->swapchain,
+                                                   &demo->refresh_duration));
 
     // Refresh rate of this demo is locked to 30 FPS.
     SwappyVk_setSwapIntervalNS(demo->device, demo->swapchain, SWAPPY_SWAP_30FPS);
@@ -4001,6 +4012,8 @@ static void processCommand(struct android_app *app, int32_t cmd) {
                 for (int i = 0; i < argc; i++) __android_log_print(ANDROID_LOG_INFO, appTag, "argv[%i] = %s", i, argv[i]);
 
                 demo_init(&demo, argc, argv);
+                demo.swappy_init_data.vm        = app->activity->vm;
+                demo.swappy_init_data.jactivity = app->activity->clazz;
 
                 // Free the argv malloc'd by get_args
                 for (int i = 0; i < argc; i++) free(argv[i]);

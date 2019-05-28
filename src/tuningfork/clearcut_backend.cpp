@@ -94,15 +94,9 @@ TFErrorCode ClearcutBackend::Init(JNIEnv *env, jobject context, ProtoPrint* prot
         return TFERROR_JNI_BAD_JVM;
     }
 
-    try {
-        bool inited = InitWithClearcut(env, context, false);
-        ALOGI("Clearcut status: %s available", inited ? "" : "not");
-        return  inited ? TFERROR_OK : TFERROR_NO_CLEARCUT;
-    } catch (const std::exception& e) {
-        ALOGI("Clearcut status: not available");
-        return TFERROR_NO_CLEARCUT;
-    }
-
+    bool inited = InitWithClearcut(env, context, false);
+    ALOGI("Clearcut status: %s available", inited ? "" : "not");
+    return  inited ? TFERROR_OK : TFERROR_NO_CLEARCUT;
 }
 
 bool ClearcutBackend::IsGooglePlayServiceAvailable(JNIEnv* env, jobject context) {

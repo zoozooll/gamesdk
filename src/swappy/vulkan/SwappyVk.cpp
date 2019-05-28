@@ -51,8 +51,8 @@ void SwappyVk::swappyVkDetermineDeviceExtensions(
 }
 
 void SwappyVk::SetQueueFamilyIndex(VkDevice   device,
-                                    VkQueue    queue,
-                                    uint32_t   queueFamilyIndex)
+                                   VkQueue    queue,
+                                   uint32_t   queueFamilyIndex)
 {
     perQueueFamilyIndex[queue] = {device, queueFamilyIndex};
 }
@@ -61,7 +61,9 @@ void SwappyVk::SetQueueFamilyIndex(VkDevice   device,
 /**
  * Generic/Singleton implementation of swappyVkGetRefreshCycleDuration.
  */
-bool SwappyVk::GetRefreshCycleDuration(VkPhysicalDevice physicalDevice,
+bool SwappyVk::GetRefreshCycleDuration(JNIEnv           *env,
+                                       jobject          jactivity,
+                                       VkPhysicalDevice physicalDevice,
                                        VkDevice         device,
                                        VkSwapchainKHR   swapchain,
                                        uint64_t*        pRefreshDuration)
@@ -84,11 +86,11 @@ bool SwappyVk::GetRefreshCycleDuration(VkPhysicalDevice physicalDevice,
         // determine which derived class to use to implement the rest of the API
         if (doesPhysicalDeviceHaveGoogleDisplayTiming[physicalDevice]) {
             pImplementation = std::make_shared<SwappyVkGoogleDisplayTiming>
-                    (physicalDevice, device, mLibVulkan);
+                    (env, jactivity, physicalDevice, device, mLibVulkan);
             ALOGV("SwappyVk initialized for VkDevice %p using VK_GOOGLE_display_timing on Android", device);
         } else {
             pImplementation = std::make_shared<SwappyVkFallback>
-                    (physicalDevice, device, mLibVulkan);
+                    (env, jactivity, physicalDevice, device, mLibVulkan);
             ALOGV("SwappyVk initialized for VkDevice %p using Android fallback", device);
         }
 
@@ -103,7 +105,8 @@ bool SwappyVk::GetRefreshCycleDuration(VkPhysicalDevice physicalDevice,
     perSwapchainImplementation[swapchain] = pImplementation;
 
     // Now, call that derived class to get the refresh duration to return
-    return pImplementation->doGetRefreshCycleDuration(swapchain, pRefreshDuration);
+    return pImplementation->doGetRefreshCycleDuration(swapchain,
+                                                      pRefreshDuration);
 }
 
 
@@ -167,6 +170,18 @@ void SwappyVk::DestroySwapchain(VkDevice                device,
 
     perDeviceImplementation[device] = nullptr;
     perSwapchainImplementation[swapchain] = nullptr;
+}
+
+void SwappyVk::SetAutoSwapInterval(bool enabled) {
+    for (auto i : perSwapchainImplementation) {
+        i.second->setAutoSwapInterval(enabled);
+    }
+}
+
+void SwappyVk::SetAutoPipelineMode(bool enabled) {
+    for (auto i : perSwapchainImplementation) {
+        i.second->setAutoPipelineMode(enabled);
+    }
 }
 
 }  // namespace swappy

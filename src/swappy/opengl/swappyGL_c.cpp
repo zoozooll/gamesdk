@@ -28,7 +28,7 @@ using namespace swappy;
 
 extern "C" {
 
-void SwappyGL_init(JNIEnv *env, jobject jactivity) {
+void SwappyGL_init_internal(JNIEnv *env, jobject jactivity) {
     SwappyGL::init(env, jactivity);
 }
 

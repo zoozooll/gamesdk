@@ -37,6 +37,7 @@ add_library( swappy_static
              ${SOURCE_LOCATION_COMMON}/Settings.cpp
              ${SOURCE_LOCATION_COMMON}/Thread.cpp
              ${SOURCE_LOCATION_COMMON}/SwappyCommon.cpp
+             ${SOURCE_LOCATION_COMMON}/swappy_c.cpp
              ${SOURCE_LOCATION_OPENGL}/EGL.cpp
              ${SOURCE_LOCATION_OPENGL}/swappyGL_c.cpp
              ${SOURCE_LOCATION_OPENGL}/SwappyGL.cpp
