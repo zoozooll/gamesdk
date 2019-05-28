@@ -60,7 +60,9 @@ namespace swappy {
 class SwappyVkGoogleDisplayTiming : public SwappyVkBase
 {
 public:
-    SwappyVkGoogleDisplayTiming(VkPhysicalDevice physicalDevice,
+    SwappyVkGoogleDisplayTiming(JNIEnv           *env,
+                                jobject          jactivity,
+                                VkPhysicalDevice physicalDevice,
                                 VkDevice         device,
                                 void             *libVulkan);
 

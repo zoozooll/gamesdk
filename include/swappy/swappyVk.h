@@ -20,6 +20,8 @@
 
 #include "swappy_common.h"
 
+#include "jni.h"
+
 #if (defined ANDROID) && (defined SWAPPYVK_USE_WRAPPER)
 #include <vulkan_wrapper.h>
 #else
@@ -99,8 +101,22 @@ void SwappyVk_setQueueFamilyIndex(
 // applications don't re-create swapchains.  Is this long-term sufficient?
 
 /**
+ * Internal init function. Do not call directly.
+ * See SwappyVk_initAndGetRefreshCycleDuration instead.
+ */
+bool SwappyVk_initAndGetRefreshCycleDuration_internal(
+        JNIEnv*          env,
+        jobject          jactivity,
+        VkPhysicalDevice physicalDevice,
+        VkDevice         device,
+        VkSwapchainKHR   swapchain,
+        uint64_t*        pRefreshDuration);
+
+/**
  * Initialize SwappyVk for a given device and swapchain, and obtain the
  * approximate time duration between vertical-blanking periods.
+ *
+ * Uses JNI to query AppVsyncOffset and PresentationDeadline.
  *
  * If your application presents to more than one swapchain at a time, you must
  * call this for each swapchain before calling swappyVkSetSwapInterval() for it.
@@ -116,6 +132,8 @@ void SwappyVk_setQueueFamilyIndex(
  *
  * Parameters:
  *
+ *  (IN)  env - JNIEnv that is assumed to be from AttachCurrentThread function
+ *  (IN)  jactivity - NativeActivity object handle, used for JNI
  *  (IN)  physicalDevice   - The VkPhysicalDevice associated with the swapchain
  *  (IN)  device    - The VkDevice associated with the swapchain
  *  (IN)  swapchain - The VkSwapchainKHR the application wants Swappy to swap
@@ -126,11 +144,18 @@ void SwappyVk_setQueueFamilyIndex(
  *  bool            - true if the value returned by pRefreshDuration is valid,
  *                    otherwise false if an error.
  */
-bool SwappyVk_initAndGetRefreshCycleDuration(
+static inline bool SwappyVk_initAndGetRefreshCycleDuration(
+        JNIEnv*          env,
+        jobject          jactivity,
         VkPhysicalDevice physicalDevice,
         VkDevice         device,
         VkSwapchainKHR   swapchain,
-        uint64_t*        pRefreshDuration);
+        uint64_t*        pRefreshDuration) {
+    // This call ensures that the header and the linked library are from the same version
+    // (if not, a linker error will be triggered because of an undefined symbol).
+    SWAPPY_VERSION_SYMBOL();
+    return SwappyVk_initAndGetRefreshCycleDuration_internal(env, jactivity, physicalDevice, device, swapchain, pRefreshDuration);
+}
 
 
 /**
@@ -189,6 +214,31 @@ VkResult SwappyVk_queuePresent(
 void SwappyVk_destroySwapchain(
         VkDevice                device,
         VkSwapchainKHR          swapchain);
+
+/**
+ * Enables Auto-Swap-Interval feature for all instances.
+ *
+ * By default this feature is enabled. Changing it is completely
+ * optional for fine-tuning swappy behaviour.
+ *
+ * Parameters:
+ *
+ *  (IN)  enabled - True means enable, false means disable
+ */
+void SwappyVk_setAutoSwapInterval(bool enabled);
+
+
+/**
+ * Enables Auto-Pipeline-Mode feature for all instances.
+ *
+ * By default this feature is enabled. Changing it is completely
+ * optional for fine-tuning swappy behaviour.
+ *
+ * Parameters:
+ *
+ *  (IN)  enabled - True means enable, false means disable
+ */
+void SwappyVk_setAutoPipelineMode(bool enabled);
 
 #ifdef __cplusplus
 }  // extern "C"

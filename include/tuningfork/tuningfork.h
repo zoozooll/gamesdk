@@ -23,6 +23,11 @@
 #define TUNINGFORK_MINOR_VERSION 2
 #define TUNINGFORK_PACKED_VERSION ((TUNINGFORK_MAJOR_VERSION<<16)|(TUNINGFORK_MINOR_VERSION))
 
+// Internal macros to generate a symbol to track TuningFork version, do not use directly.
+#define TUNINGFORK_VERSION_CONCAT_NX(PREFIX, MAJOR, MINOR) PREFIX ## _ ## MAJOR ## _ ## MINOR
+#define TUNINGFORK_VERSION_CONCAT(PREFIX, MAJOR, MINOR) TUNINGFORK_VERSION_CONCAT_NX(PREFIX, MAJOR, MINOR)
+#define TUNINGFORK_VERSION_SYMBOL TUNINGFORK_VERSION_CONCAT(TuningFork_version, TUNINGFORK_MAJOR_VERSION, TUNINGFORK_MINOR_VERSION)
+
 // Instrument keys 64000-65535 are reserved
 enum {
     TFTICK_USERDEFINED_BASE = 0,
@@ -105,11 +110,24 @@ inline void TFSettings_Free(TFSettings* settings) {
     if(settings->dealloc) settings->dealloc(settings);
 }
 
+// Internal init function. Do not call directly.
+TFErrorCode TuningFork_init_internal(const TFSettings *settings, JNIEnv* env, jobject context);
+
+// Internal function to track TuningFork version bundled in a binary. Do not call directly.
+// If you are getting linker errors related to TuningFork_version_x_y, you probably have a
+// mismatch between the header used at compilation and the actually library used by the linker.
+void TUNINGFORK_VERSION_SYMBOL();
+
 // TuningFork_init must be called before any other functions.
 // If 'settings' is a null pointer, settings are extracted from the app.
 // Ownership of 'settings' remains with the caller.
 // Returns TFERROR_OK if successful, TFERROR_NO_SETTINGS if no settings could be found.
-TFErrorCode TuningFork_init(const TFSettings *settings, JNIEnv* env, jobject context);
+static inline TFErrorCode TuningFork_init(const TFSettings *settings, JNIEnv* env, jobject context) {
+    // This call ensures that the header and the linked library are from the same version
+    // (if not, a linker error will be triggered because of an undefined symbol).
+    TUNINGFORK_VERSION_SYMBOL();
+    return TuningFork_init_internal(settings, env, context);
+}
 
 // Blocking call to get fidelity parameters from the server.
 // Note that once fidelity parameters are downloaded, any timing information is recorded
