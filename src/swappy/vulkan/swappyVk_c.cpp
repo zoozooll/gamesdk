@@ -46,7 +46,7 @@ void SwappyVk_setQueueFamilyIndex(
     swappy.SetQueueFamilyIndex(device, queue, queueFamilyIndex);
 }
 
-bool SwappyVk_initAndGetRefreshCycleDuration(
+bool SwappyVk_initAndGetRefreshCycleDuration_internal(
         JNIEnv           *env,
         jobject          jactivity,
         VkPhysicalDevice physicalDevice,

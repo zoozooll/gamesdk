@@ -123,8 +123,10 @@ void TUNINGFORK_VERSION_SYMBOL();
 // Ownership of 'settings' remains with the caller.
 // Returns TFERROR_OK if successful, TFERROR_NO_SETTINGS if no settings could be found.
 static inline TFErrorCode TuningFork_init(const TFSettings *settings, JNIEnv* env, jobject context) {
-  TUNINGFORK_VERSION_SYMBOL(); // "Useless" call to avoid dead code strip
-  return TuningFork_init_internal(settings, env, context);
+    // This call ensures that the header and the linked library are from the same version
+    // (if not, a linker error will be triggered because of an undefined symbol).
+    TUNINGFORK_VERSION_SYMBOL();
+    return TuningFork_init_internal(settings, env, context);
 }
 
 // Blocking call to get fidelity parameters from the server.

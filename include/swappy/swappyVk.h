@@ -101,6 +101,18 @@ void SwappyVk_setQueueFamilyIndex(
 // applications don't re-create swapchains.  Is this long-term sufficient?
 
 /**
+ * Internal init function. Do not call directly.
+ * See SwappyVk_initAndGetRefreshCycleDuration instead.
+ */
+bool SwappyVk_initAndGetRefreshCycleDuration_internal(
+        JNIEnv*          env,
+        jobject          jactivity,
+        VkPhysicalDevice physicalDevice,
+        VkDevice         device,
+        VkSwapchainKHR   swapchain,
+        uint64_t*        pRefreshDuration);
+
+/**
  * Initialize SwappyVk for a given device and swapchain, and obtain the
  * approximate time duration between vertical-blanking periods.
  *
@@ -132,13 +144,18 @@ void SwappyVk_setQueueFamilyIndex(
  *  bool            - true if the value returned by pRefreshDuration is valid,
  *                    otherwise false if an error.
  */
-bool SwappyVk_initAndGetRefreshCycleDuration(
+static inline bool SwappyVk_initAndGetRefreshCycleDuration(
         JNIEnv*          env,
         jobject          jactivity,
         VkPhysicalDevice physicalDevice,
         VkDevice         device,
         VkSwapchainKHR   swapchain,
-        uint64_t*        pRefreshDuration);
+        uint64_t*        pRefreshDuration) {
+    // This call ensures that the header and the linked library are from the same version
+    // (if not, a linker error will be triggered because of an undefined symbol).
+    SWAPPY_VERSION_SYMBOL();
+    return SwappyVk_initAndGetRefreshCycleDuration_internal(env, jactivity, physicalDevice, device, swapchain, pRefreshDuration);
+}
 
 
 /**
