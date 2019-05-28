@@ -394,9 +394,9 @@ task swappyUnityBuild(type: BuildTask) {
     ext.packageName = 'swappyUnity'
     ext.flattenLibs = true
     ext.withTuningFork = false
-    ext.withSharedLibs = true
+    ext.withSharedLibs = false
     ext.withStaticLibs = true
-    ext.withFullBuildKey = false
+    ext.withFullBuildKey = true
     ext.nativeBuild = { tf -> unityNativeBuild(tf) }
 }
 
@@ -406,9 +406,9 @@ task unityBuild(type: BuildTask) {
     ext.packageName = 'unity'
     ext.flattenLibs = true
     ext.withTuningFork = true
-    ext.withSharedLibs = true
-    ext.withStaticLibs = false
-    ext.withFullBuildKey = false
+    ext.withSharedLibs = false
+    ext.withStaticLibs = true
+    ext.withFullBuildKey = true
     ext.nativeBuild = { tf -> unityNativeBuild(tf) }
 }
 
