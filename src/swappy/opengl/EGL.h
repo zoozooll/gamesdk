@@ -45,10 +45,12 @@ class EGL {
         EGLnsecsANDROID presented;
     };
 
-    explicit EGL(std::chrono::nanoseconds refreshPeriod, ConstructorTag)
-        : mRefreshPeriod(refreshPeriod) {}
+    explicit EGL(std::chrono::nanoseconds refreshPeriod,
+                 std::chrono::nanoseconds fenceTimeout, ConstructorTag)
+        : mRefreshPeriod(refreshPeriod), mFenceWaiter(fenceTimeout) {}
 
-    static std::unique_ptr<EGL> create(std::chrono::nanoseconds refreshPeriod);
+  static std::unique_ptr<EGL> create(std::chrono::nanoseconds refreshPeriod,
+                                     std::chrono::nanoseconds fenceTimeout);
 
     void resetSyncFence(EGLDisplay display);
     bool lastFrameIsComplete(EGLDisplay display);
@@ -92,7 +94,7 @@ class EGL {
 
     class FenceWaiter {
     public:
-        FenceWaiter();
+        FenceWaiter(std::chrono::nanoseconds fenceTimeout);
         ~FenceWaiter();
 
         void onFenceCreation(EGLDisplay display, EGLSyncKHR syncFence);
@@ -102,6 +104,8 @@ class EGL {
     private:
         using eglClientWaitSyncKHR_type = EGLBoolean (*)(EGLDisplay, EGLSyncKHR, EGLint, EGLTimeKHR);
         eglClientWaitSyncKHR_type eglClientWaitSyncKHR = nullptr;
+        using eglDestroySyncKHR_type = EGLBoolean (*)(EGLDisplay, EGLSyncKHR);
+        eglDestroySyncKHR_type eglDestroySyncKHR = nullptr;
 
         void threadMain();
         std::thread mFenceWaiter GUARDED_BY(mFenceWaiterLock);
@@ -112,6 +116,7 @@ class EGL {
         std::atomic<std::chrono::nanoseconds> mFencePendingTime;
         EGLDisplay mDisplay GUARDED_BY(mFenceWaiterLock);
         EGLSyncKHR mSyncFence GUARDED_BY(mFenceWaiterLock) = EGL_NO_SYNC_KHR;
+        std::chrono::nanoseconds mFenceTimeout;
     };
 
     FenceWaiter mFenceWaiter;

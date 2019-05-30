@@ -77,6 +77,8 @@ public:
 
     void SetAutoSwapInterval(bool enabled);
     void SetAutoPipelineMode(bool enabled);
+    void SetFenceTimeout(std::chrono::nanoseconds duration);
+    std::chrono::nanoseconds GetFenceTimeout() const;
 
 private:
     std::map<VkPhysicalDevice, bool> doesPhysicalDeviceHaveGoogleDisplayTiming;

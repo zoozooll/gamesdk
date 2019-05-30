@@ -179,7 +179,8 @@ void SwappyVkBase::destroyVkSyncObjects() {
             VkSync sync = mPendingSync[it->first].front();
             mPendingSync[it->first].pop_front();
             if (!sync.fenceSignaled) {
-                vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE, UINT64_MAX);
+                vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE,
+                                mCommonBase.getFenceTimeout().count());
                 vkResetFences(mDevice, 1, &sync.fence);
             }
             mFreeSync[it->first].push_back(sync);
@@ -321,6 +322,14 @@ std::chrono::nanoseconds SwappyVkBase::getLastFenceTime(VkQueue queue) {
         return mPendingSync[queue].begin()->pendingTime;
     }
     return mFreeSync[queue].back().pendingTime;
+}
+
+void SwappyVkBase::setFenceTimeout(std::chrono::nanoseconds duration) {
+    mCommonBase.setFenceTimeout(duration);
+}
+
+std::chrono::nanoseconds SwappyVkBase::getFenceTimeout() const {
+    return mCommonBase.getFenceTimeout();
 }
 
 }  // namespace swappy

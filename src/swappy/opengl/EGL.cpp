@@ -26,7 +26,8 @@ using namespace std::chrono_literals;
 
 namespace swappy {
 
-std::unique_ptr<EGL> EGL::create(std::chrono::nanoseconds refreshPeriod) {
+std::unique_ptr<EGL> EGL::create(std::chrono::nanoseconds refreshPeriod,
+                                 std::chrono::nanoseconds fenceTimeout) {
     auto eglPresentationTimeANDROID = reinterpret_cast<eglPresentationTimeANDROID_type>(
         eglGetProcAddress("eglPresentationTimeANDROID"));
     if (eglPresentationTimeANDROID == nullptr) {
@@ -82,7 +83,7 @@ std::unique_ptr<EGL> EGL::create(std::chrono::nanoseconds refreshPeriod) {
         ALOGI("Failed to load eglGetFrameTimestampsANDROID");
     }
 
-    auto egl = std::make_unique<EGL>(refreshPeriod, ConstructorTag{});
+    auto egl = std::make_unique<EGL>(refreshPeriod, fenceTimeout, ConstructorTag{});
     egl->eglPresentationTimeANDROID = eglPresentationTimeANDROID;
     egl->eglCreateSyncKHR = eglCreateSyncKHR;
     egl->eglDestroySyncKHR = eglDestroySyncKHR;
@@ -207,13 +208,18 @@ std::unique_ptr<EGL::FrameTimestamps> EGL::getFrameTimestamps(EGLDisplay dpy,
     return frameTimestamps;
 }
 
-EGL::FenceWaiter::FenceWaiter(): mFenceWaiter(&FenceWaiter::threadMain, this) {
+EGL::FenceWaiter::FenceWaiter(std::chrono::nanoseconds fenceTimeout)
+    : mFenceWaiter(&FenceWaiter::threadMain, this), mFenceTimeout(fenceTimeout) {
     std::unique_lock<std::mutex> lock(mFenceWaiterLock);
 
     eglClientWaitSyncKHR = reinterpret_cast<eglClientWaitSyncKHR_type>(
             eglGetProcAddress("eglClientWaitSyncKHR"));
     if (eglClientWaitSyncKHR == nullptr)
         ALOGE("Failed to load eglClientWaitSyncKHR");
+    eglDestroySyncKHR = reinterpret_cast<eglDestroySyncKHR_type>(
+            eglGetProcAddress("eglDestroySyncKHR"));
+    if (eglDestroySyncKHR == nullptr)
+        ALOGE("Failed to load eglDestroySyncKHR");
 }
 
 EGL::FenceWaiter::~FenceWaiter() {
@@ -254,9 +260,19 @@ void EGL::FenceWaiter::threadMain() {
         }
 
         const auto startTime = std::chrono::steady_clock::now();
-        EGLBoolean result = eglClientWaitSyncKHR(mDisplay, mSyncFence, 0, EGL_FOREVER_KHR);
-        if (result == EGL_FALSE) {
-            ALOGE("Failed to wait sync");
+        EGLBoolean result = eglClientWaitSyncKHR(mDisplay, mSyncFence, 0,
+                                                 mFenceTimeout.count());
+        switch (result) {
+            case EGL_FALSE:
+                ALOGE("Failed to wait sync");
+                break;
+            case EGL_TIMEOUT_EXPIRED_KHR:
+                ALOGE("Timeout waiting for fence");
+                break;
+        }
+        if (result != EGL_CONDITION_SATISFIED_KHR) {
+            eglDestroySyncKHR(mDisplay, mSyncFence);
+            mSyncFence = EGL_NO_SYNC_KHR;
         }
 
         mFencePendingTime = std::chrono::steady_clock::now() - startTime;
