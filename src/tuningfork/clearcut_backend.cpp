@@ -29,6 +29,7 @@
 #include "uploadthread.h"
 #include "tuningfork/protobuf_nano_util.h"
 #include "tuningfork_internal.h"
+#include "jni_helper.h"
 
 namespace tuningfork {
 
@@ -100,8 +101,11 @@ TFErrorCode ClearcutBackend::Init(JNIEnv *env, jobject context, ProtoPrint* prot
 }
 
 bool ClearcutBackend::IsGooglePlayServiceAvailable(JNIEnv* env, jobject context) {
+
+    JNIHelper jniHelper(env, context);
+
     jclass availabilityClass =
-            env->FindClass("com/google/android/gms/common/GoogleApiAvailability");
+            jniHelper.FindClass("com/google/android/gms/common/GoogleApiAvailability");
     if(CheckException(env)) return false;
 
     jmethodID getInstanceMethod = env->GetStaticMethodID(
@@ -154,6 +158,8 @@ bool ClearcutBackend::CheckException(JNIEnv *env) {
 bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject context, bool anonymousLogging) {
     ALOGI("Start searching for clearcut...");
 
+    JNIHelper jniHelper(env, context);
+
     // Get Application Context
     jclass contextClass = env->GetObjectClass(context);
     if (CheckException(env)) return false;
@@ -172,11 +178,11 @@ bool ClearcutBackend::InitWithClearcut(JNIEnv* env, jobject context, bool anonym
     }
 
     // Searching for  classes
-    jclass loggerClass = env->FindClass("com/google/android/gms/clearcut/ClearcutLogger");
+    jclass loggerClass = jniHelper.FindClass("com/google/android/gms/clearcut/ClearcutLogger");
     if (CheckException(env)) return false;
-    jclass stringClass = env->FindClass("java/lang/String");
+    jclass stringClass = jniHelper.FindClass("java/lang/String");
     if (CheckException(env)) return false;
-    jclass builderClass = env->FindClass(
+    jclass builderClass = jniHelper.FindClass(
             "com/google/android/gms/clearcut/ClearcutLogger$LogEventBuilder");
     if (CheckException(env)) return false;
 

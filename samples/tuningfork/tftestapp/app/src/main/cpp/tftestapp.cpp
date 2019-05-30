@@ -14,8 +14,8 @@
 
 #include "tuningfork/protobuf_util.h"
 #include "tuningfork/tuningfork_extra.h"
-#include "swappy/swappy.h"
-#include "swappy/swappy_extra.h"
+#include "swappy/swappyGL.h"
+#include "swappy/swappyGL_extra.h"
 #include "full/tuningfork.pb.h"
 #include "full/tuningfork_clearcut_log.pb.h"
 #include "full/dev_tuningfork.pb.h"
@@ -181,14 +181,12 @@ void WaitForFidelityParams() {
     cv.wait(lock, []{ return setFPs;});
 }
 
-} // anonymous namespace
+std::thread tf_thread;
+jobject tf_activity;
 
-extern "C" {
-
-JNIEXPORT void JNICALL
-Java_com_tuningfork_demoapp_TFTestActivity_initTuningFork(JNIEnv *env, jobject activity) {
-    Swappy_init(env, activity);
-    swappy_enabled = Swappy_isEnabled();
+void InitTf(JNIEnv* env, jobject activity) {
+    SwappyGL_init(env, activity);
+    swappy_enabled = SwappyGL_isEnabled();
     // The following tests TuningFork_saveOrDeleteFidelityParamsFile
     bool overrideDefaultFPs = false;
     bool resetDefaultFPs = false;
@@ -206,11 +204,11 @@ Java_com_tuningfork_demoapp_TFTestActivity_initTuningFork(JNIEnv *env, jobject a
     // end of test
     if (swappy_enabled) {
         TFErrorCode err = TuningFork_initFromAssetsWithSwappy(env, activity,
-                                                    &Swappy_injectTracer, 0,
-                                                    SetAnnotations, url_base,
-                                                    api_key, defaultFPName,
-                                                    SetFidelityParams,
-                                                    initialTimeoutMs, ultimateTimeoutMs);
+                                                              &SwappyGL_injectTracer, 0,
+                                                              SetAnnotations, url_base,
+                                                              api_key, defaultFPName,
+                                                              SetFidelityParams,
+                                                              initialTimeoutMs, ultimateTimeoutMs);
         if (err==TFERROR_OK) {
             TuningFork_setUploadCallback(UploadCallback);
             SetAnnotations();
@@ -231,8 +229,8 @@ Java_com_tuningfork_demoapp_TFTestActivity_initTuningFork(JNIEnv *env, jobject a
             ALOGE("Error finding fidelity params : err = %d", err);
             return;
         }
-        TuningFork_startFidelityParamDownloadThread(env, activity,
-            url_base, api_key, &defaultFP, SetFidelityParams, 1000, 10000);
+        TuningFork_startFidelityParamDownloadThread(env, activity, url_base, api_key, &defaultFP,
+            SetFidelityParams, 1000, 10000);
         TuningFork_setUploadCallback(UploadCallback);
         SetAnnotations();
     }
@@ -240,6 +238,30 @@ Java_com_tuningfork_demoapp_TFTestActivity_initTuningFork(JNIEnv *env, jobject a
     //   have already started rendering with a different set of parameters.
     // In a real game, we'd initialize all the other assets before waiting.
     WaitForFidelityParams();
+}
+
+void InitTfFromNewThread(JavaVM* vm) {
+    JNIEnv *env;
+    int status = vm->AttachCurrentThread(&env, NULL);
+    InitTf(env, tf_activity);
+    vm->DetachCurrentThread();
+}
+} // anonymous namespace
+
+extern "C" {
+
+// initFromNewThread parameter is for testing
+JNIEXPORT void JNICALL
+Java_com_tuningfork_demoapp_TFTestActivity_initTuningFork(
+    JNIEnv *env, jobject activity, jboolean initFromNewThread) {
+    if(initFromNewThread) {
+        tf_activity = env->NewGlobalRef(activity);
+        JavaVM* vm;
+        env->GetJavaVM(&vm);
+        tf_thread = std::thread(InitTfFromNewThread, vm);
+    } else {
+        InitTf(env, activity);
+    }
 }
 
 JNIEXPORT void JNICALL

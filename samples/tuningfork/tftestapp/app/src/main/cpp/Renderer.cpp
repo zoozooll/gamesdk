@@ -30,8 +30,8 @@
 
 #include "Log.h"
 
-#include "swappy/swappy.h"
-#include "swappy/swappy_extra.h"
+#include "swappy/swappyGL.h"
+#include "swappy/swappyGL_extra.h"
 #include "tuningfork/tuningfork.h"
 
 #include "Scene.h"
@@ -231,7 +231,7 @@ void Renderer::draw(State *state) {
     }
 
     if (swappy_enabled)
-        Swappy_recordFrameStart(state->display, state->surface);
+        SwappyGL_recordFrameStart(state->display, state->surface);
 
     calculateFps();
 
@@ -257,7 +257,7 @@ void Renderer::draw(State *state) {
     state->scene.draw(aspectRatio, mTesselation);
 
     if (swappy_enabled)
-        Swappy_swap(state->display, state->surface);
+        SwappyGL_swap(state->display, state->surface);
     else {
         TuningFork_frameTick(TFTICK_SYSCPU);
         eglSwapBuffers(state->display, state->surface);

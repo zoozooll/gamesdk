@@ -121,7 +121,7 @@ TFErrorCode DownloadFidelityParams(JNIEnv* env, jobject context, const std::stri
                                    int timeout_ms, std::vector<uint8_t>& fps,
                                    std::string& experiment_id) {
     ALOGI("Connecting to: %s", uri.c_str());
-    JNIHelper jni(env);
+    JNIHelper jni(env, context);
     std::string exception_msg;
     // url = new URL(uri)
     jstring jurlStr = jni.NewString(uri);
