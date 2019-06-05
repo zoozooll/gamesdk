@@ -47,3 +47,15 @@ void SWAPPY_VERSION_SYMBOL();
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+// Collection of callbacks to be called each frame to trace execution.
+// Injection of these is optional.
+typedef struct SwappyTracer {
+    void (*preWait)(void*);
+    void (*postWait)(void*);
+    void (*preSwapBuffers)(void*);
+    void (*postSwapBuffers)(void*, long desiredPresentationTimeMillis);
+    void (*startFrame)(void*, int currentFrame, long currentFrameTimeStampMillis);
+    void* userData;
+    void (*swapIntervalChanged)(void*);
+} SwappyTracer;

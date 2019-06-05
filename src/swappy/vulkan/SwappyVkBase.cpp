@@ -332,4 +332,8 @@ std::chrono::nanoseconds SwappyVkBase::getFenceTimeout() const {
     return mCommonBase.getFenceTimeout();
 }
 
+void SwappyVkBase::addTracer(const SwappyTracer *tracer) {
+    mCommonBase.addTracerCallbacks(*tracer);
+}
+
 }  // namespace swappy

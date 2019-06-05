@@ -122,6 +122,8 @@ public:
     void setFenceTimeout(std::chrono::nanoseconds duration);
     std::chrono::nanoseconds getFenceTimeout() const;
 
+    void addTracer(const SwappyTracer *tracer);
+
 protected:
     struct VkSync {
         VkFence fence;

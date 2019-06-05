@@ -80,6 +80,8 @@ public:
     void SetFenceTimeout(std::chrono::nanoseconds duration);
     std::chrono::nanoseconds GetFenceTimeout() const;
 
+    void addTracer(const SwappyTracer *t);
+
 private:
     std::map<VkPhysicalDevice, bool> doesPhysicalDeviceHaveGoogleDisplayTiming;
     std::map<VkDevice, std::shared_ptr<SwappyVkBase>> perDeviceImplementation;

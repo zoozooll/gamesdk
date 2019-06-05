@@ -196,4 +196,10 @@ std::chrono::nanoseconds SwappyVk::GetFenceTimeout() const {
     return std::chrono::nanoseconds(0);
 }
 
+void SwappyVk::addTracer(const SwappyTracer *t){
+    for (auto i : perSwapchainImplementation) {
+        i.second->addTracer(t);
+    }
+}
+
 }  // namespace swappy

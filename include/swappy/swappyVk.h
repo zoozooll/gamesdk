@@ -247,6 +247,16 @@ void SwappyVk_setAutoPipelineMode(bool enabled);
 void SwappyVk_setFenceTimeoutNS(uint64_t fence_timeout_ns);
 uint64_t SwappyVk_getFenceTimeoutNS();
 
+
+/**
+ * Inject callback functions to be called each frame.
+ *
+ * Parameters:
+ *
+ *  (IN)  tracer - Collection of callback functions
+ */
+void SwappyVk_injectTracer(const SwappyTracer *tracer);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

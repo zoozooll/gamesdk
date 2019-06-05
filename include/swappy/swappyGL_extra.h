@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "swappy_common.h"
+
 #include <stdint.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -33,17 +35,7 @@ extern "C" {
 // Afterwards, call this function every choreographer tick.
 void SwappyGL_onChoreographer(int64_t frameTimeNanos);
 
-// Pass callbacks to be called each frame to trace execution
-struct SwappyTracer {
-    void (*preWait)(void*);
-    void (*postWait)(void*);
-    void (*preSwapBuffers)(void*);
-    void (*postSwapBuffers)(void*, long desiredPresentationTimeMillis);
-    void (*startFrame)(void*, int currentFrame, long currentFrameTimeStampMillis);
-    void* userData;
-    void (*swapIntervalChanged)(void*);
-
-};
+// Pass callbacks to be called each frame to trace execution.
 void SwappyGL_injectTracer(const SwappyTracer *t);
 
 // Toggle auto-swap interval detection on/off

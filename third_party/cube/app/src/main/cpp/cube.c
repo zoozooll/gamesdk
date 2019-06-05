@@ -1265,6 +1265,25 @@ static void demo_draw(struct demo *demo) {
     }
 }
 
+void swappy_trace_test_preWait(void* userData) {
+  DbgMsg("swappy_trace_test_preWait");
+}
+void swappy_trace_test_postWait(void* userData) {
+  DbgMsg("swappy_trace_test_postWait");
+}
+void swappy_trace_test_preSwapBuffers(void* userData) {
+  DbgMsg("swappy_trace_test_preSwapBuffers");
+}
+void swappy_trace_test_postSwapBuffers(void* userData, long desiredPresentationTimeMillis){
+  DbgMsg("swappy_trace_test_postSwapBuffers: %ld", desiredPresentationTimeMillis);
+}
+void swappy_trace_test_startFrame(void* userData, int currentFrame, long currentFrameTimeStampMillis){
+  DbgMsg("swappy_trace_test_startFrame: %d, %ld", currentFrame, currentFrameTimeStampMillis);
+}
+void swappy_trace_test_swapIntervalChanged(void* userData){
+  DbgMsg("swappy_trace_test_swapIntervalChanged");
+}
+
 static void demo_prepare_buffers(struct demo *demo) {
     VkResult U_ASSERT_ONLY err;
     VkSwapchainKHR oldSwapchain = demo->swapchain;
@@ -1494,6 +1513,15 @@ static void demo_prepare_buffers(struct demo *demo) {
 
     // Refresh rate of this demo is locked to 30 FPS.
     SwappyVk_setSwapIntervalNS(demo->device, demo->swapchain, SWAPPY_SWAP_30FPS);
+
+    SwappyTracer tracer;
+    tracer.preWait = swappy_trace_test_preWait;
+    tracer.postWait = swappy_trace_test_postWait;
+    tracer.preSwapBuffers = swappy_trace_test_preSwapBuffers;
+    tracer.postSwapBuffers = swappy_trace_test_postSwapBuffers;
+    tracer.startFrame = swappy_trace_test_startFrame;
+    tracer.swapIntervalChanged = swappy_trace_test_swapIntervalChanged;
+    SwappyVk_injectTracer(&tracer);
 
     if (NULL != presentModes) {
         free(presentModes);

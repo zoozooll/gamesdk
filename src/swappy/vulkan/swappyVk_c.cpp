@@ -113,4 +113,10 @@ uint64_t SwappyVk_getFenceTimeoutNS() {
     return swappy.GetFenceTimeout().count();
 }
 
+void SwappyVk_injectTracer(const SwappyTracer *t){
+    TRACE_CALL();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
+    swappy.addTracer(t);
+}
+
 }  // extern "C"
