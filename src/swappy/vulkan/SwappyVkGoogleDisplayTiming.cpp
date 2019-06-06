@@ -75,7 +75,6 @@ VkResult SwappyVkGoogleDisplayTiming::doQueuePresent(VkQueue                 que
         .getPrevFrameGpuTime =
             std::bind(&SwappyVkGoogleDisplayTiming::getLastFenceTime, this, queue),
     };
-    mCommonBase.onPreSwap(handlers);
 
     VkSemaphore semaphore;
     res = injectFence(queue, pPresentInfo, &semaphore);
@@ -83,6 +82,8 @@ VkResult SwappyVkGoogleDisplayTiming::doQueuePresent(VkQueue                 que
         ALOGE("Failed to vkQueueSubmit %d", res);
         return res;
     }
+
+    mCommonBase.onPreSwap(handlers);
 
     VkPresentTimeGOOGLE pPresentTimes[pPresentInfo->swapchainCount];
     VkPresentInfoKHR replacementPresentInfo;

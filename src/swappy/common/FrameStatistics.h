@@ -17,6 +17,7 @@
 #pragma once
 
 #include "EGL.h"
+#include "SwappyCommon.h"
 #include "Thread.h"
 
 #include <array>
@@ -33,9 +34,8 @@ namespace swappy {
 
 class FrameStatistics {
 public:
-    explicit FrameStatistics(std::shared_ptr<EGL> egl,
-                             std::chrono::nanoseconds refreshPeriod) :
-            mEgl(egl), mRefreshPeriod(refreshPeriod) {};
+    FrameStatistics(const EGL& egl, const SwappyCommon& swappyCommon)
+        : mEgl(egl), mSwappyCommon(swappyCommon) {};
     ~FrameStatistics() = default;
 
     void capture(EGLDisplay dpy, EGLSurface surface);
@@ -54,8 +54,8 @@ private:
                              TimePoint frameStartTime) REQUIRES(mMutex);
     void logFrames() REQUIRES(mMutex);
 
-    std::shared_ptr<EGL> mEgl;
-    const std::chrono::nanoseconds mRefreshPeriod;
+    const EGL& mEgl;
+    const SwappyCommon& mSwappyCommon;
 
     struct EGLFrame {
         EGLDisplay dpy;

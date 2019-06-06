@@ -26,8 +26,7 @@ using namespace std::chrono_literals;
 
 namespace swappy {
 
-std::unique_ptr<EGL> EGL::create(std::chrono::nanoseconds refreshPeriod,
-                                 std::chrono::nanoseconds fenceTimeout) {
+std::unique_ptr<EGL> EGL::create(std::chrono::nanoseconds fenceTimeout) {
     auto eglPresentationTimeANDROID = reinterpret_cast<eglPresentationTimeANDROID_type>(
         eglGetProcAddress("eglPresentationTimeANDROID"));
     if (eglPresentationTimeANDROID == nullptr) {
@@ -83,7 +82,7 @@ std::unique_ptr<EGL> EGL::create(std::chrono::nanoseconds refreshPeriod,
         ALOGI("Failed to load eglGetFrameTimestampsANDROID");
     }
 
-    auto egl = std::make_unique<EGL>(refreshPeriod, fenceTimeout, ConstructorTag{});
+    auto egl = std::make_unique<EGL>(fenceTimeout, ConstructorTag{});
     egl->eglPresentationTimeANDROID = eglPresentationTimeANDROID;
     egl->eglCreateSyncKHR = eglCreateSyncKHR;
     egl->eglDestroySyncKHR = eglDestroySyncKHR;
@@ -148,7 +147,7 @@ bool EGL::statsSupported() {
     return (eglGetNextFrameIdANDROID != nullptr && eglGetFrameTimestampsANDROID != nullptr);
 }
 
-std::pair<bool,EGLuint64KHR> EGL::getNextFrameId(EGLDisplay dpy, EGLSurface surface) {
+std::pair<bool,EGLuint64KHR> EGL::getNextFrameId(EGLDisplay dpy, EGLSurface surface) const {
     if (eglGetNextFrameIdANDROID == nullptr) {
         ALOGE("stats are not supported on this platform");
         return {false, 0};
@@ -166,7 +165,7 @@ std::pair<bool,EGLuint64KHR> EGL::getNextFrameId(EGLDisplay dpy, EGLSurface surf
 
 std::unique_ptr<EGL::FrameTimestamps> EGL::getFrameTimestamps(EGLDisplay dpy,
                                                               EGLSurface surface,
-                                                              EGLuint64KHR frameId) {
+                                                              EGLuint64KHR frameId) const {
     if (eglGetFrameTimestampsANDROID == nullptr) {
         ALOGE("stats are not supported on this platform");
         return nullptr;
@@ -282,7 +281,7 @@ void EGL::FenceWaiter::threadMain() {
     }
 }
 
-std::chrono::nanoseconds EGL::FenceWaiter::getFencePendingTime() {
+std::chrono::nanoseconds EGL::FenceWaiter::getFencePendingTime() const {
     // return mFencePendingTime without a lock to avoid blocking the main thread
     // worst case, the time will be of some previous frame
     return mFencePendingTime.load();

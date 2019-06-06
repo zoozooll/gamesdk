@@ -27,7 +27,7 @@
 
 // Internal macros to track Swappy version, do not use directly.
 #define SWAPPY_MAJOR_VERSION 0
-#define SWAPPY_MINOR_VERSION 1
+#define SWAPPY_MINOR_VERSION 2
 #define SWAPPY_PACKED_VERSION ((SWAPPY_MAJOR_VERSION<<16)|(SWAPPY_MINOR_VERSION))
 
 // Internal macros to generate a symbol to track Swappy version, do not use directly.

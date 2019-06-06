@@ -21,6 +21,7 @@
 #include <vector>
 #include <mutex>
 #include <condition_variable>
+#include "Settings.h"
 
 namespace swappy {
 
@@ -57,8 +58,8 @@ class ChoreographerFilter {
     std::chrono::steady_clock::time_point mLastWorkRun;
     std::chrono::nanoseconds mWorkDuration;
 
-    const std::chrono::nanoseconds mRefreshPeriod;
-    const std::chrono::nanoseconds mAppToSfDelay;
+    std::chrono::nanoseconds mRefreshPeriod;
+    std::chrono::nanoseconds mAppToSfDelay;
     const Worker mDoWork;
 };
 

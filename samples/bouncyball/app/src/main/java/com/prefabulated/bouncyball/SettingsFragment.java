@@ -44,10 +44,9 @@ public class SettingsFragment
     private ListPreference mSwapIntervalPreference;
     private String mSwapIntervalKey;
     private Display.Mode mCurrentMode;
-    private int mDisplayWidth;
 
     @TargetApi(Build.VERSION_CODES.M)
-    private boolean isModeValid(Display.Mode mode) {
+    private boolean modeMatchesCurrentResolution(Display.Mode mode) {
         return mode.getPhysicalHeight() == mCurrentMode.getPhysicalHeight() &&
                 mode.getPhysicalWidth() == mCurrentMode.getPhysicalWidth();
     }
@@ -76,11 +75,12 @@ public class SettingsFragment
             Display.Mode[] supportedModes =
                     getActivity().getWindowManager().getDefaultDisplay().getSupportedModes();
             for (Display.Mode mode : supportedModes) {
-                if (isModeValid(mode)) {
-                    float refreshRate = mode.getRefreshRate();
-                    for (int interval = 1; refreshRate / interval >= 20; interval++) {
-                        fpsSet.add((int) refreshRate / interval);
-                    }
+                if (!modeMatchesCurrentResolution(mode)) {
+                    continue;
+                }
+                float refreshRate = mode.getRefreshRate();
+                for (int interval = 1; refreshRate / interval >= 20; interval++) {
+                    fpsSet.add((int) refreshRate / interval);
                 }
             }
         } else {

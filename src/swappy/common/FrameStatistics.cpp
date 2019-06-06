@@ -35,7 +35,7 @@ constexpr std::chrono::nanoseconds FrameStatistics::LOG_EVERY_N_NS;
 void FrameStatistics::updateFrames(EGLnsecsANDROID start, EGLnsecsANDROID end, uint64_t stat[]) {
     const uint64_t deltaTimeNano = end - start;
 
-    uint32_t numFrames = deltaTimeNano / mRefreshPeriod.count();
+    uint32_t numFrames = deltaTimeNano / mSwappyCommon.getRefreshPeriod().count();
     numFrames = std::min(numFrames, static_cast<uint32_t>(MAX_FRAME_BUCKETS));
     stat[numFrames]++;
 }
@@ -73,7 +73,7 @@ void FrameStatistics::capture(EGLDisplay dpy, EGLSurface surface) {
     const TimePoint frameStartTime = std::chrono::steady_clock::now();
 
     // first get the next frame id
-    std::pair<bool,EGLuint64KHR> nextFrameId = mEgl->getNextFrameId(dpy, surface);
+    std::pair<bool,EGLuint64KHR> nextFrameId = mEgl.getNextFrameId(dpy, surface);
     if (nextFrameId.first) {
         mPendingFrames.push_back({dpy, surface, nextFrameId.second, frameStartTime});
     }
@@ -93,7 +93,7 @@ void FrameStatistics::capture(EGLDisplay dpy, EGLSurface surface) {
     }
 
     std::unique_ptr<EGL::FrameTimestamps> frameStats =
-            mEgl->getFrameTimestamps(frame.dpy, frame.surface, frame.id);
+            mEgl.getFrameTimestamps(frame.dpy, frame.surface, frame.id);
 
     if (!frameStats) {
         return;

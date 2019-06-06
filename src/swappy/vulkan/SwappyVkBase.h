@@ -130,8 +130,6 @@ protected:
         VkSemaphore semaphore;
         VkCommandBuffer command;
         VkEvent event;
-        bool fenceSignaled = false;
-        std::chrono::nanoseconds pendingTime = {};
     };
 
     struct ThreadContext {
@@ -159,12 +157,21 @@ protected:
     PFN_vkGetRefreshCycleDurationGOOGLE   mpfnGetRefreshCycleDurationGOOGLE   = nullptr;
     PFN_vkGetPastPresentationTimingGOOGLE mpfnGetPastPresentationTimingGOOGLE = nullptr;
 
-    std::map<VkQueue, std::list<VkSync>>              mFreeSync;
-    std::map<VkQueue, std::list<VkSync>>              mPendingSync;
+    // Holds VKSync objects ready to be used
+    std::map<VkQueue, std::list<VkSync>>              mFreeSyncPool;
+
+    // Holds VKSync objects queued and but signaled yet
+    std::map<VkQueue, std::list<VkSync>>              mWaitingSyncs;
+
+    // Holds VKSync objects that were signaled
+    std::map<VkQueue, std::list<VkSync>>              mSignaledSyncs;
+
     std::map<VkQueue, VkCommandPool>                  mCommandPool;
     std::map<VkQueue, std::unique_ptr<ThreadContext>> mThreads;
 
-    static constexpr int MAX_PENDING_FENCES = 1;
+    static constexpr int MAX_PENDING_FENCES = 2;
+
+    std::atomic<std::chrono::nanoseconds> mLastFenceTime = {};
 
     void initGoogExtension();
     VkResult initializeVkSyncObjects(VkQueue queue, uint32_t queueFamilyIndex);

@@ -33,12 +33,13 @@ using std::chrono::milliseconds;
 using std::chrono::nanoseconds;
 
 // NB These are only needed for C++14
-constexpr std::chrono::nanoseconds SwappyCommon::FrameDuration::MAX_DURATION;
-constexpr std::chrono::nanoseconds SwappyCommon::FRAME_HYSTERESIS;
+constexpr nanoseconds SwappyCommon::FrameDuration::MAX_DURATION;
+constexpr nanoseconds SwappyCommon::FRAME_MARGIN;
+constexpr nanoseconds SwappyCommon::EDGE_HYSTERESIS;
+constexpr nanoseconds SwappyCommon::REFRESH_RATE_MARGIN;
 
 SwappyCommon::SwappyCommon(JNIEnv *env, jobject jactivity)
-        : mSwapDuration(std::chrono::nanoseconds(0)),
-          mSwapInterval(1),
+        : mSwapDuration(nanoseconds(0)),
           mAutoSwapInterval(1),
           mValid(false) {
     jclass activityClass = env->FindClass("android/app/NativeActivity");
@@ -103,23 +104,43 @@ SwappyCommon::SwappyCommon(JNIEnv *env, jobject jactivity)
     env->GetJavaVM(&vm);
 
     using std::chrono::nanoseconds;
-    mRefreshPeriod  = nanoseconds(vsyncPeriodNanos);
-    mAppVsyncOffset = nanoseconds(appVsyncOffsetNanos);
-    mSfVsyncOffset  = nanoseconds(sfVsyncOffsetNanos);
+    mRefreshPeriod = nanoseconds(vsyncPeriodNanos);
+    nanoseconds appVsyncOffset = nanoseconds(appVsyncOffsetNanos);
+    nanoseconds sfVsyncOffset  = nanoseconds(sfVsyncOffsetNanos);
 
     mChoreographerFilter = std::make_unique<ChoreographerFilter>(mRefreshPeriod,
-                                                                 mSfVsyncOffset - mAppVsyncOffset,
+                                                                 sfVsyncOffset - appVsyncOffset,
                                                                  [this]() { return wakeClient(); });
 
-   mChoreographerThread = ChoreographerThread::createChoreographerThread(
+    mChoreographerThread = ChoreographerThread::createChoreographerThread(
                                    ChoreographerThread::Type::Swappy,
                                    vm,
                                    [this]{ mChoreographerFilter->onChoreographer(); });
+    if (!mChoreographerThread->isInitialized()) {
+        ALOGE("failed to initialize ChoreographerThread");
+        return;
+    }
+
+    if (USE_DISPLAY_MANAGER) {
+        mDisplayManager = std::make_unique<SwappyDisplayManager>(vm, jactivity);
+        if (!mDisplayManager->isInitialized()) {
+            ALOGE("failed to initialize DisplayManager");
+            return;
+        }
+    }
 
     Settings::getInstance()->addListener([this]() { onSettingsChanged(); });
+    Settings::getInstance()->setDisplayTimings({mRefreshPeriod, appVsyncOffset, sfVsyncOffset});
 
-    mAutoSwapIntervalThreshold = (1e9f / mRefreshPeriod.count()) / 20; // 20FPS
+    std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
+    mAutoSwapIntervalThreshold = (1e9f / vsyncPeriodNanos) / 20; // 20FPS
     mFrameDurations.reserve(mFrameDurationSamples);
+
+    ALOGI("Initialized Swappy with vsyncPeriod=%lld, appOffset=%lld, sfOffset=%lld",
+          (long long)vsyncPeriodNanos,
+          (long long)appVsyncOffset.count(),
+          (long long)sfVsyncOffset.count()
+    );
 
     mValid = true;
 }
@@ -132,7 +153,7 @@ SwappyCommon::~SwappyCommon() {
     Settings::reset();
 }
 
-std::chrono::nanoseconds SwappyCommon::wakeClient() {
+nanoseconds SwappyCommon::wakeClient() {
     std::lock_guard<std::mutex> lock(mWaitingMutex);
     ++mCurrentFrame;
 
@@ -163,7 +184,7 @@ bool SwappyCommon::waitForNextFrame(const SwapHandlers& h) {
     int lateFrames = 0;
     bool presentationTimeIsNeeded;
 
-    const std::chrono::nanoseconds cpuTime = std::chrono::steady_clock::now() - mStartFrameTime;
+    const nanoseconds cpuTime = std::chrono::steady_clock::now() - mStartFrameTime;
 
     preWaitCallbacks();
 
@@ -184,11 +205,60 @@ bool SwappyCommon::waitForNextFrame(const SwapHandlers& h) {
         presentationTimeIsNeeded = false;
     }
 
-    const std::chrono::nanoseconds gpuTime = h.getPrevFrameGpuTime();
+    const nanoseconds gpuTime = h.getPrevFrameGpuTime();
     addFrameDuration({cpuTime, gpuTime});
     postWaitCallbacks();
 
     return presentationTimeIsNeeded;
+}
+
+void SwappyCommon::updateDisplayTimings() {
+    // grab a pointer to the latest supported refresh rates
+    if (mDisplayManager) {
+        mSupportedRefreshRates = mDisplayManager->getSupportedRefreshRates();
+    }
+
+    std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
+    if (!mTimingSettingsNeedUpdate) {
+        return;
+    }
+
+    mTimingSettingsNeedUpdate = false;
+
+    if (mRefreshPeriod == mNextTimingSettings.refreshPeriod &&
+        mSwapIntervalNS == mNextTimingSettings.swapIntervalNS) {
+        return;
+    }
+
+    mAutoSwapInterval = mSwapIntervalForNewRefresh;
+    mPipelineMode = mPipelineModeForNewRefresh;
+    mSwapIntervalForNewRefresh = 0;
+
+    const bool swapIntervalValid = mNextTimingSettings.refreshPeriod * mAutoSwapInterval >=
+                                   mNextTimingSettings.swapIntervalNS;
+    const bool swapIntervalChangedBySettings = mSwapIntervalNS !=
+                                               mNextTimingSettings.swapIntervalNS;
+
+    mRefreshPeriod = mNextTimingSettings.refreshPeriod;
+    mSwapIntervalNS = mNextTimingSettings.swapIntervalNS;
+    if (!mAutoSwapIntervalEnabled || swapIntervalChangedBySettings ||
+            mAutoSwapInterval == 0 || !swapIntervalValid) {
+        mAutoSwapInterval = calculateSwapInterval(mSwapIntervalNS, mRefreshPeriod);
+        mPipelineMode = mAutoSwapIntervalEnabled ? PipelineMode::Off : PipelineMode::On;
+        setPreferredRefreshRate(mSwapIntervalNS);
+    }
+
+    if (mNextModeId == -1) {
+        setPreferredRefreshRate(mSwapIntervalNS);
+    }
+
+    mFrameDurations.clear();
+    mFrameDurationsSum = {};
+
+    TRACE_INT("mSwapIntervalNS", int(mSwapIntervalNS.count()));
+    TRACE_INT("mAutoSwapInterval", mAutoSwapInterval);
+    TRACE_INT("mRefreshPeriod", mRefreshPeriod.count());
+    TRACE_INT("mPipelineMode", static_cast<int>(mPipelineMode));
 }
 
 void SwappyCommon::onPreSwap(const SwapHandlers& h) {
@@ -198,7 +268,7 @@ void SwappyCommon::onPreSwap(const SwapHandlers& h) {
 
     // for non pipeline mode where both cpu and gpu work is done at the same stage
     // wait for next frame will happen after swap
-    if (mPipelineMode) {
+    if (mPipelineMode == PipelineMode::On) {
         mPresentationTimeNeeded = waitForNextFrame(h);
     } else {
         mPresentationTimeNeeded = mAutoSwapInterval <= mAutoSwapIntervalThreshold;
@@ -211,22 +281,25 @@ void SwappyCommon::onPreSwap(const SwapHandlers& h) {
 void SwappyCommon::onPostSwap(const SwapHandlers& h) {
     postSwapBuffersCallbacks();
 
-    if (updateSwapInterval()) {
-        swapIntervalChangedCallbacks();
-        TRACE_INT("mPipelineMode", mPipelineMode);
-        TRACE_INT("mAutoSwapInterval", mAutoSwapInterval);
-    }
 
     updateSwapDuration(std::chrono::steady_clock::now() - mSwapTime);
 
-    if (!mPipelineMode) {
+    if (mPipelineMode == PipelineMode::Off) {
         waitForNextFrame(h);
     }
+
+    if (updateSwapInterval()) {
+        swapIntervalChangedCallbacks();
+        TRACE_INT("mPipelineMode", static_cast<int>(mPipelineMode));
+        TRACE_INT("mAutoSwapInterval", mAutoSwapInterval);
+    }
+
+    updateDisplayTimings();
 
     startFrame();
 }
 
-void SwappyCommon::updateSwapDuration(std::chrono::nanoseconds duration) {
+void SwappyCommon::updateSwapDuration(nanoseconds duration) {
     // TODO: The exponential smoothing factor here is arbitrary
     mSwapDuration = (mSwapDuration.load() * 4 / 5) + duration / 5;
 
@@ -240,12 +313,15 @@ void SwappyCommon::updateSwapDuration(std::chrono::nanoseconds duration) {
 
 uint64_t SwappyCommon::getSwapIntervalNS() {
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
-    return mAutoSwapInterval.load() * mRefreshPeriod.count();
+    return mAutoSwapInterval * mRefreshPeriod.count();
 };
 
 void SwappyCommon::addFrameDuration(FrameDuration duration) {
     ALOGV("cpuTime = %.2f", duration.getCpuTime().count() / 1e6f);
     ALOGV("gpuTime = %.2f", duration.getGpuTime().count() / 1e6f);
+
+    TRACE_INT("cpuTime", duration.getCpuTime().count());
+    TRACE_INT("gpuTime", duration.getGpuTime().count());
 
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
     // keep a sliding window of mFrameDurationSamples
@@ -258,50 +334,69 @@ void SwappyCommon::addFrameDuration(FrameDuration duration) {
     mFrameDurationsSum += duration;
 }
 
+bool SwappyCommon::pipelineModeNotNeeded(const nanoseconds& averageFrameTime,
+                                         const nanoseconds& upperBound) {
+    return (mPipelineModeAutoMode && averageFrameTime < upperBound);
+}
+
 void SwappyCommon::swapSlower(const FrameDuration& averageFrameTime,
-                        const std::chrono::nanoseconds& upperBound,
-                        const std::chrono::nanoseconds& lowerBound,
+                        const nanoseconds& upperBound,
                         const int32_t& newSwapInterval) {
     ALOGV("Rendering takes too much time for the given config");
 
-    if (!mPipelineMode && averageFrameTime.getTime(true) <= upperBound) {
+    if (mPipelineMode == PipelineMode::Off &&
+            averageFrameTime.getTime(PipelineMode::On) <= upperBound) {
         ALOGV("turning on pipelining");
-        mPipelineMode = true;
+        mPipelineMode = PipelineMode::On;
     } else {
         mAutoSwapInterval = newSwapInterval;
-        ALOGV("Changing Swap interval to %d", mAutoSwapInterval.load());
+        ALOGV("Changing Swap interval to %d", mAutoSwapInterval);
 
         // since we changed the swap interval, we may be able to turn off pipeline mode
-        nanoseconds newBound = mRefreshPeriod * mAutoSwapInterval.load();
-        newBound -= (FRAME_HYSTERESIS * 2);
-        if (mPipelineModeAutoMode && averageFrameTime.getTime(false) < newBound) {
+        const nanoseconds newUpperBound = mRefreshPeriod * mAutoSwapInterval;
+        if (pipelineModeNotNeeded(averageFrameTime.getTime(PipelineMode::Off) + FRAME_MARGIN,
+                                  newUpperBound)) {
             ALOGV("Turning off pipelining");
-            mPipelineMode = false;
+            mPipelineMode = PipelineMode::Off;
         } else {
             ALOGV("Turning on pipelining");
-            mPipelineMode = true;
+            mPipelineMode = PipelineMode::On;
         }
     }
 }
 
 void SwappyCommon::swapFaster(const FrameDuration& averageFrameTime,
-                        const std::chrono::nanoseconds& upperBound,
-                        const std::chrono::nanoseconds& lowerBound,
+                        const nanoseconds& lowerBound,
                         const int32_t& newSwapInterval) {
+
+
     ALOGV("Rendering is much shorter for the given config");
     mAutoSwapInterval = newSwapInterval;
-    ALOGV("Changing Swap interval to %d", mAutoSwapInterval.load());
+    ALOGV("Changing Swap interval to %d", mAutoSwapInterval);
 
     // since we changed the swap interval, we may need to turn on pipeline mode
-    nanoseconds newBound = mRefreshPeriod * mAutoSwapInterval.load();
-    newBound -= FRAME_HYSTERESIS;
-    if (!mPipelineModeAutoMode || averageFrameTime.getTime(false) > newBound) {
-        ALOGV("Turning on pipelining");
-        mPipelineMode = true;
-    } else {
+    const nanoseconds newUpperBound = mRefreshPeriod * mAutoSwapInterval;
+    if (pipelineModeNotNeeded(averageFrameTime.getTime(PipelineMode::Off) + FRAME_MARGIN,
+                              newUpperBound)) {
         ALOGV("Turning off pipelining");
-        mPipelineMode = false;
+        mPipelineMode = PipelineMode::Off;
+    } else {
+        ALOGV("Turning on pipelining");
+        mPipelineMode = PipelineMode::On;
     }
+}
+
+bool SwappyCommon::isSameDuration(std::chrono::nanoseconds period1, int interval1,
+                                  std::chrono::nanoseconds period2, int interval2) {
+    static constexpr std::chrono::nanoseconds MARGIN = 1ms;
+
+    auto duration1 = period1 * interval1;
+    auto duration2 = period2 * interval2;
+
+    if (std::max(duration1, duration2) - std::min(duration1, duration2) < MARGIN) {
+        return true;
+    }
+    return false;
 }
 
 bool SwappyCommon::updateSwapInterval() {
@@ -313,43 +408,54 @@ bool SwappyCommon::updateSwapInterval() {
         return false;
 
     const auto averageFrameTime = mFrameDurationsSum / mFrameDurations.size();
-    // define lower and upper bound based on the swap duration
-    nanoseconds upperBound = mRefreshPeriod * mAutoSwapInterval.load();
-    nanoseconds lowerBound = mRefreshPeriod * (mAutoSwapInterval - 1);
 
-    // to be on the conservative side, lower bounds by FRAME_HYSTERESIS
-    upperBound -= FRAME_HYSTERESIS;
-    lowerBound -= FRAME_HYSTERESIS;
+    const auto pipelineFrameTime = averageFrameTime.getTime(PipelineMode::On) + FRAME_MARGIN;
+    const auto nonPipelineFrameTime = averageFrameTime.getTime(PipelineMode::Off) + FRAME_MARGIN;
+    const auto currentConfigFrameTime = mPipelineMode == PipelineMode::On ?
+                                        pipelineFrameTime :
+                                        nonPipelineFrameTime;
+
+    // calculate the new swap interval based on average frame time assume we are in pipeline mode
+    // (prefer higher swap interval rather than turning off pipeline mode)
+    const int newSwapInterval = calculateSwapInterval(pipelineFrameTime, mRefreshPeriod);
+
+    // Define upper and lower bounds based on the swap duration
+    nanoseconds upperBoundForThisRefresh = mRefreshPeriod * mAutoSwapInterval;
+    nanoseconds lowerBoundForThisRefresh = mRefreshPeriod * (mAutoSwapInterval - 1);
 
     // add the hysteresis to one of the bounds to avoid going back and forth when frames
     // are exactly at the edge.
-    lowerBound -= FRAME_HYSTERESIS;
+    lowerBoundForThisRefresh -= EDGE_HYSTERESIS;
 
-    auto div_result = div((averageFrameTime.getTime(true) + FRAME_HYSTERESIS).count(),
-                               mRefreshPeriod.count());
-    auto framesPerRefresh = div_result.quot;
-    auto framesPerRefreshRemainder = div_result.rem;
 
-    const int32_t newSwapInterval = framesPerRefresh + (framesPerRefreshRemainder ? 1 : 0);
-
-    ALOGV("mPipelineMode = %d", mPipelineMode);
+    ALOGV("mPipelineMode = %d", static_cast<int>(mPipelineMode));
     ALOGV("Average cpu frame time = %.2f", (averageFrameTime.getCpuTime().count()) / 1e6f);
     ALOGV("Average gpu frame time = %.2f", (averageFrameTime.getGpuTime().count()) / 1e6f);
-    ALOGV("upperBound = %.2f", upperBound.count() / 1e6f);
-    ALOGV("lowerBound = %.2f", lowerBound.count() / 1e6f);
+    ALOGV("upperBound = %.2f", upperBoundForThisRefresh.count() / 1e6f);
+    ALOGV("lowerBound = %.2f", lowerBoundForThisRefresh.count() / 1e6f);
 
     bool configChanged = false;
-    if (averageFrameTime.getTime(mPipelineMode) > upperBound) {
-        swapSlower(averageFrameTime, upperBound, lowerBound, newSwapInterval);
+
+    // Make sure the frame time fits in the current config to avoid missing frames
+    if (currentConfigFrameTime > upperBoundForThisRefresh) {
+        swapSlower(averageFrameTime, upperBoundForThisRefresh, newSwapInterval);
         configChanged = true;
-    } else if (mSwapInterval < mAutoSwapInterval &&
-               (averageFrameTime.getTime(true) < lowerBound)) {
-        swapFaster(averageFrameTime, upperBound, lowerBound, newSwapInterval);
+    }
+
+    // So we shouldn't miss any frames with this config but maybe we can go faster ?
+    // we check the pipeline frame time here as we prefer lower swap interval than no pipelining
+    else if (mSwapIntervalNS <= mRefreshPeriod * (mAutoSwapInterval - 1) &&
+            pipelineFrameTime < lowerBoundForThisRefresh) {
+        swapFaster(averageFrameTime, lowerBoundForThisRefresh, newSwapInterval);
         configChanged = true;
-    } else if (mPipelineModeAutoMode && mPipelineMode &&
-               averageFrameTime.getTime(false) < upperBound - FRAME_HYSTERESIS) {
+    }
+
+    // If we reached to this condition it means that we fit into the boundaries.
+    // However we might be in pipeline mode and we could turn it off if we still fit.
+    else if (mPipelineMode == PipelineMode::On &&
+             pipelineModeNotNeeded(nonPipelineFrameTime, upperBoundForThisRefresh)) {
         ALOGV("Rendering time fits the current swap interval without pipelining");
-        mPipelineMode = false;
+        mPipelineMode = PipelineMode::Off;
         configChanged = true;
     }
 
@@ -357,6 +463,61 @@ bool SwappyCommon::updateSwapInterval() {
         mFrameDurationsSum = {};
         mFrameDurations.clear();
     }
+
+    // Loop across all supported refresh rate to see if we can find a better refresh rate.
+    // Better refresh rate means:
+    //      Shorter swap period that can still accommodate the frame time can be achieved
+    //      Or,
+    //      Same swap period can be achieved with a lower refresh rate to optimize power
+    //      consumption.
+    nanoseconds minSwapPeriod = mRefreshPeriod * mAutoSwapInterval;
+    bool betterRefreshFound = false;
+    std::pair<std::chrono::nanoseconds, int> betterRefreshConfig;
+    int betterRefreshSwapInterval = 0;
+    if (mSupportedRefreshRates) {
+        for (auto i : *mSupportedRefreshRates) {
+            const auto period = i.first;
+            const int swapIntervalForPeriod = calculateSwapInterval(pipelineFrameTime, period);
+            const nanoseconds duration = period * swapIntervalForPeriod;
+            const nanoseconds lowerBound = duration - EDGE_HYSTERESIS;
+            if (pipelineFrameTime < lowerBound && duration < minSwapPeriod && duration >= mSwapIntervalNS) {
+                minSwapPeriod = duration;
+                betterRefreshConfig = i;
+                betterRefreshSwapInterval = swapIntervalForPeriod;
+                betterRefreshFound = true;
+                ALOGV("Found better refresh %.2f", 1e9f / period.count());
+            }
+        }
+
+        if (!betterRefreshFound) {
+            for (auto i : *mSupportedRefreshRates) {
+                const auto period = i.first;
+                const int swapIntervalForPeriod =
+                        calculateSwapInterval(pipelineFrameTime, period);
+                const nanoseconds duration = period * swapIntervalForPeriod;
+                if (isSameDuration(period, swapIntervalForPeriod,
+                                   mRefreshPeriod, mAutoSwapInterval) && period > mRefreshPeriod) {
+                    betterRefreshFound = true;
+                    betterRefreshConfig = i;
+                    betterRefreshSwapInterval = swapIntervalForPeriod;
+                    ALOGV("Found better refresh %.2f", 1e9f / period.count());
+                }
+            }
+        }
+    }
+
+    // Check if we there is a potential better refresh rate
+    if (betterRefreshFound) {
+        TRACE_INT("preferredRefreshPeriod", betterRefreshConfig.first.count());
+        setPreferredRefreshRate(betterRefreshConfig.second);
+        mSwapIntervalForNewRefresh = betterRefreshSwapInterval;
+
+        nanoseconds upperBoundForNewRefresh = betterRefreshConfig.first * betterRefreshSwapInterval;
+        mPipelineModeForNewRefresh =
+                pipelineModeNotNeeded(nonPipelineFrameTime, upperBoundForNewRefresh) ?
+                                      PipelineMode::Off :  PipelineMode::On;
+    }
+
     return configChanged;
 }
 
@@ -416,8 +577,8 @@ void SwappyCommon::setAutoSwapInterval(bool enabled) {
 
     // non pipeline mode is not supported when auto mode is disabled
     if (!enabled) {
-        mPipelineMode = true;
-        TRACE_INT("mPipelineMode", mPipelineMode);
+        mPipelineMode = PipelineMode::On;
+        TRACE_INT("mPipelineMode", static_cast<int>(mPipelineMode));
     }
 }
 
@@ -426,23 +587,74 @@ void SwappyCommon::setAutoPipelineMode(bool enabled) {
     mPipelineModeAutoMode = enabled;
     TRACE_INT("mPipelineModeAutoMode", mPipelineModeAutoMode);
     if (!enabled) {
-        mPipelineMode = true;
-        TRACE_INT("mPipelineMode", mPipelineMode);
+        mPipelineMode = PipelineMode::On;
+        TRACE_INT("mPipelineMode", static_cast<int>(mPipelineMode));
     }
+}
+
+void SwappyCommon::setPreferredRefreshRate(int modeId) {
+    if (!mDisplayManager || modeId < 0 || mNextModeId == modeId) {
+        return;
+    }
+
+    mNextModeId = modeId;
+    mDisplayManager->setPreferredRefreshRate(modeId);
+}
+
+int SwappyCommon::calculateSwapInterval(nanoseconds frameTime, nanoseconds refreshPeriod) {
+
+    if (frameTime < refreshPeriod) {
+        return 1;
+    }
+
+    auto div_result = div(frameTime.count(), refreshPeriod.count());
+    auto framesPerRefresh = div_result.quot;
+    auto framesPerRefreshRemainder = div_result.rem;
+
+    return (framesPerRefresh + (framesPerRefreshRemainder > REFRESH_RATE_MARGIN.count() ? 1 : 0));
+}
+
+void SwappyCommon::setPreferredRefreshRate(nanoseconds frameTime) {
+    if (!mDisplayManager) {
+        return;
+    }
+
+    int bestModeId = -1;
+    nanoseconds bestPeriod = 0ns;
+    nanoseconds swapIntervalNSMin = 100ms;
+    for (auto i = mSupportedRefreshRates->crbegin(); i != mSupportedRefreshRates->crend(); ++i) {
+        const auto period = i->first;
+        const int modeId = i->second;
+
+        // Make sure we don't cross the swap interval set by the app
+        if (frameTime < mSwapIntervalNS) {
+            frameTime = mSwapIntervalNS;
+        }
+
+        int swapIntervalForPeriod = calculateSwapInterval(frameTime, period);
+        const auto swapIntervalNS = (period * swapIntervalForPeriod);
+        if (swapIntervalNS < swapIntervalNSMin) {
+            swapIntervalNSMin = swapIntervalNS;
+            bestModeId = modeId;
+            bestPeriod = period;
+        }
+    }
+
+    TRACE_INT("preferredRefreshPeriod", bestPeriod.count());
+    setPreferredRefreshRate(bestModeId);
 }
 
 void SwappyCommon::onSettingsChanged() {
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
-    int32_t newSwapInterval = round(float(Settings::getInstance()->getSwapIntervalNS()) /
-                                         float(mRefreshPeriod.count()));
-    if (mSwapInterval != newSwapInterval || mAutoSwapInterval != newSwapInterval) {
-        mSwapInterval = newSwapInterval;
-        mAutoSwapInterval = mSwapInterval.load();
-        mFrameDurations.clear();
-        mFrameDurationsSum = {};
+
+    TimingSettings timingSettings = TimingSettings::from(*Settings::getInstance());
+
+    // If display timings has changed, cache the update and apply them on the next frame
+    if (timingSettings != mNextTimingSettings) {
+        mNextTimingSettings = timingSettings;
+        mTimingSettingsNeedUpdate = true;
     }
-    TRACE_INT("mSwapInterval", mSwapInterval);
-    TRACE_INT("mAutoSwapInterval", mAutoSwapInterval);
+
 }
 
 void SwappyCommon::startFrame() {
@@ -460,7 +672,7 @@ void SwappyCommon::startFrame() {
 
     mTargetFrame = currentFrame + mAutoSwapInterval;
 
-    const int intervals = (mPipelineMode) ? 2 : 1;
+    const int intervals = (mPipelineMode == PipelineMode::On) ? 2 : 1;
 
     // We compute the target time as now
     //   + the time the buffer will be on the GPU and in the queue to the compositor (1 swap period)

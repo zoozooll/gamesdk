@@ -1,0 +1,161 @@
+package com.google.androidgamesdk;
+
+import android.annotation.TargetApi;
+import android.app.Activity;
+import android.content.ComponentName;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.hardware.display.DisplayManager;
+import android.os.Build;
+import android.util.Log;
+import android.view.Display;
+import android.view.Window;
+import android.view.WindowManager;
+
+import static android.app.NativeActivity.META_DATA_LIB_NAME;
+
+public class SwappyDisplayManager implements DisplayManager.DisplayListener {
+    final private String LOG_TAG = "SwappyDisplayManager";
+    final private boolean DEBUG = false;
+    final private long ONE_MS_IN_NS = 1000000;
+    final private long ONE_S_IN_NS = ONE_MS_IN_NS * 1000;
+
+    private long mCookie;
+    private Activity mActivity;
+    private WindowManager mWindowManager;
+    private Display.Mode mCurrentMode;
+
+    @TargetApi(Build.VERSION_CODES.M)
+    private boolean modeMatchesCurrentResolution(Display.Mode mode) {
+        return mode.getPhysicalHeight() == mCurrentMode.getPhysicalHeight() &&
+                mode.getPhysicalWidth() == mCurrentMode.getPhysicalWidth();
+
+    }
+
+    public SwappyDisplayManager(long cookie, Activity activity) {
+        // Load the native library for cases where an NDK application is running
+        // without a java componenet
+        try {
+            ActivityInfo ai = activity.getPackageManager().getActivityInfo(
+                    activity.getIntent().getComponent(), PackageManager.GET_META_DATA);
+            if (ai.metaData != null) {
+                String nativeLibName = ai.metaData.getString(META_DATA_LIB_NAME);
+                if (nativeLibName != null) {
+                    System.loadLibrary(nativeLibName);
+                }
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(LOG_TAG, e.getMessage());
+        }
+
+        mCookie = cookie;
+        mActivity = activity;
+
+        mWindowManager = mActivity.getSystemService(WindowManager.class);
+        Display display = mWindowManager.getDefaultDisplay();
+        mCurrentMode = display.getMode();
+        updateSupportedRefreshRates(display);
+
+        // Register display listener callbacks
+        DisplayManager dm = mActivity.getSystemService(DisplayManager.class);
+
+        synchronized(this) {
+            dm.registerDisplayListener(this, null);
+        }
+    }
+
+    private void updateSupportedRefreshRates(Display display) {
+        Display.Mode[] supportedModes = display.getSupportedModes();
+        int totalModes = 0;
+        for (int i = 0; i < supportedModes.length; i++) {
+            if (!modeMatchesCurrentResolution(supportedModes[i])) {
+                continue;
+            }
+            totalModes++;
+        }
+
+        long[] supportedRefreshRates = new long[totalModes];
+        int[] supportedRefreshRatesIds = new int[totalModes];
+        totalModes = 0;
+        for (int i = 0; i < supportedModes.length; i++) {
+            if (!modeMatchesCurrentResolution(supportedModes[i])) {
+                continue;
+            }
+            supportedRefreshRates[totalModes] =
+                    (long) (ONE_S_IN_NS / supportedModes[i].getRefreshRate());
+            supportedRefreshRatesIds[totalModes] = supportedModes[i].getModeId();
+            totalModes++;
+
+        }
+        // Call down to native to set the supported refresh rates
+        nSetSupportedRefreshRates(mCookie, supportedRefreshRates, supportedRefreshRatesIds);
+    }
+
+    public void setPreferredRefreshRate(final int modeId) {
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Window w = mActivity.getWindow();
+                WindowManager.LayoutParams l = w.getAttributes();
+                if (DEBUG) {
+                    Log.v(LOG_TAG, "set preferredDisplayModeId to " + modeId);
+                }
+                l.preferredDisplayModeId = modeId;
+
+
+                w.setAttributes(l);
+            }
+        });
+    }
+
+    @Override
+    public void onDisplayAdded(int displayId) {
+
+    }
+
+    @Override
+    public void onDisplayRemoved(int displayId) {
+
+    }
+
+    @Override
+    public void onDisplayChanged(int displayId) {
+        synchronized(this) {
+            Display display = mWindowManager.getDefaultDisplay();
+            float newRefreshRate = display.getRefreshRate();
+            Display.Mode newMode = display.getMode();
+            boolean resolutionChanged =
+                    (newMode.getPhysicalWidth() != mCurrentMode.getPhysicalWidth()) |
+                    (newMode.getPhysicalHeight() != mCurrentMode.getPhysicalHeight());
+            boolean refreshRateChanged = (newRefreshRate != mCurrentMode.getRefreshRate());
+            mCurrentMode = newMode;
+
+            if (resolutionChanged) {
+                updateSupportedRefreshRates(display);
+            }
+
+            if (refreshRateChanged) {
+                final long appVsyncOffsetNanos = display.getAppVsyncOffsetNanos();
+                final long vsyncPresentationDeadlineNanos =
+                        mWindowManager.getDefaultDisplay().getPresentationDeadlineNanos();
+
+                final long vsyncPeriodNanos = (long)(ONE_S_IN_NS / newRefreshRate);
+                final long sfVsyncOffsetNanos =
+                        vsyncPeriodNanos - (vsyncPresentationDeadlineNanos - ONE_MS_IN_NS);
+
+                nOnRefreshRateChanged(mCookie,
+                                     vsyncPeriodNanos,
+                                     appVsyncOffsetNanos,
+                                     sfVsyncOffsetNanos);
+            }
+        }
+    }
+
+    private native void nSetSupportedRefreshRates(long cookie,
+                                                  long[] refreshRates,
+                                                  int[] modeIds);
+    private native void nOnRefreshRateChanged(long cookie,
+                                              long refreshPeriod,
+                                              long appOffset,
+                                              long sfOffset);
+}

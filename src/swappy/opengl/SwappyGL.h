@@ -41,7 +41,7 @@ class SwappyGL {
     struct ConstructorTag {};
   public:
     SwappyGL(JNIEnv *env, jobject jactivity, ConstructorTag);
-    static void init(JNIEnv *env, jobject jactivity);
+    static bool init(JNIEnv *env, jobject jactivity);
 
     static void onChoreographer(int64_t frameTimeNanos);
 
@@ -86,10 +86,10 @@ private:
     bool mEnableSwappy = true;
 
     static std::mutex sInstanceMutex;
-    static std::unique_ptr<SwappyGL> sInstance;
+    static std::unique_ptr<SwappyGL> sInstance GUARDED_BY(sInstanceMutex);
 
     std::mutex mEglMutex;
-    std::shared_ptr<EGL> mEgl;
+    std::unique_ptr<EGL> mEgl;
 
     std::unique_ptr<FrameStatistics> mFrameStatistics;
 
