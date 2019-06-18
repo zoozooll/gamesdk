@@ -80,7 +80,7 @@ abstract class Toolchain {
     public String getAndroidVersion() { return androidVersion_; }
     public String getNdkVersion() { return ndkVersion_; }
     public String getBuildKey(String arch, String stl) {
-        return arch + '_SDK' + androidVersion_ + "_NDK" + ndkVersion_ + '_' + stl
+        return arch + '_SDK' + androidVersion_ + "_NDK" + ndkVersion_ + '_' + sanitize(stl)
     }
     protected String getNdkVersionFromPropertiesFile() {
         def f = new File(getAndroidNDKPath(), 'source.properties')
@@ -100,6 +100,9 @@ abstract class Toolchain {
             else
                 return parts[0]
         }
+    }
+    private String sanitize(String s) {
+	return s.replaceAll(/[+]/, "p")
     }
 }
 class SpecificToolchain extends Toolchain {
@@ -210,7 +213,7 @@ def useNinja() {
 }
 
 def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
-          threadChecks, buildTuningFork) {
+          threadChecks, buildTuningFork, buildType = "Release") {
     def ndkPath = toolchain.getAndroidNDKPath()
     def toolchainFilePath = ndkPath + "/build/cmake/android.toolchain.cmake"
     def externalPath = getExternalPath();
@@ -230,7 +233,7 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
 
     def cmdLine = [toolchain.getCMakePath(),
                    "$projectFolder",
-                   "-DCMAKE_BUILD_TYPE=Release",
+                   "-DCMAKE_BUILD_TYPE=$buildType",
                    "-DANDROID_PLATFORM=android-$androidVersion",
                    "-DANDROID_NDK=$ndkPath",
                    "-DANDROID_STL=$stl",
@@ -252,14 +255,14 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
     }
 }
 
-def buildNativeModules(arch, Toolchain toolchain, stl, threadChecks, buildtf, subdir = "src") {
+def buildNativeModules(arch, Toolchain toolchain, stl, threadChecks, buildtf, subdir = "src", buildType = "Release") {
     def buildKey = toolchain.getBuildKey(arch, stl)
     def workingFolder = joinPath(getTempPath(), buildKey, '.cmake')
     def outputFolder = joinPath(getOutPath(), buildKey)
     def cmakeProjectLocation = joinPath("$projectDir", subdir)
 
     cmake(cmakeProjectLocation, workingFolder, outputFolder, arch, toolchain,
-          stl, threadChecks, buildtf)
+          stl, threadChecks, buildtf, buildType)
 
     def cmdLine = useNinja() ? [toolchain.getNinjaPath()] : ["make", "-j"]
     exec {
@@ -270,10 +273,10 @@ def buildNativeModules(arch, Toolchain toolchain, stl, threadChecks, buildtf, su
 }
 
 def buildNativeModules(arch, androidVersion, ndkVersion, stl, threadChecks,
-                       buildtf) {
+                       buildtf, buildType) {
     return buildNativeModules(arch,
                               new SpecificToolchain(project, androidVersion, ndkVersion),
-                              stl, threadChecks, buildtf)
+                              stl, threadChecks, buildtf, "src", buildType)
 }
 
 task cleanPath(type: Delete) {
@@ -351,22 +354,22 @@ def copyExtras(outFolder, all = true) {
     }
 }
 
-// The latest Unity is using NDK 16b and SDK 21 with gnu stl
+// The latest Unity is using NDK 19 and SDK 21 with c++ stl
 def defaultAbis() { return ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"] }
 
-def unityNativeBuild(withTuningFork=false) {
+def unityNativeBuild(withTuningFork=false, buildType="Release") {
     def threadChecks = false
     return defaultAbis().collect {
-        buildNativeModules(it, "21", "r16", "gnustl_static", threadChecks, withTuningFork)
+        buildNativeModules(it, "21", "r19", "c++_static", threadChecks, withTuningFork, buildType)
     }
 }
 
-def sdkNativeBuild(withTuningFork = true) {
+def sdkNativeBuild(withTuningFork = true, buildType="Release") {
     def threadChecks = false
     return defaultAbis().collectMany {
-        [ buildNativeModules(it, "26", "r16", "gnustl_static", threadChecks, withTuningFork) ] +
-        [ buildNativeModules(it, "28", "r17", "gnustl_static", threadChecks, withTuningFork) ] +
-        [ buildNativeModules(it, "28", "r17", "c++_static", threadChecks, withTuningFork) ]
+     [ buildNativeModules(it, "26", "r16", "gnustl_static", threadChecks, withTuningFork, buildType) ] +
+     [ buildNativeModules(it, "28", "r17", "gnustl_static", threadChecks, withTuningFork, buildType) ] +
+     [ buildNativeModules(it, "28", "r17", "c++_static", threadChecks, withTuningFork, buildType) ]
     }
 }
 
@@ -397,7 +400,19 @@ task swappyUnityBuild(type: BuildTask) {
     ext.withSharedLibs = false
     ext.withStaticLibs = true
     ext.withFullBuildKey = true
-    ext.nativeBuild = { tf -> unityNativeBuild(tf) }
+    ext.buildType = "Release";
+    ext.nativeBuild = { tf,bt -> unityNativeBuild(tf,bt) }
+}
+task swappyUnityDebugBuild(type: BuildTask) {
+    dependsOn ':extras:assembleRelease'
+    ext.packageName = 'swappyUnity'
+    ext.flattenLibs = true
+    ext.withTuningFork = false
+    ext.withSharedLibs = true
+    ext.withStaticLibs = true
+    ext.withFullBuildKey = true
+    ext.buildType = "Debug";
+    ext.nativeBuild = { tf,bt -> unityNativeBuild(tf,bt) }
 }
 
 // Full build including tuning fork for unity, shared libraries only
@@ -409,7 +424,8 @@ task unityBuild(type: BuildTask) {
     ext.withSharedLibs = false
     ext.withStaticLibs = true
     ext.withFullBuildKey = true
-    ext.nativeBuild = { tf -> unityNativeBuild(tf) }
+    ext.buildType = "Release";
+    ext.nativeBuild = { tf,bt -> unityNativeBuild(tf,bt) }
 }
 
 // Build everything
@@ -421,7 +437,8 @@ task sdkBuild(type: BuildTask) {
     ext.withSharedLibs = true
     ext.withStaticLibs = true
     ext.withFullBuildKey = true
-    ext.nativeBuild = { tf -> sdkNativeBuild(tf) }
+    ext.buildType = "Release";
+    ext.nativeBuild = { tf,bt -> sdkNativeBuild(tf,bt) }
 }
 
 // Build using local SDK, no tuning fork
@@ -433,7 +450,8 @@ task localBuild(type: BuildTask) {
     ext.withSharedLibs = true
     ext.withStaticLibs = true;
     ext.withFullBuildKey = false;
-    ext.nativeBuild = { tf -> localNativeBuild(tf) }
+    ext.buildType = "Release";
+    ext.nativeBuild = { tf,bt -> localNativeBuild(tf,bt) }
 }
 
 // Build using local SDK, with tuning fork
@@ -445,12 +463,13 @@ task localTfBuild(type: BuildTask) {
     ext.withSharedLibs = true
     ext.withStaticLibs = true;
     ext.withFullBuildKey = false;
-    ext.nativeBuild = { tf -> localNativeBuild(tf) }
+    ext.buildType = "Release";
+    ext.nativeBuild = { tf,bt -> localNativeBuild(tf,bt) }
 }
 
 tasks.withType(BuildTask) {
     doLast {
-        nativeBuild(withTuningFork).each {
+        nativeBuild(withTuningFork, buildType).each {
             sdkCopy(it, packageName, withTuningFork, withStaticLibs,
                     withFullBuildKey, flattenLibs, withSharedLibs)
         }
@@ -509,6 +528,7 @@ def addZipTask(name, buildTask, zipName, rootName = "gamesdk") {
 }
 
 addZipTask("swappyUnityZip", swappyUnityBuild, "builds")
+addZipTask("swappyUnityDebugZip", swappyUnityDebugBuild, "builds")
 addZipTask("unityZip", unityBuild, "builds")
 addZipTask("archiveZip", localBuild, "gamesdk")
 addZipTask("archiveTfZip", localTfBuild, "gamesdk")

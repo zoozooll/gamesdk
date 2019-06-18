@@ -58,12 +58,9 @@ add_library( swappy
 
              SHARED
 
-             ${SOURCE_LOCATION_OPENGL}/swappyGL_c.cpp)
-                            # Looks like I need to specify at least one file to build,
-                            # the result .so size suggests it's including the rest of the
-                            # source files from the library
-                            # also, removing the target_link to the static library
-                            # fails the build
+             ${SOURCE_LOCATION_COMMON}/swappy_c.cpp
+             ${SOURCE_LOCATION_OPENGL}/swappyGL_c.cpp
+             ${SOURCE_LOCATION_VULKAN}/swappyVk_c.cpp)
 
 
  target_link_libraries( swappy
