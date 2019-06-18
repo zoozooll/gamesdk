@@ -1,4 +1,4 @@
-package com.google.swappy;
+package com.google.androidgamesdk;
 
 import android.os.Handler;
 import android.os.Looper;
@@ -7,7 +7,6 @@ import android.util.Log;
 
 
 public class ChoreographerCallback implements Choreographer.FrameCallback {
-
     private static final String LOG_TAG = "ChoreographerCallback";
     private long mCookie;
     private LooperThread mLooper;
