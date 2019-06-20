@@ -147,8 +147,8 @@ SwappyCommon::SwappyCommon(JNIEnv *env, jobject jactivity)
 
 SwappyCommon::~SwappyCommon() {
     // destroy all threads first before the other members of this class
-    mChoreographerFilter.reset();
     mChoreographerThread.reset();
+    mChoreographerFilter.reset();
 
     Settings::reset();
 }
