@@ -45,31 +45,28 @@ class EGL {
         EGLnsecsANDROID presented;
     };
 
-    explicit EGL(std::chrono::nanoseconds refreshPeriod,
-                 std::chrono::nanoseconds fenceTimeout, ConstructorTag)
-        : mRefreshPeriod(refreshPeriod), mFenceWaiter(fenceTimeout) {}
+    explicit EGL(std::chrono::nanoseconds fenceTimeout, ConstructorTag)
+        : mFenceWaiter(fenceTimeout) {}
 
-  static std::unique_ptr<EGL> create(std::chrono::nanoseconds refreshPeriod,
-                                     std::chrono::nanoseconds fenceTimeout);
+    static std::unique_ptr<EGL> create(std::chrono::nanoseconds fenceTimeout);
 
     void resetSyncFence(EGLDisplay display);
     bool lastFrameIsComplete(EGLDisplay display);
     bool setPresentationTime(EGLDisplay display,
                              EGLSurface surface,
                              std::chrono::steady_clock::time_point time);
-    std::chrono::nanoseconds getFencePendingTime() { return mFenceWaiter.getFencePendingTime(); }
+    std::chrono::nanoseconds getFencePendingTime() const
+        { return mFenceWaiter.getFencePendingTime(); }
 
     // for stats
     bool statsSupported();
     std::pair<bool,EGLuint64KHR> getNextFrameId(EGLDisplay dpy,
-                                                EGLSurface surface);
+                                                EGLSurface surface) const;
     std::unique_ptr<FrameTimestamps> getFrameTimestamps(EGLDisplay dpy,
                                                         EGLSurface surface,
-                                                        EGLuint64KHR frameId);
+                                                        EGLuint64KHR frameId) const;
 
   private:
-    const std::chrono::nanoseconds mRefreshPeriod;
-
     using eglPresentationTimeANDROID_type = EGLBoolean (*)(EGLDisplay, EGLSurface, EGLnsecsANDROID);
     eglPresentationTimeANDROID_type eglPresentationTimeANDROID = nullptr;
     using eglCreateSyncKHR_type = EGLSyncKHR (*)(EGLDisplay, EGLenum, const EGLint *);
@@ -99,7 +96,7 @@ class EGL {
 
         void onFenceCreation(EGLDisplay display, EGLSyncKHR syncFence);
         void waitForIdle();
-        std::chrono::nanoseconds getFencePendingTime();
+        std::chrono::nanoseconds getFencePendingTime() const;
 
     private:
         using eglClientWaitSyncKHR_type = EGLBoolean (*)(EGLDisplay, EGLSyncKHR, EGLint, EGLTimeKHR);

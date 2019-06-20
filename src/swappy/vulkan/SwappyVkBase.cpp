@@ -154,7 +154,7 @@ VkResult SwappyVkBase::initializeVkSyncObjects(VkQueue   queue,
             return res;
         }
 
-        mFreeSync[queue].push_back(sync);
+        mFreeSyncPool[queue].push_back(sync);
     }
 
     // Create a thread that will wait for the fences
@@ -165,6 +165,7 @@ VkResult SwappyVkBase::initializeVkSyncObjects(VkQueue   queue,
 }
 
 void SwappyVkBase::destroyVkSyncObjects() {
+    // Stop all waiters threads
     for (auto it = mThreads.begin(); it != mThreads.end(); it++) {
         {
             std::lock_guard<std::mutex> lock(it->second->lock);
@@ -174,47 +175,86 @@ void SwappyVkBase::destroyVkSyncObjects() {
         it->second->thread.join();
     }
 
-    for (auto it = mPendingSync.begin(); it != mPendingSync.end(); it++) {
-        while (mPendingSync[it->first].size() > 0) {
-            VkSync sync = mPendingSync[it->first].front();
-            mPendingSync[it->first].pop_front();
-            if (!sync.fenceSignaled) {
-                vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE,
-                                mCommonBase.getFenceTimeout().count());
-                vkResetFences(mDevice, 1, &sync.fence);
-            }
-            mFreeSync[it->first].push_back(sync);
+    // Wait for all unsignaled fences to get signlaed
+    for (auto it = mWaitingSyncs.begin(); it != mWaitingSyncs.end(); it++) {
+        auto queue = it->first;
+        auto syncList = it->second;
+        while (syncList.size() > 0) {
+            VkSync sync = syncList.front();
+            syncList.pop_front();
+            vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE,
+                            mCommonBase.getFenceTimeout().count());
+            vkResetFences(mDevice, 1, &sync.fence);
+            mSignaledSyncs[queue].push_back(sync);
         }
+    }
 
-        while (mFreeSync[it->first].size() > 0) {
-            VkSync sync = mFreeSync[it->first].front();
-            mFreeSync[it->first].pop_front();
+    // Move all signaled fences to the free pool
+    for (auto it = mSignaledSyncs.begin(); it != mSignaledSyncs.end(); it++) {
+        auto queue = it->first;
+        auto syncList = it->second;
+        while (syncList.size() > 0) {
+            VkSync sync = syncList.front();
+            syncList.pop_front();
+            mFreeSyncPool[queue].push_back(sync);
+        }
+    }
+
+    // Free all sync objects
+    for (auto it = mFreeSyncPool.begin(); it != mFreeSyncPool.end(); it++) {
+        auto queue = it->first;
+        auto syncList = it->second;
+        while (syncList.size() > 0) {
+            VkSync sync = syncList.front();
+            syncList.pop_front();
             vkFreeCommandBuffers(mDevice, mCommandPool[it->first], 1, &sync.command);
             vkDestroyEvent(mDevice, sync.event, NULL);
             vkDestroySemaphore(mDevice, sync.semaphore, NULL);
             vkDestroyFence(mDevice, sync.fence, NULL);
         }
+    }
 
-        vkDestroyCommandPool(mDevice, mCommandPool[it->first], NULL);
+    // Free destroy the command pools
+    for (auto it = mCommandPool.begin(); it != mCommandPool.end(); it++) {
+        auto commandPool = it->second;
+        vkDestroyCommandPool(mDevice, commandPool, NULL);
     }
 }
 
 bool SwappyVkBase::lastFrameIsCompleted(VkQueue queue) {
+    auto pipelineMode = mCommonBase.getCurrentPipelineMode();
     std::lock_guard<std::mutex> lock(mThreads[queue]->lock);
-    if (mPendingSync[queue].size() < MAX_PENDING_FENCES) {
+    if (pipelineMode == SwappyCommon::PipelineMode::On) {
+        // We are in pipeline mode so we need to check the fence of frame N-1
+        const int numFencesSubmitted = MAX_PENDING_FENCES - mFreeSyncPool[queue].size();
+        if (numFencesSubmitted < 2) {
+            // First frame
+            return true;
+        }
+
+        if (mSignaledSyncs[queue].size() == 0) {
+            // There are no signaled fences
+            return false;
+        }
+
+        VkSync &sync = mSignaledSyncs[queue].front();
+        mSignaledSyncs[queue].pop_front();
+        mFreeSyncPool[queue].push_back(sync);
+        return true;
+    } else {
+        // We are not in pipeline mode so we need to check the fence the current frame. i.e. there
+        // are not unsignaled frames
+        while (mFreeSyncPool[queue].size() != MAX_PENDING_FENCES) {
+            if (mSignaledSyncs[queue].size() == 0) {
+                // There are no signaled fences
+                return false;
+            }
+            VkSync &sync = mSignaledSyncs[queue].front();
+            mSignaledSyncs[queue].pop_front();
+            mFreeSyncPool[queue].push_back(sync);
+        }
         return true;
     }
-
-    VkSync& sync = mPendingSync[queue].front();
-
-    // Waiter thread updates the pending time when the fence has signaled.
-    if (!sync.fenceSignaled) {
-        return false;
-    }
-
-    mPendingSync[queue].pop_front();
-    mFreeSync[queue].push_back(sync);
-    return true;
 }
 
 VkResult SwappyVkBase::injectFence(VkQueue                 queue,
@@ -222,12 +262,12 @@ VkResult SwappyVkBase::injectFence(VkQueue                 queue,
                                    VkSemaphore*            pSemaphore) {
     // If we cross the swap interval threshold, we don't pace at all.
     // In this case we might not have a free fence, so just don't use the fence.
-    if (mFreeSync[queue].size() == 0) {
+    if (mFreeSyncPool[queue].size() == 0) {
         return VK_SUCCESS;
     }
 
-    VkSync sync = mFreeSync[queue].front();
-    mFreeSync[queue].pop_front();
+    VkSync sync = mFreeSyncPool[queue].front();
+    mFreeSyncPool[queue].pop_front();
 
     VkPipelineStageFlags pipe_stage_flags;
     VkSubmitInfo submit_info;
@@ -245,8 +285,7 @@ VkResult SwappyVkBase::injectFence(VkQueue                 queue,
     *pSemaphore = sync.semaphore;
 
     std::lock_guard<std::mutex> lock(mThreads[queue]->lock);
-    sync.fenceSignaled = false;
-    mPendingSync[queue].push_back(sync);
+    mWaitingSyncs[queue].push_back(sync);
     mThreads[queue]->hasPendingWork = true;
     mThreads[queue]->condition.notify_all();
 
@@ -265,8 +304,7 @@ void SwappyVkBase::waitForFenceThreadMain(VkQueue queue) {
     ThreadContext& thread = *mThreads[queue];
 
     while (true) {
-        std::list<VkSync>::iterator pendingSyncIterator;
-        bool remainingSyncs = true;
+        bool waitingSyncsEmpty;
         {
             std::lock_guard<std::mutex> lock(thread.lock);
             // Wait for new fence object
@@ -280,48 +318,39 @@ void SwappyVkBase::waitForFenceThreadMain(VkQueue queue) {
                 break;
             }
 
-            pendingSyncIterator = mPendingSync[queue].begin();
-            while (pendingSyncIterator != mPendingSync[queue].end() &&
-                    pendingSyncIterator->fenceSignaled) {
-                ++pendingSyncIterator;
-            }
-            remainingSyncs = pendingSyncIterator != mPendingSync[queue].end();
+            waitingSyncsEmpty = mWaitingSyncs[queue].empty();
         }
 
-        while (remainingSyncs) {
-            VkSync *sync;
+        while (!waitingSyncsEmpty) {
+            VkSync sync;
             {  // Get the sync object with a lock
                 std::lock_guard<std::mutex> lock(thread.lock);
-                sync = &(*pendingSyncIterator);
+                sync = mWaitingSyncs[queue].front();
+                mWaitingSyncs[queue].pop_front();
             }
 
             const auto startTime = std::chrono::steady_clock::now();
-            VkResult result = vkWaitForFences(mDevice, 1, &sync->fence, VK_TRUE, UINT64_MAX);
+            VkResult result = vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE,
+                                              mCommonBase.getFenceTimeout().count());
             if (result) {
                 ALOGE("Failed to wait for fence %d", result);
             }
-            auto pendingTime = std::chrono::steady_clock::now() - startTime;
+            vkResetFences(mDevice, 1, &sync.fence);
+            mLastFenceTime = std::chrono::steady_clock::now() - startTime;
 
-            vkResetFences(mDevice, 1, &sync->fence);
-
-            {  // Advance the iterator
+            // Move the sync object to the signaled list
+            {
                 std::lock_guard<std::mutex> lock(thread.lock);
-                sync->pendingTime = pendingTime;
-                sync->fenceSignaled = true;
-                ++pendingSyncIterator;
-                remainingSyncs = pendingSyncIterator != mPendingSync[queue].end();
+
+                mSignaledSyncs[queue].push_back(sync);
+                waitingSyncsEmpty = mWaitingSyncs[queue].empty();
             }
         }
     }
 }
 
 std::chrono::nanoseconds SwappyVkBase::getLastFenceTime(VkQueue queue) {
-    std::lock_guard<std::mutex> lock(mThreads[queue]->lock);
-    // Last fence is either the first one pending or the last one that was free.
-    if (mPendingSync[queue].size() && mPendingSync[queue].front().pendingTime != 0ns) {
-        return mPendingSync[queue].begin()->pendingTime;
-    }
-    return mFreeSync[queue].back().pendingTime;
+    return mLastFenceTime;
 }
 
 void SwappyVkBase::setFenceTimeout(std::chrono::nanoseconds duration) {

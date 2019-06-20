@@ -78,7 +78,7 @@ NDKChoreographerThread::NDKChoreographerThread(Callback onChoreographer) :
     mLibAndroid = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
     if (mLibAndroid == nullptr) {
         ALOGE("FATAL: cannot open libandroid.so: %s", strerror(errno));
-        abort();
+        return;
     }
 
     mAChoreographer_getInstance =
@@ -97,7 +97,7 @@ NDKChoreographerThread::NDKChoreographerThread(Callback onChoreographer) :
         !mAChoreographer_postFrameCallback ||
         !mAChoreographer_postFrameCallbackDelayed) {
         ALOGE("FATAL: cannot get AChoreographer symbols");
-        abort();
+        return;
     }
 
     std::unique_lock<std::mutex> lock(mWaitingMutex);
@@ -107,6 +107,8 @@ NDKChoreographerThread::NDKChoreographerThread(Callback onChoreographer) :
     mWaitingCondition.wait(lock, [&]() REQUIRES(mWaitingMutex) {
         return mChoreographer != nullptr;
     });
+
+    mInitialized = true;
 }
 
 NDKChoreographerThread::~NDKChoreographerThread()
@@ -238,6 +240,8 @@ JavaChoreographerThread::JavaChoreographerThread(JavaVM *vm,
             env->NewObject(choreographerCallbackClass, constructor, reinterpret_cast<jlong>(this));
 
     mJobj = env->NewGlobalRef(choreographerCallback);
+
+    mInitialized = true;
 }
 
 JavaChoreographerThread::~JavaChoreographerThread()
@@ -289,7 +293,9 @@ private:
 };
 
 NoChoreographerThread::NoChoreographerThread(Callback onChoreographer) :
-    ChoreographerThread(onChoreographer) {}
+    ChoreographerThread(onChoreographer) {
+    mInitialized = true;
+}
 
 
 void NoChoreographerThread::postFrameCallbacks() {

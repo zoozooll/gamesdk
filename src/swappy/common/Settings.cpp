@@ -40,10 +40,10 @@ void Settings::addListener(Listener listener) {
     mListeners.emplace_back(std::move(listener));
 }
 
-void Settings::setRefreshPeriod(std::chrono::nanoseconds period) {
+void Settings::setDisplayTimings(const DisplayTimings& displayTimings) {
     {
         std::lock_guard<std::mutex> lock(mMutex);
-        mRefreshPeriod = period;
+        mDisplayTimings = displayTimings;
     }
     // Notify the listeners without the lock held
     notifyListeners();
@@ -66,10 +66,9 @@ void Settings::setUseAffinity(bool tf) {
     notifyListeners();
 }
 
-
-std::chrono::nanoseconds Settings::getRefreshPeriod() const {
+const Settings::DisplayTimings& Settings::getDisplayTimings() const {
     std::lock_guard<std::mutex> lock(mMutex);
-    return mRefreshPeriod;
+    return mDisplayTimings;
 }
 
 uint64_t Settings::getSwapIntervalNS() const {

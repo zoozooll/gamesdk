@@ -68,7 +68,8 @@ class Timer {
         }
 
         // TODO: 0.2 weighting factor for exponential smoothing is completely arbitrary
-        mBaseTime += mRefreshPeriod + delta * 2 / 10;
+        mRefreshPeriod += delta * 2 / 10;
+        mBaseTime += mRefreshPeriod;
 
         return true;
     }
@@ -88,7 +89,7 @@ class Timer {
     }
 
   private:
-    const std::chrono::nanoseconds mRefreshPeriod;
+    std::chrono::nanoseconds mRefreshPeriod;
     const std::chrono::nanoseconds mAppToSfDelay;
     time_point mBaseTime = std::chrono::steady_clock::now();
 
@@ -119,7 +120,7 @@ ChoreographerFilter::~ChoreographerFilter() {
 }
 
 void ChoreographerFilter::onChoreographer() {
-    std::unique_lock<std::mutex> lock(mMutex);
+    std::lock_guard<std::mutex> lock(mMutex);
     mLastTimestamp = std::chrono::steady_clock::now();
     ++mSequenceNumber;
     mCondition.notify_all();
@@ -152,13 +153,20 @@ void ChoreographerFilter::terminateThreadsLocked() {
 
 void ChoreographerFilter::onSettingsChanged() {
     const bool useAffinity = Settings::getInstance()->getUseAffinity();
+    const Settings::DisplayTimings& displayTimings = Settings::getInstance()->getDisplayTimings();
     std::lock_guard<std::mutex> lock(mThreadPoolMutex);
-    if (useAffinity == mUseAffinity) {
+    if (useAffinity == mUseAffinity && mRefreshPeriod == displayTimings.refreshPeriod) {
         return;
     }
 
     terminateThreadsLocked();
     mUseAffinity = useAffinity;
+    mRefreshPeriod = displayTimings.refreshPeriod;
+    mAppToSfDelay = displayTimings.sfOffset - displayTimings.appOffset;
+    ALOGV("onSettingsChanged(): refreshPeriod=%lld, appOffset=%lld, sfOffset=%lld",
+          (long long)displayTimings.refreshPeriod.count(),
+          (long long)displayTimings.appOffset.count(),
+          (long long)displayTimings.sfOffset.count());
     launchThreadsLocked();
 }
 

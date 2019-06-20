@@ -34,6 +34,12 @@ class Settings {
     struct ConstructorTag {
     };
   public:
+    struct DisplayTimings {
+        std::chrono::nanoseconds refreshPeriod{0};
+        std::chrono::nanoseconds appOffset{0};
+        std::chrono::nanoseconds sfOffset{0};
+    };
+
     explicit Settings(ConstructorTag) {};
 
     static Settings *getInstance();
@@ -43,11 +49,11 @@ class Settings {
     using Listener = std::function<void()>;
     void addListener(Listener listener);
 
-    void setRefreshPeriod(std::chrono::nanoseconds period);
+    void setDisplayTimings(const DisplayTimings& displayTimings);
     void setSwapIntervalNS(uint64_t swap_ns);
     void setUseAffinity(bool);
 
-    std::chrono::nanoseconds getRefreshPeriod() const;
+    const DisplayTimings& getDisplayTimings() const;
     uint64_t getSwapIntervalNS() const;
     bool getUseAffinity() const;
 
@@ -59,8 +65,7 @@ class Settings {
     mutable std::mutex mMutex;
     std::vector<Listener> mListeners GUARDED_BY(mMutex);
 
-    std::chrono::nanoseconds
-        mRefreshPeriod GUARDED_BY(mMutex) = std::chrono::nanoseconds{12'345'678};
+    DisplayTimings mDisplayTimings GUARDED_BY(mMutex);
     uint64_t mSwapIntervalNS GUARDED_BY(mMutex) = 16666667L;
     bool mUseAffinity GUARDED_BY(mMutex) = true;
 };

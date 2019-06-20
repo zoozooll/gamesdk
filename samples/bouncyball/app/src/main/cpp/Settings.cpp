@@ -36,10 +36,8 @@ void Settings::addListener(Listener listener) {
 }
 
 void Settings::setPreference(std::string key, std::string value) {
-    if (key == "refresh_period") {
-        SwappyGL_setRefreshPeriod(std::stoll(value));
-    } else if (key == "swap_interval") {
-        SwappyGL_setSwapIntervalNS(std::stoi(value) * 1e6);
+    if (key == "swap_interval") {
+        SwappyGL_setSwapIntervalNS(std::stod(value) * 1e6);
     } else if (key == "use_affinity") {
         SwappyGL_setUseAffinity(value == "true");
     } else if (key == "hot_pocket") {

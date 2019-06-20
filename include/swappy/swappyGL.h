@@ -30,10 +30,11 @@ extern "C" {
 #endif
 
 // Internal init function. Do not call directly.
-void SwappyGL_init_internal(JNIEnv *env, jobject jactivity);
+bool SwappyGL_init_internal(JNIEnv *env, jobject jactivity);
 
 // Initialize Swappy, getting the required Android parameters from the display subsystem via JNI
-static inline void SwappyGL_init(JNIEnv *env, jobject jactivity)  {
+// Returns false if swappy failed to initialize
+static inline bool SwappyGL_init(JNIEnv *env, jobject jactivity)  {
     // This call ensures that the header and the linked library are from the same version
     // (if not, a linker error will be triggered because of an undefined symbolP).
     SWAPPY_VERSION_SYMBOL();
@@ -53,7 +54,6 @@ void SwappyGL_destroy();
 bool SwappyGL_swap(EGLDisplay display, EGLSurface surface);
 
 // Parameter setters
-void SwappyGL_setRefreshPeriod(uint64_t period_ns);
 void SwappyGL_setUseAffinity(bool tf);
 void SwappyGL_setSwapIntervalNS(uint64_t swap_ns);
 void SwappyGL_setFenceTimeoutNS(uint64_t fence_timeout_ns);

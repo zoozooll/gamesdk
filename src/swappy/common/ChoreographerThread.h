@@ -43,6 +43,8 @@ public:
 
     virtual void postFrameCallbacks();
 
+    bool isInitialized() { return mInitialized; }
+
 protected:
     ChoreographerThread(Callback onChoreographer);
     virtual void scheduleNextFrameCallback() REQUIRES(mWaitingMutex) = 0;
@@ -51,6 +53,7 @@ protected:
     std::mutex mWaitingMutex;
     int mCallbacksBeforeIdle GUARDED_BY(mWaitingMutex) = 0;
     Callback mCallback;
+    bool mInitialized = false;
 
     static constexpr int MAX_CALLBACKS_BEFORE_IDLE = 10;
 

@@ -229,8 +229,6 @@ public class OrbitActivity extends AppCompatActivity implements Choreographer.Fr
         // Initialize the native renderer
 
         nInit();
-
-        nSetPreference("refresh_period", String.valueOf(refreshPeriodNanos));
     }
 
     private void infoOverlayToggle() {
