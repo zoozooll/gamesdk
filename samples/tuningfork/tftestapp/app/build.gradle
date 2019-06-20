@@ -35,6 +35,8 @@ dependencies {
     implementation "com.google.android.gms:play-services-clearcut:16.0.0"
 
     testImplementation 'junit:junit:4.12'
+
+    compile files('../../../../../package/gamesdk/aar/extras-release.aar')
 }
 
 task createJar(type: GradleBuild) {
