@@ -379,12 +379,12 @@ def getLocalToolchain() {
     return new LocalToolchain(project, kLocalMinSdk)
 }
 
-def localNativeBuild(withTuningFork = false, subdir = "src") {
+def localNativeBuild(withTuningFork = false, subdir = "src", buildType="Release") {
     def toolchain = getLocalToolchain();
     def stl = "c++_static"
     def threadChecks = true
     return defaultAbis().collect {
-        buildNativeModules(it, toolchain , stl, threadChecks, withTuningFork, subdir)
+        buildNativeModules(it, toolchain , stl, threadChecks, withTuningFork, subdir, buildType)
     }
 }
 
@@ -451,7 +451,7 @@ task localBuild(type: BuildTask) {
     ext.withStaticLibs = true;
     ext.withFullBuildKey = false;
     ext.buildType = "Release";
-    ext.nativeBuild = { tf,bt -> localNativeBuild(tf,bt) }
+    ext.nativeBuild = { tf,bt -> localNativeBuild(tf, "src", bt) }
 }
 
 // Build using local SDK, with tuning fork
@@ -464,7 +464,7 @@ task localTfBuild(type: BuildTask) {
     ext.withStaticLibs = true;
     ext.withFullBuildKey = false;
     ext.buildType = "Release";
-    ext.nativeBuild = { tf,bt -> localNativeBuild(tf,bt) }
+    ext.nativeBuild = { tf,bt -> localNativeBuild(tf, "src", bt) }
 }
 
 tasks.withType(BuildTask) {
