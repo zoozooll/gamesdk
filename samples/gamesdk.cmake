@@ -55,8 +55,10 @@ function(add_gamesdk_target)
     if (NOT DEFINED GAMESDK_ANDROID_SDK_VERSION)
 		string(REGEX REPLACE "^android-([^.]+)" "\\1" GAMESDK_ANDROID_SDK_VERSION ${ANDROID_PLATFORM} )
     endif()
+    string(REPLACE "+" "p" GAMESDK_ANDROID_STL ${ANDROID_STL}) # Game SDK build names use a sanitized STL name (c++ => cpp)
+
     set(GAMESDK_PACKAGE_DIR "${_MY_DIR}/../../${GAMESDK_PACKAGE_DIR}")
-    set(BUILD_NAME ${ANDROID_ABI}_SDK${GAMESDK_ANDROID_SDK_VERSION}_NDK${GAMESDK_NDK_VERSION}_${ANDROID_STL})
+    set(BUILD_NAME ${ANDROID_ABI}_SDK${GAMESDK_ANDROID_SDK_VERSION}_NDK${GAMESDK_NDK_VERSION}_${GAMESDK_ANDROID_STL})
     set(GAMESDK_LIB_DIR "${GAMESDK_PACKAGE_DIR}/libs/${BUILD_NAME}")
 
     include_directories( "${GAMESDK_PACKAGE_DIR}/include" ) # Games SDK Public Includes
