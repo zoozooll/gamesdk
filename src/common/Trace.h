@@ -100,7 +100,7 @@ class Trace {
     }
 
     void setCounter(const char *name, int64_t value) {
-        if (!ATrace_endSection || !isEnabled()) {
+        if (!ATrace_setCounter || !isEnabled()) {
             return;
         }
 
