@@ -1,7 +1,6 @@
 .DS_Store
 
-**/.idea
-
+# Gradle outputs or settings:
 **/.gradle
 
 **/local.properties
@@ -13,4 +12,10 @@
 
 **/gradle/wrapper/
 
+# IntelliJ/Android Studio outputs or settings:
+**/.idea
 **/*.iml
+**/out
+
+# Protocol Buffers:
+third_party/protobuf-3.0.0/python/dist/

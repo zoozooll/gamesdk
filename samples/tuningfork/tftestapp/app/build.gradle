@@ -36,7 +36,7 @@ dependencies {
 
     testImplementation 'junit:junit:4.12'
 
-    compile files('../../../../../package/gamesdk/aar/extras-release.aar')
+    implementation project(':extras')
 }
 
 task createJar(type: GradleBuild) {
