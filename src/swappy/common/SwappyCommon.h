@@ -30,6 +30,7 @@
 #include "ChoreographerFilter.h"
 #include "ChoreographerThread.h"
 #include "SwappyDisplayManager.h"
+#include "CPUTracer.h"
 
 namespace swappy {
 
@@ -245,6 +246,8 @@ private:
     };
     TimingSettings mNextTimingSettings GUARDED_BY(mFrameDurationsMutex) = {};
     bool mTimingSettingsNeedUpdate GUARDED_BY(mFrameDurationsMutex) = false;
+
+    CPUTracer mCPUTracer;
 };
 
 } //namespace swappy

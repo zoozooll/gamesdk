@@ -39,6 +39,7 @@ add_library( swappy_static
              ${SOURCE_LOCATION_COMMON}/SwappyCommon.cpp
              ${SOURCE_LOCATION_COMMON}/swappy_c.cpp
              ${SOURCE_LOCATION_COMMON}/SwappyDisplayManager.cpp
+             ${SOURCE_LOCATION_COMMON}/CPUTracer.cpp
              ${SOURCE_LOCATION_OPENGL}/EGL.cpp
              ${SOURCE_LOCATION_OPENGL}/swappyGL_c.cpp
              ${SOURCE_LOCATION_OPENGL}/SwappyGL.cpp

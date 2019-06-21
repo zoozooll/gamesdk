@@ -313,6 +313,7 @@ void SwappyVkBase::waitForFenceThreadMain(VkQueue queue) {
                 mWaitingSyncs[queue].pop_front();
             }
 
+            gamesdk::ScopedTrace tracer("Swappy: GPU frame time");
             const auto startTime = std::chrono::steady_clock::now();
             VkResult result = vkWaitForFences(mDevice, 1, &sync.fence, VK_TRUE,
                                               mCommonBase.getFenceTimeout().count());
