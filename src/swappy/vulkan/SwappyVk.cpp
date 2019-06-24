@@ -184,6 +184,12 @@ void SwappyVk::SetAutoPipelineMode(bool enabled) {
     }
 }
 
+void SwappyVk::SetMaxAutoSwapIntervalNS(std::chrono::nanoseconds maxSwapNS) {
+    for (auto i : perSwapchainImplementation) {
+        i.second->setMaxAutoSwapIntervalNS(maxSwapNS);
+    }
+}
+
 void SwappyVk::SetFenceTimeout(std::chrono::nanoseconds t) {
     for(auto i : perDeviceImplementation) {
         i.second->setFenceTimeout(t);

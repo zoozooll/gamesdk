@@ -133,7 +133,6 @@ SwappyCommon::SwappyCommon(JNIEnv *env, jobject jactivity)
     Settings::getInstance()->setDisplayTimings({mRefreshPeriod, appVsyncOffset, sfVsyncOffset});
 
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
-    mAutoSwapIntervalThreshold = (1e9f / vsyncPeriodNanos) / 20; // 20FPS
     mFrameDurations.reserve(mFrameDurationSamples);
 
     ALOGI("Initialized Swappy with vsyncPeriod=%lld, appOffset=%lld, sfOffset=%lld",
@@ -190,7 +189,7 @@ bool SwappyCommon::waitForNextFrame(const SwapHandlers& h) {
 
     // if we are running slower than the threshold there is no point to sleep, just let the
     // app run as fast as it can
-    if (mAutoSwapInterval <= mAutoSwapIntervalThreshold) {
+    if (mRefreshPeriod * mAutoSwapInterval <= mAutoSwapIntervalThresholdNS.load()) {
         waitUntilTargetFrame();
 
         // wait for the previous frame to be rendered
@@ -271,7 +270,8 @@ void SwappyCommon::onPreSwap(const SwapHandlers& h) {
     if (mPipelineMode == PipelineMode::On) {
         mPresentationTimeNeeded = waitForNextFrame(h);
     } else {
-        mPresentationTimeNeeded = mAutoSwapInterval <= mAutoSwapIntervalThreshold;
+        mPresentationTimeNeeded =
+                (mRefreshPeriod * mAutoSwapInterval <= mAutoSwapIntervalThresholdNS.load());
     }
 
     mSwapTime = std::chrono::steady_clock::now();

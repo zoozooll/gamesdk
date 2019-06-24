@@ -296,6 +296,10 @@ void SwappyVkBase::setAutoSwapInterval(bool enabled) {
     mCommonBase.setAutoSwapInterval(enabled);
 }
 
+void SwappyVkBase::setMaxAutoSwapIntervalNS(std::chrono::nanoseconds swapMaxNS) {
+    mCommonBase.setMaxAutoSwapIntervalNS(swapMaxNS);
+}
+
 void SwappyVkBase::setAutoPipelineMode(bool enabled) {
     mCommonBase.setAutoPipelineMode(enabled);
 }

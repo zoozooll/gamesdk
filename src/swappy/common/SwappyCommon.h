@@ -68,6 +68,10 @@ public:
     void setAutoSwapInterval(bool enabled);
     void setAutoPipelineMode(bool enabled);
 
+    void setMaxAutoSwapIntervalNS(std::chrono::nanoseconds swapIntervalNS) {
+        mAutoSwapIntervalThresholdNS = swapIntervalNS;
+    }
+
     std::chrono::steady_clock::time_point getPresentationTime() { return mPresentationTime; }
     std::chrono::nanoseconds getRefreshPeriod() const { return mRefreshPeriod; }
 
@@ -188,7 +192,7 @@ private:
 
     std::chrono::nanoseconds mSwapIntervalNS;
     int32_t mAutoSwapInterval;
-    int mAutoSwapIntervalThreshold = 0;
+    std::atomic<std::chrono::nanoseconds> mAutoSwapIntervalThresholdNS = {50ms}; // 20FPS
     int mSwapIntervalForNewRefresh = 0;
     PipelineMode mPipelineModeForNewRefresh;
     static constexpr std::chrono::nanoseconds REFRESH_RATE_MARGIN = 500ns;

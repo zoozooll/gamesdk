@@ -152,6 +152,15 @@ void SwappyGL::setAutoPipelineMode(bool enabled) {
     swappy->mCommonBase.setAutoPipelineMode(enabled);
 }
 
+void SwappyGL::setMaxAutoSwapIntervalNS(std::chrono::nanoseconds maxSwapNS) {
+    SwappyGL *swappy = getInstance();
+    if (!swappy) {
+        ALOGE("Failed to get SwappyGL instance in setMaxAutoSwapIntervalNS");
+        return;
+    }
+    swappy->mCommonBase.setMaxAutoSwapIntervalNS(maxSwapNS);
+}
+
 void SwappyGL::enableStats(bool enabled) {
     SwappyGL *swappy = getInstance();
     if (!swappy) {

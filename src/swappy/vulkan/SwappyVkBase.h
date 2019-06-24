@@ -119,6 +119,8 @@ public:
     void setAutoSwapInterval(bool enabled);
     void setAutoPipelineMode(bool enabled);
 
+    void setMaxAutoSwapIntervalNS(std::chrono::nanoseconds swapMaxNS);
+
     void setFenceTimeout(std::chrono::nanoseconds duration);
     std::chrono::nanoseconds getFenceTimeout() const;
 

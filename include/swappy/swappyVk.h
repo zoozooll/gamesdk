@@ -241,6 +241,19 @@ void SwappyVk_setAutoSwapInterval(bool enabled);
 void SwappyVk_setAutoPipelineMode(bool enabled);
 
 /**
+ * Sets the maximal swap duration for all instances.
+ *
+ * Sets the maximal duration for Auto-Swap-Interval in milliseconds.
+ * If SwappyVk is operating in Auto-Swap-Interval and the frame duration is longer
+ * than the provided duration, SwappyVk will not do any pacing and just submit the
+ * frame as soon as possible.
+ * Parameters:
+ *
+ *  (IN)  max_swap_ns - maximal swap duration in milliseconds.
+ */
+void SwappyVk_setMaxAutoSwapIntervalNS(uint64_t max_swap_ns);
+
+/**
  * The fence timeout parameter can be set for devices with faulty
  * drivers. Its default value is 50,000,000.
  */

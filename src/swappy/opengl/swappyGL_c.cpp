@@ -72,6 +72,10 @@ void SwappyGL_setAutoSwapInterval(bool enabled) {
     SwappyGL::setAutoSwapInterval(enabled);
 }
 
+void SwappyGL_setMaxAutoSwapIntervalNS(uint64_t max_swap_ns) {
+    SwappyGL::setMaxAutoSwapIntervalNS(std::chrono::nanoseconds(max_swap_ns));
+}
+
 void SwappyGL_setAutoPipelineMode(bool enabled) {
     SwappyGL::setAutoPipelineMode(enabled);
 }

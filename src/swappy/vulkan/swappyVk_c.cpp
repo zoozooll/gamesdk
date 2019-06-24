@@ -107,6 +107,12 @@ void SwappyVk_setFenceTimeoutNS(uint64_t fence_timeout_ns) {
     swappy.SetFenceTimeout(std::chrono::nanoseconds(fence_timeout_ns));
 }
 
+void SwappyVk_setMaxAutoSwapIntervalNS(uint64_t max_swap_ns) {
+    TRACE_CALL();
+    swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();
+    swappy.SetMaxAutoSwapIntervalNS(std::chrono::nanoseconds(max_swap_ns));
+}
+
 uint64_t SwappyVk_getFenceTimeoutNS() {
     TRACE_CALL();
     swappy::SwappyVk& swappy = swappy::SwappyVk::getInstance();

@@ -46,6 +46,11 @@ void SwappyGL_injectTracer(const SwappyTracer *t);
 // dynamically, so the swap interval may change.
 void SwappyGL_setAutoSwapInterval(bool enabled);
 
+// Sets the maximal duration for auto-swap interval in milliseconds.
+// If swappy is operating in auto-swap interval and the frame duration is longer than 'max_swap_ns',
+// Swappy will not do any pacing and just submit the frame as soon as possible.
+void SwappyGL_setMaxAutoSwapIntervalNS(uint64_t max_swap_ns);
+
 // Toggle auto-pipeline mode on/off
 // By default, if auto-swap interval is on, auto-pipelining is on and Swappy will try to reduce
 // latency by scheduling cpu and gpu work in the same pipeline stage, if it fits.

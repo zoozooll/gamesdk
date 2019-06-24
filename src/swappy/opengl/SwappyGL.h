@@ -56,6 +56,8 @@ class SwappyGL {
 
     static void setAutoPipelineMode(bool enabled);
 
+    static void setMaxAutoSwapIntervalNS(std::chrono::nanoseconds maxSwapNS);
+
     static void enableStats(bool enabled);
     static void recordFrameStart(EGLDisplay display, EGLSurface surface);
     static void getStats(SwappyStats *stats);
