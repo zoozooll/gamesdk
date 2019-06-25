@@ -176,6 +176,7 @@ protected:
     void initGoogExtension();
     VkResult initializeVkSyncObjects(VkQueue queue, uint32_t queueFamilyIndex);
     void destroyVkSyncObjects();
+    void reclaimSignaledFences(VkQueue queue);
     bool lastFrameIsCompleted(VkQueue queue);
     std::chrono::nanoseconds getLastFenceTime(VkQueue queue);
     void waitForFenceThreadMain(VkQueue queue);

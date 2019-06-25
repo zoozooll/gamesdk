@@ -192,12 +192,7 @@ void SwappyVkBase::destroyVkSyncObjects() {
     // Move all signaled fences to the free pool
     for (auto it = mSignaledSyncs.begin(); it != mSignaledSyncs.end(); it++) {
         auto queue = it->first;
-        auto syncList = it->second;
-        while (syncList.size() > 0) {
-            VkSync sync = syncList.front();
-            syncList.pop_front();
-            mFreeSyncPool[queue].push_back(sync);
-        }
+        reclaimSignaledFences(queue);
     }
 
     // Free all sync objects
@@ -221,45 +216,34 @@ void SwappyVkBase::destroyVkSyncObjects() {
     }
 }
 
+void SwappyVkBase::reclaimSignaledFences(VkQueue queue) {
+    std::lock_guard<std::mutex> lock(mThreads[queue]->lock);
+    while (!mSignaledSyncs[queue].empty()) {
+        VkSync sync = mSignaledSyncs[queue].front();
+        mSignaledSyncs[queue].pop_front();
+        mFreeSyncPool[queue].push_back(sync);
+    }
+}
+
 bool SwappyVkBase::lastFrameIsCompleted(VkQueue queue) {
     auto pipelineMode = mCommonBase.getCurrentPipelineMode();
     std::lock_guard<std::mutex> lock(mThreads[queue]->lock);
     if (pipelineMode == SwappyCommon::PipelineMode::On) {
         // We are in pipeline mode so we need to check the fence of frame N-1
-        const int numFencesSubmitted = MAX_PENDING_FENCES - mFreeSyncPool[queue].size();
-        if (numFencesSubmitted < 2) {
-            // First frame
-            return true;
-        }
-
-        if (mSignaledSyncs[queue].size() == 0) {
-            // There are no signaled fences
-            return false;
-        }
-
-        VkSync &sync = mSignaledSyncs[queue].front();
-        mSignaledSyncs[queue].pop_front();
-        mFreeSyncPool[queue].push_back(sync);
-        return true;
-    } else {
-        // We are not in pipeline mode so we need to check the fence the current frame. i.e. there
-        // are not unsignaled frames
-        while (mFreeSyncPool[queue].size() != MAX_PENDING_FENCES) {
-            if (mSignaledSyncs[queue].size() == 0) {
-                // There are no signaled fences
-                return false;
-            }
-            VkSync &sync = mSignaledSyncs[queue].front();
-            mSignaledSyncs[queue].pop_front();
-            mFreeSyncPool[queue].push_back(sync);
-        }
-        return true;
+        return mWaitingSyncs[queue].size() < 2;
     }
+
+    // We are not in pipeline mode so we need to check the fence the current frame. i.e. there
+    // are not unsignaled frames
+    return mWaitingSyncs[queue].empty();
+
 }
 
 VkResult SwappyVkBase::injectFence(VkQueue                 queue,
                                    const VkPresentInfoKHR* pPresentInfo,
                                    VkSemaphore*            pSemaphore) {
+    reclaimSignaledFences(queue);
+
     // If we cross the swap interval threshold, we don't pace at all.
     // In this case we might not have a free fence, so just don't use the fence.
     if (mFreeSyncPool[queue].size() == 0) {
