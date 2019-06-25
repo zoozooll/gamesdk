@@ -54,6 +54,8 @@ using PFN_AChoreographer_postFrameCallbackDelayed = void (*)(AChoreographer* cho
 
 class NDKChoreographerThread : public ChoreographerThread {
 public:
+    static constexpr int MIN_SDK_VERSION = 24;
+
     NDKChoreographerThread(Callback onChoreographer);
     ~NDKChoreographerThread() override;
 
@@ -338,36 +340,6 @@ void ChoreographerThread::onChoreographer()
     mCallback();
 }
 
-int ChoreographerThread::getSDKVersion(JavaVM *vm)
-{
-    JNIEnv *env;
-    vm->AttachCurrentThread(&env, nullptr);
-
-    const jclass buildClass = env->FindClass("android/os/Build$VERSION");
-    if (env->ExceptionCheck()) {
-        env->ExceptionClear();
-        ALOGE("Failed to get Build.VERSION class");
-        return 0;
-    }
-
-    const jfieldID sdk_int = env->GetStaticFieldID(buildClass, "SDK_INT", "I");
-    if (env->ExceptionCheck()) {
-        env->ExceptionClear();
-        ALOGE("Failed to get Build.VERSION.SDK_INT field");
-        return 0;
-    }
-
-    const jint sdk = env->GetStaticIntField(buildClass, sdk_int);
-    if (env->ExceptionCheck()) {
-        env->ExceptionClear();
-        ALOGE("Failed to get SDK version");
-        return 0;
-    }
-
-    ALOGI("SDK version = %d", sdk);
-    return sdk;
-}
-
 bool ChoreographerThread::isChoreographerCallbackClassLoaded(JavaVM *vm)
 {
     JNIEnv *env;
@@ -384,13 +356,13 @@ bool ChoreographerThread::isChoreographerCallbackClassLoaded(JavaVM *vm)
 
 std::unique_ptr<ChoreographerThread>
     ChoreographerThread::createChoreographerThread(
-                Type type, JavaVM *vm, Callback onChoreographer) {
+                Type type, JavaVM *vm, Callback onChoreographer, int sdkVersion) {
     if (type == Type::App) {
         ALOGI("Using Application's Choreographer");
         return std::make_unique<NoChoreographerThread>(onChoreographer);
     }
 
-    if (vm == nullptr || getSDKVersion(vm) >= 24) {
+    if (vm == nullptr || sdkVersion >= NDKChoreographerThread::MIN_SDK_VERSION) {
         ALOGI("Using NDK Choreographer");
         return std::make_unique<NDKChoreographerThread>(onChoreographer);
     }

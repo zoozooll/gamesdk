@@ -39,7 +39,8 @@ constexpr nanoseconds SwappyCommon::EDGE_HYSTERESIS;
 constexpr nanoseconds SwappyCommon::REFRESH_RATE_MARGIN;
 
 SwappyCommon::SwappyCommon(JNIEnv *env, jobject jactivity)
-        : mSwapDuration(nanoseconds(0)),
+        : mSdkVersion(getSDKVersion(env)),
+          mSwapDuration(nanoseconds(0)),
           mAutoSwapInterval(1),
           mValid(false) {
     jclass activityClass = env->FindClass("android/app/NativeActivity");
@@ -115,13 +116,14 @@ SwappyCommon::SwappyCommon(JNIEnv *env, jobject jactivity)
     mChoreographerThread = ChoreographerThread::createChoreographerThread(
                                    ChoreographerThread::Type::Swappy,
                                    vm,
-                                   [this]{ mChoreographerFilter->onChoreographer(); });
+                                   [this]{ mChoreographerFilter->onChoreographer(); },
+                                   mSdkVersion);
     if (!mChoreographerThread->isInitialized()) {
         ALOGE("failed to initialize ChoreographerThread");
         return;
     }
 
-    if (USE_DISPLAY_MANAGER) {
+    if (USE_DISPLAY_MANAGER && mSdkVersion >= SwappyDisplayManager::MIN_SDK_VERSION) {
         mDisplayManager = std::make_unique<SwappyDisplayManager>(vm, jactivity);
         if (!mDisplayManager->isInitialized()) {
             ALOGE("failed to initialize DisplayManager");
@@ -173,7 +175,8 @@ void SwappyCommon::onChoreographer(int64_t frameTimeNanos) {
                 ChoreographerThread::createChoreographerThread(
                         ChoreographerThread::Type::App,
                         nullptr,
-                        [this] { mChoreographerFilter->onChoreographer(); });
+                        [this] { mChoreographerFilter->onChoreographer(); },
+                        mSdkVersion);
     }
 
     mChoreographerThread->postFrameCallbacks();
@@ -692,6 +695,33 @@ void SwappyCommon::waitOneFrame() {
     std::unique_lock<std::mutex> lock(mWaitingMutex);
     const int32_t target = mCurrentFrame + 1;
     mWaitingCondition.wait(lock, [&]() { return mCurrentFrame >= target; });
+}
+
+int SwappyCommon::getSDKVersion(JNIEnv *env)
+{
+    const jclass buildClass = env->FindClass("android/os/Build$VERSION");
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        ALOGE("Failed to get Build.VERSION class");
+        return 0;
+    }
+
+    const jfieldID sdk_int = env->GetStaticFieldID(buildClass, "SDK_INT", "I");
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        ALOGE("Failed to get Build.VERSION.SDK_INT field");
+        return 0;
+    }
+
+    const jint sdk = env->GetStaticIntField(buildClass, sdk_int);
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        ALOGE("Failed to get SDK version");
+        return 0;
+    }
+
+    ALOGI("SDK version = %d", sdk);
+    return sdk;
 }
 
 } // namespace swappy

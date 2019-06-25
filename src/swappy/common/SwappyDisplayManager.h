@@ -27,6 +27,8 @@ namespace swappy {
 
 class SwappyDisplayManager {
 public:
+    static constexpr int MIN_SDK_VERSION = 23;
+
     SwappyDisplayManager(JavaVM*, jobject);
     ~SwappyDisplayManager();
 
