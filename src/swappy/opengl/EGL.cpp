@@ -17,6 +17,7 @@
 #include "EGL.h"
 
 #include <vector>
+#include <Trace.h>
 
 #define LOG_TAG "Swappy::EGL"
 
@@ -258,6 +259,7 @@ void EGL::FenceWaiter::threadMain() {
             break;
         }
 
+        gamesdk::ScopedTrace tracer("Swappy: GPU frame time");
         const auto startTime = std::chrono::steady_clock::now();
         EGLBoolean result = eglClientWaitSyncKHR(mDisplay, mSyncFence, 0,
                                                  mFenceTimeout.count());

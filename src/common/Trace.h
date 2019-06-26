@@ -149,3 +149,4 @@ struct ScopedTrace {
 #define PASTE_HELPER(a, b) PASTE_HELPER_HELPER(a, b)
 #define TRACE_CALL() gamesdk::ScopedTrace PASTE_HELPER(scopedTrace, __LINE__)(__PRETTY_FUNCTION__)
 #define TRACE_INT(name, value) gamesdk::Trace::getInstance()->setCounter(name, value)
+#define TRACE_ENABLED() gamesdk::Trace::getInstance()->isEnabled()

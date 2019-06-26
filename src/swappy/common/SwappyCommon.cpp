@@ -187,6 +187,7 @@ bool SwappyCommon::waitForNextFrame(const SwapHandlers& h) {
     bool presentationTimeIsNeeded;
 
     const nanoseconds cpuTime = std::chrono::steady_clock::now() - mStartFrameTime;
+    mCPUTracer.endTrace();
 
     preWaitCallbacks();
 
@@ -322,9 +323,6 @@ uint64_t SwappyCommon::getSwapIntervalNS() {
 void SwappyCommon::addFrameDuration(FrameDuration duration) {
     ALOGV("cpuTime = %.2f", duration.getCpuTime().count() / 1e6f);
     ALOGV("gpuTime = %.2f", duration.getGpuTime().count() / 1e6f);
-
-    TRACE_INT("cpuTime", duration.getCpuTime().count());
-    TRACE_INT("gpuTime", duration.getGpuTime().count());
 
     std::lock_guard<std::mutex> lock(mFrameDurationsMutex);
     // keep a sliding window of mFrameDurationSamples
@@ -682,6 +680,7 @@ void SwappyCommon::startFrame() {
     mPresentationTime = currentFrameTimestamp + (mAutoSwapInterval * intervals) * mRefreshPeriod;
 
     mStartFrameTime = std::chrono::steady_clock::now();
+    mCPUTracer.startTrace();
 }
 
 void SwappyCommon::waitUntilTargetFrame() {
