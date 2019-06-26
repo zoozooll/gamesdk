@@ -165,6 +165,10 @@ private:
                         std::chrono::nanoseconds period2,
                         int interval2);
 
+    int getSDKVersion(JNIEnv *env);
+
+    const int mSdkVersion;
+
     std::unique_ptr<ChoreographerFilter> mChoreographerFilter;
 
     bool mUsingExternalChoreographer = false;
