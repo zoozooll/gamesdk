@@ -14,6 +14,16 @@
  * limitations under the License.
  */
 
+#include "crash_handler.h"
+
+#if __ANDROID_API__ < 16
+namespace tuningfork {
+    CrashHandler::CrashHandler() { }
+    CrashHandler::~CrashHandler() { }
+    void CrashHandler::Init(std::function<bool(void)> callback) { }
+}
+#else
+
 #include <vector>
 #include <pthread.h>
 #include <sys/syscall.h>
@@ -23,7 +33,6 @@
 #include <cstdlib>
 #include <algorithm>
 
-#include "crash_handler.h"
 
 #include "Log.h"
 #define LOG_TAG "TFCrashHandler"
@@ -249,3 +258,4 @@ bool CrashHandler::HandlerSignal(int sig, siginfo_t *info, void *ucontext) {
     return true;
 }
 }  // namespace tuningfork
+#endif

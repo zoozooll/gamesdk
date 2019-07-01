@@ -367,6 +367,8 @@ def unityNativeBuild(withTuningFork=false, buildType="Release") {
 def sdkNativeBuild(withTuningFork = true, buildType="Release") {
     def threadChecks = false
     return defaultAbis().collectMany {
+     [ buildNativeModules(it, "14", "r16", "c++_static", threadChecks, withTuningFork, buildType) ] +
+     [ buildNativeModules(it, "16", "r17", "c++_static", threadChecks, withTuningFork, buildType) ] +
      [ buildNativeModules(it, "26", "r16", "gnustl_static", threadChecks, withTuningFork, buildType) ] +
      [ buildNativeModules(it, "28", "r17", "gnustl_static", threadChecks, withTuningFork, buildType) ] +
      [ buildNativeModules(it, "28", "r17", "c++_static", threadChecks, withTuningFork, buildType) ]
