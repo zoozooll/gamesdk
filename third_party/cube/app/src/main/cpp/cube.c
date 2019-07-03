@@ -255,6 +255,7 @@ struct vktexcube_vs_uniform {
     float mvp[4][4];
     float position[12 * 3][4];
     float attr[12 * 3][4];
+    uint32_t gpu_workload;
 };
 
 //--------------------------------------------------------------------------------------
@@ -496,9 +497,17 @@ struct demo {
     mat4x4 view_matrix;
     mat4x4 model_matrix;
 
+    uint32_t gpu_workload;
+
+    float scale;
     float spin_angle;
     float spin_increment;
+    float spin_speed;
     bool pause;
+
+    bool draw_cmd_dirty;
+
+    struct vktexcube_vs_uniform uniform;
 
     VkShaderModule vert_shader_module;
     VkShaderModule frag_shader_module;
@@ -529,6 +538,8 @@ struct demo {
         JavaVM* vm;
         jobject jactivity;
     } swappy_init_data;
+
+    bool tracer_injected;
 };
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -944,23 +955,33 @@ void demo_build_image_ownership_cmd(struct demo *demo, int i) {
 }
 
 void demo_update_data_buffer(struct demo *demo) {
-    mat4x4 MVP, Model, VP;
-    int matrixSize = sizeof(MVP);
+    mat4x4 Model, VP;
     uint8_t *pData;
     VkResult U_ASSERT_ONLY err;
 
     mat4x4_mul(VP, demo->projection_matrix, demo->view_matrix);
 
-    // Rotate around the Y axis
+    // Set scale.
+    mat4x4_identity(demo->model_matrix);
+    demo->model_matrix[0][0] = demo->scale;
+    demo->model_matrix[1][1] = demo->scale;
+    demo->model_matrix[2][2] = demo->scale;
+
+    uint64_t long_time = getTimeInNanoseconds();
+    long_time = ((long_time << 16) >> 16) >> 18; // Keep only middle bits.
+    demo->spin_angle = long_time * demo->spin_speed;
+
+    // Rotate around the Y axis.
     mat4x4_dup(Model, demo->model_matrix);
-    mat4x4_rotate(demo->model_matrix, Model, 0.0f, 1.0f, 0.0f, (float)degreesToRadians(demo->spin_angle));
-    mat4x4_mul(MVP, VP, demo->model_matrix);
+    mat4x4_rotate(demo->model_matrix, Model, 0.0f, 1.0f, 0.0f, demo->spin_angle);
+    mat4x4_mul(demo->uniform.mvp, VP, demo->model_matrix);
+
+    demo->uniform.gpu_workload = demo->gpu_workload;
 
     err = vkMapMemory(demo->device, demo->swapchain_image_resources[demo->current_buffer].uniform_memory, 0, VK_WHOLE_SIZE, 0,
                       (void **)&pData);
     assert(!err);
-
-    memcpy(pData, (const void *)&MVP[0][0], matrixSize);
+    memcpy(pData, &demo->uniform, sizeof(demo->uniform));
 
     vkUnmapMemory(demo->device, demo->swapchain_image_resources[demo->current_buffer].uniform_memory);
 }
@@ -1081,6 +1102,17 @@ void DemoUpdateTargetIPD(struct demo *demo) {
     }
 }
 
+static void update_draw_cmd(struct demo *demo) {
+    // Rerecord draw cmds.
+    vkDeviceWaitIdle(demo->device);
+    uint32_t current_buffer = demo->current_buffer;
+    for (uint32_t i = 0; i < demo->swapchainImageCount; i++) {
+      demo->current_buffer = i;
+      demo_draw_build_cmd(demo, demo->swapchain_image_resources[i].cmd);
+    }
+    demo->current_buffer = current_buffer;
+}
+
 static void demo_draw(struct demo *demo) {
     VkResult U_ASSERT_ONLY err;
 
@@ -1092,6 +1124,11 @@ static void demo_draw(struct demo *demo) {
     logEvent(EVENT_CALLED_WFF);
 
     vkResetFences(demo->device, 1, &demo->fences[demo->frame_index]);
+
+    if (demo->draw_cmd_dirty) {
+        update_draw_cmd(demo);
+        demo->draw_cmd_dirty = false;
+    }
 
     do {
         // Get the index of the next available swapchain image:
@@ -1514,14 +1551,17 @@ static void demo_prepare_buffers(struct demo *demo) {
     // Refresh rate of this demo is locked to 30 FPS.
     SwappyVk_setSwapIntervalNS(demo->device, demo->swapchain, SWAPPY_SWAP_30FPS);
 
-    SwappyTracer tracer;
-    tracer.preWait = swappy_trace_test_preWait;
-    tracer.postWait = swappy_trace_test_postWait;
-    tracer.preSwapBuffers = swappy_trace_test_preSwapBuffers;
-    tracer.postSwapBuffers = swappy_trace_test_postSwapBuffers;
-    tracer.startFrame = swappy_trace_test_startFrame;
-    tracer.swapIntervalChanged = swappy_trace_test_swapIntervalChanged;
-    SwappyVk_injectTracer(&tracer);
+    if (!demo->tracer_injected) {
+      SwappyTracer tracer;
+      tracer.preWait = swappy_trace_test_preWait;
+      tracer.postWait = swappy_trace_test_postWait;
+      tracer.preSwapBuffers = swappy_trace_test_preSwapBuffers;
+      tracer.postSwapBuffers = swappy_trace_test_postSwapBuffers;
+      tracer.startFrame = swappy_trace_test_startFrame;
+      tracer.swapIntervalChanged = swappy_trace_test_swapIntervalChanged;
+      SwappyVk_injectTracer(&tracer);
+      demo->tracer_injected = true;
+    }
 
     if (NULL != presentModes) {
         free(presentModes);
@@ -1876,31 +1916,29 @@ void demo_prepare_cube_data_buffers(struct demo *demo) {
     VkMemoryRequirements mem_reqs;
     VkMemoryAllocateInfo mem_alloc;
     uint8_t *pData;
-    mat4x4 MVP, VP;
+    mat4x4 VP;
     VkResult U_ASSERT_ONLY err;
     bool U_ASSERT_ONLY pass;
-    struct vktexcube_vs_uniform data;
 
     mat4x4_mul(VP, demo->projection_matrix, demo->view_matrix);
-    mat4x4_mul(MVP, VP, demo->model_matrix);
-    memcpy(data.mvp, MVP, sizeof(MVP));
-    //    dumpMatrix("MVP", MVP);
+    mat4x4_mul(demo->uniform.mvp, VP, demo->model_matrix);
+    //    dumpMatrix("MVP", demo->uniform.mvp);
 
     for (unsigned int i = 0; i < 12 * 3; i++) {
-        data.position[i][0] = g_vertex_buffer_data[i * 3];
-        data.position[i][1] = g_vertex_buffer_data[i * 3 + 1];
-        data.position[i][2] = g_vertex_buffer_data[i * 3 + 2];
-        data.position[i][3] = 1.0f;
-        data.attr[i][0] = g_uv_buffer_data[2 * i];
-        data.attr[i][1] = g_uv_buffer_data[2 * i + 1];
-        data.attr[i][2] = 0;
-        data.attr[i][3] = 0;
+        demo->uniform.position[i][0] = g_vertex_buffer_data[i * 3];
+        demo->uniform.position[i][1] = g_vertex_buffer_data[i * 3 + 1];
+        demo->uniform.position[i][2] = g_vertex_buffer_data[i * 3 + 2];
+        demo->uniform.position[i][3] = 1.0f;
+        demo->uniform.attr[i][0] = g_uv_buffer_data[2 * i];
+        demo->uniform.attr[i][1] = g_uv_buffer_data[2 * i + 1];
+        demo->uniform.attr[i][2] = 0;
+        demo->uniform.attr[i][3] = 0;
     }
 
     memset(&buf_info, 0, sizeof(buf_info));
     buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buf_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    buf_info.size = sizeof(data);
+    buf_info.size = sizeof(demo->uniform);
 
     for (unsigned int i = 0; i < demo->swapchainImageCount; i++) {
         err = vkCreateBuffer(demo->device, &buf_info, NULL, &demo->swapchain_image_resources[i].uniform_buffer);
@@ -1924,7 +1962,7 @@ void demo_prepare_cube_data_buffers(struct demo *demo) {
         err = vkMapMemory(demo->device, demo->swapchain_image_resources[i].uniform_memory, 0, VK_WHOLE_SIZE, 0, (void **)&pData);
         assert(!err);
 
-        memcpy(pData, &data, sizeof data);
+        memcpy(pData, &demo->uniform, sizeof(demo->uniform));
 
         vkUnmapMemory(demo->device, demo->swapchain_image_resources[i].uniform_memory);
 
@@ -1941,7 +1979,7 @@ static void demo_prepare_descriptor_layout(struct demo *demo) {
                 .binding = 0,
                 .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .descriptorCount = 1,
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 .pImmutableSamplers = NULL,
             },
         [1] =
@@ -2413,7 +2451,6 @@ static void demo_cleanup(struct demo *demo) {
             vkDestroyFramebuffer(demo->device, demo->swapchain_image_resources[i].framebuffer, NULL);
         }
         vkDestroyDescriptorPool(demo->device, demo->desc_pool, NULL);
-
         vkDestroyPipeline(demo->device, demo->pipeline, NULL);
         vkDestroyPipelineCache(demo->device, demo->pipelineCache, NULL);
         vkDestroyRenderPass(demo->device, demo->render_pass, NULL);
@@ -2426,8 +2463,10 @@ static void demo_cleanup(struct demo *demo) {
             vkFreeMemory(demo->device, demo->textures[i].mem, NULL);
             vkDestroySampler(demo->device, demo->textures[i].sampler, NULL);
         }
+
         SwappyVk_destroySwapchain(demo->device, demo->swapchain);
         demo->fpDestroySwapchainKHR(demo->device, demo->swapchain, NULL);
+        demo->swapchain = VK_NULL_HANDLE;
 
         vkDestroyImageView(demo->device, demo->depth.view, NULL);
         vkDestroyImage(demo->device, demo->depth.image, NULL);
@@ -2439,6 +2478,7 @@ static void demo_cleanup(struct demo *demo) {
             vkDestroyBuffer(demo->device, demo->swapchain_image_resources[i].uniform_buffer, NULL);
             vkFreeMemory(demo->device, demo->swapchain_image_resources[i].uniform_memory, NULL);
         }
+
         free(demo->swapchain_image_resources);
         free(demo->queue_props);
         vkDestroyCommandPool(demo->device, demo->cmd_pool, NULL);
@@ -2447,6 +2487,7 @@ static void demo_cleanup(struct demo *demo) {
             vkDestroyCommandPool(demo->device, demo->present_cmd_pool, NULL);
         }
     }
+
     vkDeviceWaitIdle(demo->device);
     vkDestroyDevice(demo->device, NULL);
     if (demo->validate) {
@@ -2533,10 +2574,11 @@ static void demo_resize(struct demo *demo) {
     demo_prepare(demo);
 }
 
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+
 // On MS-Windows, make this a global, so it's available to WndProc()
 struct demo demo;
 
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
 static void demo_run(struct demo *demo) {
     if (!demo->prepared) return;
 
@@ -3821,7 +3863,6 @@ static void demo_init(struct demo *demo, int argc, char **argv) {
     vec3 origin = {0, 0, 0};
     vec3 up = {0.0f, 1.0f, 0.0};
 
-    memset(demo, 0, sizeof(*demo));
     demo->presentMode = VK_PRESENT_MODE_FIFO_KHR;
     demo->frameCount = INT32_MAX;
 
@@ -3895,9 +3936,14 @@ static void demo_init(struct demo *demo, int argc, char **argv) {
     demo->width = 500;
     demo->height = 500;
 
+    demo->scale = 1.0f;
+
     demo->spin_angle = 4.0f;
     demo->spin_increment = 0.2f;
+    demo->spin_speed = 0.0005f;
     demo->pause = false;
+
+    demo->draw_cmd_dirty = true;
 
     mat4x4_perspective(demo->projection_matrix, (float)degreesToRadians(45.0f), 1.0f, 0.1f, 100.0f);
     mat4x4_look_at(demo->view_matrix, eye, origin, up);
@@ -4000,99 +4046,53 @@ static void demo_main(struct demo *demo, void *view, int argc, const char *argv[
 }
 
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
+#include "cube.h"
 #include <android/log.h>
-#include <android_native_app_glue.h>
-#include "android_util.h"
 
 static bool initialized = false;
 static bool active = false;
-struct demo demo;
+struct demo demo_;
 
-static int32_t processInput(struct android_app *app, AInputEvent *event) { return 0; }
-
-static void processCommand(struct android_app *app, int32_t cmd) {
-    switch (cmd) {
-        case APP_CMD_INIT_WINDOW: {
-            if (app->window) {
-                // We're getting a new window.  If the app is starting up, we
-                // need to initialize.  If the app has already been
-                // initialized, that means that we lost our previous window,
-                // which means that we have a lot of work to do.  At a minimum,
-                // we need to destroy the swapchain and surface associated with
-                // the old window, and create a new surface and swapchain.
-                // However, since there are a lot of other objects/state that
-                // is tied to the swapchain, it's easiest to simply cleanup and
-                // start over (i.e. use a brute-force approach of re-starting
-                // the app)
-                if (demo.prepared) {
-                    demo_cleanup(&demo);
-                }
-
-                // Parse Intents into argc, argv
-                // Use the following key to send arguments, i.e.
-                // --es args "--validate"
-                const char key[] = "args";
-                char *appTag = (char *)APP_SHORT_NAME;
-                int argc = 0;
-                char **argv = get_args(app, key, appTag, &argc);
-
-                __android_log_print(ANDROID_LOG_INFO, appTag, "argc = %i", argc);
-                for (int i = 0; i < argc; i++) __android_log_print(ANDROID_LOG_INFO, appTag, "argv[%i] = %s", i, argv[i]);
-
-                demo_init(&demo, argc, argv);
-                demo.swappy_init_data.vm        = app->activity->vm;
-                demo.swappy_init_data.jactivity = app->activity->clazz;
-
-                // Free the argv malloc'd by get_args
-                for (int i = 0; i < argc; i++) free(argv[i]);
-
-                demo.window = (void *)app->window;
-                demo_init_vk_swapchain(&demo);
-                demo_prepare(&demo);
-                initialized = true;
-            }
-            break;
-        }
-        case APP_CMD_GAINED_FOCUS: {
-            active = true;
-            break;
-        }
-        case APP_CMD_LOST_FOCUS: {
-            active = false;
-            break;
-        }
-    }
+void update_gpu_workload(int32_t new_workload) {
+    demo_.gpu_workload = new_workload;
+    demo_.draw_cmd_dirty = true;
 }
 
-void android_main(struct android_app *app) {
-#ifdef ANDROID
+void main_loop(struct android_app_state *app) {
     int vulkanSupport = InitVulkan();
     if (vulkanSupport == 0) return;
-#endif
 
-    demo.prepared = false;
+    demo_.prepared = false;
 
-    app->onAppCmd = processCommand;
-    app->onInputEvent = processInput;
-
-    while (1) {
-        int events;
-        struct android_poll_source *source;
-        while (ALooper_pollAll(active ? 0 : -1, NULL, &events, (void **)&source) >= 0) {
-            if (source) {
-                source->process(app, source);
-            }
-
-            if (app->destroyRequested != 0) {
-                demo_cleanup(&demo);
-                return;
-            }
+  while(true) {
+        if (!initialized) {
+            demo_.window = app->window;
+            demo_.swappy_init_data.vm        = app->vm;
+            demo_.swappy_init_data.jactivity = app->clazz;
+            demo_init(&demo_, 0, NULL);
+            demo_init_vk_swapchain(&demo_);
+            demo_prepare(&demo_);
+            initialized = true;
+            active = true;
         }
+
+        if (app->destroyRequested != 0) {
+            JavaVM* vm = app->vm;
+            (*vm)->DetachCurrentThread(vm);
+
+            demo_cleanup(&demo_);
+            initialized = false;
+            active = false;
+
+            return;
+        }
+
         if (initialized && active) {
-            demo_run(&demo);
+            demo_run(&demo_);
         }
-    }
+  }
 }
+
 #else
 int main(int argc, char **argv) {
     struct demo demo;

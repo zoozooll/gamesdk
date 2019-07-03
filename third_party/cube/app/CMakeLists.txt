@@ -34,11 +34,6 @@ foreach(shader vert frag)
     )
 endforeach()
 
-# Force export ANativeActivity_onCreate(),
-# Refer to: https://github.com/android-ndk/ndk/issues/381.
-set(CMAKE_SHARED_LINKER_FLAGS
-    "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
-
 include_directories( src/main/cpp )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99  -Werror -DVK_USE_PLATFORM_ANDROID_KHR")
@@ -50,9 +45,8 @@ add_library( native-lib
 
              cube.vert.inc
              cube.frag.inc
-             ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c
              src/main/cpp/cube.c
-             src/main/cpp/common/android_util.cpp
+             src/main/cpp/native-lib.c
              src/main/cpp/common/vulkan_wrapper.cpp
         )
 
@@ -63,8 +57,7 @@ target_include_directories(native-lib
                            ${SHADERC_SRC}/third_party/spirv-tools/include
                            ${SHADERC_SRC}/third_party/spirv-tools/include/spirv-tools
                            src/main/cpp/include
-                           src/main/cpp/common
-                           ${ANDROID_NDK}/sources/android/native_app_glue)
+                           src/main/cpp/common)
 
 
 target_link_libraries( native-lib
