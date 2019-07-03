@@ -36,7 +36,7 @@ task prepare_proto_before {
         }
         // Generate nano-pb requirements
         exec {
-            workingDir getExternalPath() + '/nanopb-c/generator/proto'
+            workingDir '../external/nanopb-c/generator/proto'
             environment 'PATH', "$protocBinDir:${environment.PATH}"
             commandLine 'make'
         }
@@ -201,13 +201,6 @@ def getTempPath() {
     return new File("$projectDir/../.temp").getPath()//.getAbsolutePath()
 }
 
-def getExternalPath() {
-    def f =  new File("$projectDir/../external/");
-    if ( !f.exists() )
-        f = new File("$projectDir/../../../external/");
-    return f.getPath()
-}
-
 def useNinja() {
     return true;
 }
@@ -216,7 +209,6 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
           threadChecks, buildTuningFork, buildType = "Release") {
     def ndkPath = toolchain.getAndroidNDKPath()
     def toolchainFilePath = ndkPath + "/build/cmake/android.toolchain.cmake"
-    def externalPath = getExternalPath();
     def androidVersion = toolchain.getAndroidVersion()
     def ninjaPath = toolchain.getNinjaPath()
     def buildtfval = buildTuningFork ? "ON" : "OFF"
@@ -242,7 +234,6 @@ def cmake(projectFolder, workingFolder, outputFolder, arch, toolchain, stl,
                    "-DCMAKE_TOOLCHAIN_FILE=$toolchainFilePath",
                    "-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=$outputFolder",
                    "-DGAMESDK_BUILD_TUNINGFORK=$buildtfval",
-                   "-DEXTERNAL_ROOT=$externalPath",
                    threadFlags]
     if (useNinja()) {
         cmdLine += ["-DCMAKE_MAKE_PROGRAM=" + "$ninjaPath",
