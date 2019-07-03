@@ -19,3 +19,6 @@ void main_loop(struct android_app_state*);
 
 // Update the amount of GPU work done each frame.
 void update_gpu_workload(int32_t new_workload);
+
+// Update the amount of CPU work done each frame.
+void update_cpu_workload(int32_t new_workload);

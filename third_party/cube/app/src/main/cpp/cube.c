@@ -498,6 +498,7 @@ struct demo {
     mat4x4 model_matrix;
 
     uint32_t gpu_workload;
+    uint64_t cpu_workload;
 
     float scale;
     float spin_angle;
@@ -4058,6 +4059,10 @@ void update_gpu_workload(int32_t new_workload) {
     demo_.draw_cmd_dirty = true;
 }
 
+void update_cpu_workload(int32_t new_workload) {
+  demo_.cpu_workload = (uint64_t)100*(uint64_t)new_workload;
+}
+
 void main_loop(struct android_app_state *app) {
     int vulkanSupport = InitVulkan();
     if (vulkanSupport == 0) return;
@@ -4090,6 +4095,9 @@ void main_loop(struct android_app_state *app) {
         if (initialized && active) {
             demo_run(&demo_);
         }
+
+        uint64_t count = 0;
+        while(count++ < demo_.cpu_workload) {}
   }
 }
 

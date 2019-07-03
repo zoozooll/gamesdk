@@ -42,3 +42,8 @@ JNIEXPORT void JNICALL
 Java_com_samples_cube_CubeActivity_nUpdateGpuWorkload(JNIEnv *env, jobject clazz, jint new_workload) {
     update_gpu_workload(new_workload);
 }
+
+JNIEXPORT void JNICALL
+Java_com_samples_cube_CubeActivity_nUpdateCpuWorkload(JNIEnv *env, jobject clazz, jint new_workload) {
+    update_cpu_workload(new_workload);
+}

@@ -18,12 +18,15 @@ import android.widget.TextView;
 public class CubeActivity extends Activity implements SurfaceHolder.Callback  {
 
     private static final String GPU_WORKLOAD = "com.samples.GPU_WORKLOAD";
+    private static final String CPU_WORKLOAD = "com.samples.CPU_WORKLOAD";
     private static final String APP_NAME = "CubeActivity";
 
     private LinearLayout settingsLayout;
 
     private SeekBar gpuWorkSeekBar;
     private TextView gpuWorkText;
+    private SeekBar cpuWorkSeekBar;
+    private TextView cpuWorkText;
 
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -42,6 +45,7 @@ public class CubeActivity extends Activity implements SurfaceHolder.Callback  {
         settingsLayout = findViewById(R.id.settingsLayout);
 
         setupGpuWorkSeekBar();
+        setupCpuWorkSeekBar();
 
         SurfaceView surfaceView = findViewById(R.id.surface_view);
         surfaceView.getHolder().addCallback(this);
@@ -61,6 +65,7 @@ public class CubeActivity extends Activity implements SurfaceHolder.Callback  {
         switch (action) {
           case Intent.ACTION_MAIN:
             updateGpuWork(0);
+            updateCpuWork(0);
             break;
           case Intent.ACTION_SEND:
             handleSendIntent(intent);
@@ -92,6 +97,11 @@ public class CubeActivity extends Activity implements SurfaceHolder.Callback  {
         if (gpuWorkStr != null) {
             updateGpuWork(Integer.parseInt(gpuWorkStr));
             Log.d(APP_NAME, "GPU work changed by intent. gpu_workload: " + gpuWorkStr);
+        }
+        String cpuWorkStr = intent.getStringExtra(CPU_WORKLOAD);
+        if (cpuWorkStr != null) {
+            updateCpuWork(Integer.parseInt(cpuWorkStr));
+            Log.d(APP_NAME, "CPU work changed by intent. cpu_workload: " + cpuWorkStr);
         }
     }
 
@@ -129,6 +139,40 @@ public class CubeActivity extends Activity implements SurfaceHolder.Callback  {
         nUpdateGpuWorkload(newGpuWork);
     }
 
+    private void setupCpuWorkSeekBar() {
+      cpuWorkSeekBar = findViewById(R.id.seekBarCpuWork);
+      cpuWorkText = findViewById(R.id.textViewCpuWork);
+
+      cpuWorkSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+          @Override
+          public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+              if (!fromUser) {
+                  return;
+              }
+
+              int newCpuWork = linearToExponential(progress);
+              updateCpuWork(newCpuWork, true);
+          }
+
+          @Override
+          public void onStartTrackingTouch(SeekBar seekBar) {}
+          @Override
+          public void onStopTrackingTouch(SeekBar seekBar) {}
+      });
+    }
+
+    private void updateCpuWork(int newCpuWork) {
+        updateCpuWork(newCpuWork, false);
+    }
+
+    private void updateCpuWork(int newCpuWork, boolean fromSeekBar) {
+        cpuWorkText.setText(String.format("CPU Work: %,d", newCpuWork));
+        if (!fromSeekBar) {
+            cpuWorkSeekBar.setProgress(exponentialToLinear(newCpuWork));
+        }
+        nUpdateCpuWorkload(newCpuWork);
+    }
+
     static private int linearToExponential(int linearValue) {
         return linearValue == 0 ? 0 : (int)Math.pow(10, (double)linearValue / 1000.0);
     }
@@ -160,4 +204,5 @@ public class CubeActivity extends Activity implements SurfaceHolder.Callback  {
     public native void nStartCube(Surface holder);
     public native void nStopCube();
     public native void nUpdateGpuWorkload(int newWorkload);
+    public native void nUpdateCpuWorkload(int newWorkload);
 }
