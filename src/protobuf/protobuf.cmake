@@ -9,7 +9,7 @@ set( PROTOBUF_INSTALL_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-
 
 set( PROTOBUF_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../third_party/protobuf-3.0.0/src")
 if( NOT DEFINED PROTOBUF_NANO_SRC_DIR)
-  set( PROTOBUF_NANO_SRC_DIR "${EXTERNAL_ROOT}/nanopb-c")
+  set( PROTOBUF_NANO_SRC_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../external/nanopb-c")
 endif()
 set(PROTOC_EXE ${PROTOBUF_INSTALL_DIR}/bin/protoc)
 set( PROTOBUF_INCLUDE_DIR ${PROTOBUF_SRC_DIR} )

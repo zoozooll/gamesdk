@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.4.1)
 
 include("../protobuf/protobuf.cmake")
-set( MODPB64_DIR "${EXTERNAL_ROOT}/modp_b64")
+set( MODPB64_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../external/modp_b64")
 set( JSON11_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/json11")
 
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Werror -Wthread-safety" )

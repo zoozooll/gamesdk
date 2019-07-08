@@ -8,6 +8,10 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99  -Werror -DVK_USE_PLATFORM_ANDROID_
 include("../../../samples/gamesdk.cmake")
 add_gamesdk_target("package/local" "localBuild")
 
+# Uncomment to add the Game SDK sources as part of the project sources, allowing to develop
+# (with auto completions) and debug Swappy from Android Studio using this sample.
+#add_gamesdk_sources()
+
 # ============== cube
 
 # Build Util Lib

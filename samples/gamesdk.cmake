@@ -97,3 +97,10 @@ function(add_gamesdk_target)
     set_target_properties(gamesdk PROPERTIES IMPORTED_LOCATION ${DEP_LIB})
 
 endfunction()
+
+# Use this function in addition to add_gamesdk_target, to integrate GameSDK
+# sources to your project - allowing the IDE to provide autocompletions and
+# debugging.
+function(add_gamesdk_sources)
+    add_subdirectory("${_MY_DIR}/../src" ./out)
+endfunction()
