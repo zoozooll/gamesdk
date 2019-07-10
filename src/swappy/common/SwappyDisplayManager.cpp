@@ -60,6 +60,10 @@ SwappyDisplayManager::SwappyDisplayManager(JavaVM* vm, jobject mainActivity) : m
             swappyDisplayManagerClass,
             "setPreferredRefreshRate",
             "(I)V");
+    mTerminate = env->GetMethodID(
+            swappyDisplayManagerClass,
+            "terminate",
+            "()V");
     jobject swappyDisplayManager = env->NewObject(swappyDisplayManagerClass,
                                                   constructor,
                                                   (jlong)this,
@@ -73,6 +77,7 @@ SwappyDisplayManager::~SwappyDisplayManager() {
     JNIEnv *env;
     mJVM->AttachCurrentThread(&env, nullptr);
 
+    env->CallVoidMethod(mJthis, mTerminate);
     env->DeleteGlobalRef(mJthis);
 }
 

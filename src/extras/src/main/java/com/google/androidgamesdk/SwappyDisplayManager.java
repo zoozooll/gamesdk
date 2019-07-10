@@ -7,10 +7,16 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.Display;
 import android.view.Window;
 import android.view.WindowManager;
+
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static android.app.NativeActivity.META_DATA_LIB_NAME;
 
@@ -24,6 +30,41 @@ public class SwappyDisplayManager implements DisplayManager.DisplayListener {
     private Activity mActivity;
     private WindowManager mWindowManager;
     private Display.Mode mCurrentMode;
+
+    private LooperThread mLooper;
+
+    private class LooperThread extends Thread {
+        public Handler mHandler;
+        private Lock mLock = new ReentrantLock();
+        private Condition mCondition = mLock.newCondition();
+
+        @Override
+        public void start() {
+            mLock.lock();
+            super.start();
+            try {
+                mCondition.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            mLock.unlock();
+
+        }
+
+        public void run() {
+            Log.i(LOG_TAG, "Starting looper thread");
+
+            mLock.lock();
+            Looper.prepare();
+            mHandler = new Handler();
+            mCondition.signal();
+            mLock.unlock();
+
+            Looper.loop();
+
+            Log.i(LOG_TAG, "Terminating looper thread");
+        }
+    }
 
     @TargetApi(Build.VERSION_CODES.M)
     private boolean modeMatchesCurrentResolution(Display.Mode mode) {
@@ -60,7 +101,9 @@ public class SwappyDisplayManager implements DisplayManager.DisplayListener {
         DisplayManager dm = mActivity.getSystemService(DisplayManager.class);
 
         synchronized(this) {
-            dm.registerDisplayListener(this, null);
+            mLooper = new LooperThread();
+            mLooper.start();
+            dm.registerDisplayListener(this, mLooper.mHandler);
         }
     }
 
@@ -106,6 +149,10 @@ public class SwappyDisplayManager implements DisplayManager.DisplayListener {
                 w.setAttributes(l);
             }
         });
+    }
+
+    public void terminate() {
+        mLooper.mHandler.getLooper().quit();
     }
 
     @Override

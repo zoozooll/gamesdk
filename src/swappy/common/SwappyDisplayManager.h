@@ -47,6 +47,7 @@ private:
     std::shared_ptr<RefreshRateMap> mSupportedRefreshRates;
     jobject mJthis;
     jmethodID mSetPreferredRefreshRate;
+    jmethodID mTerminate;
     bool mInitialized = false;
 
     friend class SwappyDisplayManagerJNI;
