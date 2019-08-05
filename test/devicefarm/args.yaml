@@ -1,0 +1,13 @@
+bouncyball-robo:
+    app: hello/app/build/outputs/apk/debug/app-debug.apk
+    type: robo
+    timeout: 60
+    device:
+        - {model: taimen, version: 27}
+        - {model: walleye, version: 28}
+        - {model: blueline, version: 28}
+
+bouncyball-robo-onlypixel:
+    include: [bouncyball-robo]
+    device:
+        - {model: sailfish, version: 28}
