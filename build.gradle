@@ -284,7 +284,7 @@ def repackArchives(dir, inArs, outAr) {
     inArs.each {
         cmd <<= /ar -x $it &&/
     }
-    cmd <<= /ar -qc $outAr *.o && rm *.o && popd/
+    cmd <<= /ar -rcs $outAr *.o && rm *.o && popd/
     ['/bin/bash', '-c', cmd.toString()].execute().waitFor()
 }
 
