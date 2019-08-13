@@ -10,8 +10,6 @@
 .temp
 .externalNativeBuild
 
-**/gradle/wrapper/
-
 # IntelliJ/Android Studio outputs or settings:
 **/.idea
 **/*.iml
