@@ -21,7 +21,7 @@ specified on the command line.
 
 A sample flags args file is provided. For example, running
 ```
-./run.py args.yaml:bouncyball-robo
+./run.py args.yaml:test-robo
 ```
 will by default run a 1 minute robo test on 3 devices using the "Hello World"
 sample app. Make sure to build it first:
